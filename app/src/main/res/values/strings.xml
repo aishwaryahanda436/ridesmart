@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ridesmart</string>
+    <string name="accessibility_service_description">RideSmart reads ride offer details shown on your screen to instantly calculate net profit. It does not control other apps, perform automatic actions, or collect personal data. All calculations happen locally on your device.</string>
+</resources>

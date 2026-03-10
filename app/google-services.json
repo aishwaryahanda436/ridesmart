@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "933686465798",
+    "project_id": "da28120",
+    "storage_bucket": "da28120.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:933686465798:android:5b01ad251df86da81cba87",
+        "android_client_info": {
+          "package_name": "com.ridesmart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-EMPST1OYmvby6NYCCisXyAm--0rVloI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
