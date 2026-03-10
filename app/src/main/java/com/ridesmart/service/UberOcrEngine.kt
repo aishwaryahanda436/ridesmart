@@ -254,12 +254,6 @@ class UberOcrEngine : IPlatformParser {
             RegexOption.IGNORE_CASE
         )
 
-        // Tertiary pattern: "3 min away" — pickup time without distance
-        val awayMinPattern = Regex(
-            """(\d+)\s*min[s]?\s*away""",
-            RegexOption.IGNORE_CASE
-        )
-
         for (rawLine in lines) {
             val line = fixOcrErrors(rawLine)
             val lower = line.lowercase()
@@ -280,9 +274,6 @@ class UberOcrEngine : IPlatformParser {
             if (lower.contains("away") && pickupDist == 0.0) {
                 standaloneKm.find(line)?.let {
                     pickupDist = it.groupValues[1].toDoubleOrNull() ?: pickupDist
-                }
-                awayMinPattern.find(line)?.let {
-                    // Store pickup time in rideDuration temporarily if no ride duration yet
                 }
             }
         }

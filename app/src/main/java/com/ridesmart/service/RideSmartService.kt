@@ -743,7 +743,7 @@ class RideSmartService : AccessibilityService() {
         // but view IDs like "fare_text", "distance_value" hint at offer presence
         val viewId = node.viewIdResourceName?.toString()?.trim()
         if (!viewId.isNullOrBlank()) {
-            val idPart = viewId.substringAfterLast("/", viewId).lowercase()
+            val idPart = viewId.substringAfterLast("/").lowercase()
             val offerIdKeywords = listOf("fare", "price", "amount", "distance", "pickup",
                 "drop", "trip", "ride", "accept", "match", "confirm", "offer", "request")
             if (offerIdKeywords.any { idPart.contains(it) }) {
