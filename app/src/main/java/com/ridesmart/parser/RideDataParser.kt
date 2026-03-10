@@ -111,7 +111,7 @@ class RideDataParser : IPlatformParser {
         }.filter { it > minFareThreshold }
 
         val baseFare = when {
-            packageName.contains("olacabs") || packageName.contains("ola") -> 
+            packageName.contains("olacabs") -> 
                 allFares.minOrNull() ?: 0.0
             packageName.contains("nammayatri") || packageName.contains("juspay") -> 
                 allFares.minOrNull() ?: 0.0

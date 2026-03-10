@@ -39,7 +39,7 @@ class ProfitCalculatorTest {
             baseFare         = 37.0,
             rideDistanceKm   = 5.2,
             pickupDistanceKm = 1.1,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -61,7 +61,7 @@ class ProfitCalculatorTest {
             tipAmount        = 10.0,
             rideDistanceKm   = 12.1,
             pickupDistanceKm = 0.8,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -105,7 +105,7 @@ class ProfitCalculatorTest {
             baseFare         = 40.0,
             rideDistanceKm   = 3.0,
             pickupDistanceKm = 2.5,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -125,7 +125,7 @@ class ProfitCalculatorTest {
             baseFare         = 55.0,
             rideDistanceKm   = 4.0,
             pickupDistanceKm = 1.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -143,7 +143,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 6.0,
             pickupDistanceKm = 1.0,
             vehicleType      = VehicleType.CNG_AUTO,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -158,7 +158,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 5.0,
             pickupDistanceKm = 0.5,
             vehicleType      = VehicleType.EBIKE,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -175,7 +175,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 8.0,
             pickupDistanceKm = 1.0,
             estimatedDurationMin = 20,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val rideSurge = rideNoSurge.copy(surgeMultiplier = 1.5)
 
@@ -194,7 +194,7 @@ class ProfitCalculatorTest {
             baseFare         = 10.0,
             rideDistanceKm   = 15.0,
             pickupDistanceKm = 3.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -214,7 +214,7 @@ class ProfitCalculatorTest {
             baseFare         = 60.0,
             rideDistanceKm   = 8.0,
             pickupDistanceKm = 1.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
 
         val resultNoSub = calculator.calculate(ride, profile, 12)
@@ -231,7 +231,7 @@ class ProfitCalculatorTest {
             baseFare         = 60.0,
             rideDistanceKm   = 8.0,
             pickupDistanceKm = 1.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val rideWithWait = rideNoWait.copy(waitTimeMin = 10)
 
@@ -270,7 +270,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 8.0,
             pickupDistanceKm = 1.0,
             estimatedDurationMin = 18,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
 
         val resultMorning = calculator.calculate(ride, profile, 7)   // Morning rush
@@ -295,7 +295,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 10.0,
             pickupDistanceKm = 2.0,
             estimatedDurationMin = 25,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -316,7 +316,7 @@ class ProfitCalculatorTest {
             baseFare         = 15.0,
             rideDistanceKm   = 8.0,
             pickupDistanceKm = 2.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -334,7 +334,7 @@ class ProfitCalculatorTest {
             rideDistanceKm   = 12.0,
             pickupDistanceKm = 1.5,
             estimatedDurationMin = 25,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 
@@ -351,7 +351,7 @@ class ProfitCalculatorTest {
             baseFare         = 50.0,
             rideDistanceKm   = 5.0,
             pickupDistanceKm = 1.0,
-            packageName      = "in.rapido.captain"
+            packageName      = "com.rapido.rider"
         )
         val result = calculator.calculate(ride, profile, 12)
 

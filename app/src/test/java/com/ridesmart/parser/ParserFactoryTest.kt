@@ -24,12 +24,6 @@ class ParserFactoryTest {
     }
 
     @Test
-    fun `rapido captain package routes to RapidoParser`() {
-        val parser = ParserFactory.getParser("in.rapido.captain")
-        assertTrue("Rapido should use RapidoParser", parser is RapidoParser)
-    }
-
-    @Test
     fun `rapido rider package routes to RapidoParser`() {
         val parser = ParserFactory.getParser("com.rapido.rider")
         assertTrue("Rapido rider should use RapidoParser", parser is RapidoParser)
@@ -37,26 +31,14 @@ class ParserFactoryTest {
 
     @Test
     fun `ola driver package routes to OlaParser`() {
-        val parser = ParserFactory.getParser("com.olacabs.driver")
+        val parser = ParserFactory.getParser("com.olacabs.oladriver")
         assertTrue("Ola should use OlaParser", parser is OlaParser)
     }
 
     @Test
-    fun `ola package routes to OlaParser`() {
-        val parser = ParserFactory.getParser("com.ola.driver")
-        assertTrue("Ola driver should use OlaParser", parser is OlaParser)
-    }
-
-    @Test
-    fun `shadowfax driver package routes to ShadowfaxParser`() {
-        val parser = ParserFactory.getParser("com.shadowfax.driver")
+    fun `shadowfax gandalf package routes to ShadowfaxParser`() {
+        val parser = ParserFactory.getParser("in.shadowfax.gandalf")
         assertTrue("Shadowfax should use ShadowfaxParser", parser is ShadowfaxParser)
-    }
-
-    @Test
-    fun `shadowfax zeus package routes to ShadowfaxParser`() {
-        val parser = ParserFactory.getParser("com.shadowfax.zeus")
-        assertTrue("Shadowfax zeus should use ShadowfaxParser", parser is ShadowfaxParser)
     }
 
     @Test
@@ -92,13 +74,12 @@ class ParserFactoryTest {
     @Test
     fun `isUber returns false for non-uber packages`() {
         assertFalse(ParserFactory.isUber("com.rapido.rider"))
-        assertFalse(ParserFactory.isUber("com.olacabs.driver"))
+        assertFalse(ParserFactory.isUber("com.olacabs.oladriver"))
     }
 
     @Test
     fun `isOla returns true for ola packages`() {
-        assertTrue(ParserFactory.isOla("com.olacabs.driver"))
-        assertTrue(ParserFactory.isOla("com.ola.driver"))
+        assertTrue(ParserFactory.isOla("com.olacabs.oladriver"))
     }
 
     @Test
@@ -109,8 +90,7 @@ class ParserFactoryTest {
 
     @Test
     fun `isShadowfax returns true for shadowfax packages`() {
-        assertTrue(ParserFactory.isShadowfax("com.shadowfax.driver"))
-        assertTrue(ParserFactory.isShadowfax("com.shadowfax.zeus"))
+        assertTrue(ParserFactory.isShadowfax("in.shadowfax.gandalf"))
     }
 
     @Test
@@ -156,5 +136,25 @@ class ParserFactoryTest {
     @Test
     fun `getFallbackParser returns RideDataParser`() {
         assertTrue(ParserFactory.getFallbackParser() is RideDataParser)
+    }
+
+    @Test
+    fun `wrong shadowfax packages route to fallback`() {
+        assertTrue("com.shadowfax.driver should NOT route to ShadowfaxParser",
+            ParserFactory.getParser("com.shadowfax.driver") is RideDataParser)
+        assertTrue("com.shadowfax.captain should NOT route to ShadowfaxParser",
+            ParserFactory.getParser("com.shadowfax.captain") is RideDataParser)
+    }
+
+    @Test
+    fun `wrong ola packages route to fallback`() {
+        assertTrue("com.ola.driver should NOT route to OlaParser",
+            ParserFactory.getParser("com.ola.driver") is RideDataParser)
+    }
+
+    @Test
+    fun `wrong rapido packages route to fallback`() {
+        assertTrue("com.rapido.captain should NOT route to RapidoParser",
+            ParserFactory.getParser("com.rapido.captain") is RideDataParser)
     }
 }

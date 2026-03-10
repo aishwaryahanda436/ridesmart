@@ -27,6 +27,10 @@ class ShadowfaxParser : IPlatformParser {
         private val MIN_REGEX = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BONUS_REGEX = Regex("""\+₹\s*(\d+(?:\.\d{1,2})?)""")
 
+        // Compose-merged node patterns (Jetpack Compose mergeDescendants=true)
+        private val GUARANTEED_PAY_REGEX = Regex("""Guaranteed Pay:\s*₹\s*(\d+)""")
+        private val SURGE_BONUS_REGEX = Regex("""Surge Bonus:\s*₹\s*(\d+)""")
+
         private val ACTIVE_DELIVERY_KEYWORDS = listOf(
             "picked up", "on the way", "delivering", "reached drop",
             "complete delivery", "mark delivered", "drop otp"
@@ -86,13 +90,24 @@ class ShadowfaxParser : IPlatformParser {
         val screenState = detectScreenState(activeNodes)
         if (screenState == ScreenState.ACTIVE_RIDE || screenState == ScreenState.IDLE) return null
 
+        // ── DUAL-STRATEGY: COMPOSE MERGED NODE HANDLING ─────────────────
+        // Shadowfax uses Jetpack Compose. Modifier.clickable() with
+        // mergeDescendants=true may produce a SINGLE NodeInfo with concatenated
+        // text like: "Guaranteed Pay: ₹85 · Surge Bonus: ₹15 · 3.2 km · Accept"
+        // Strategy 1: Try individual distinct nodes first.
+        // Strategy 2: If fare/distance not found, scan merged node containing BOTH.
+        val mergedResult = tryParseMergedNode(activeNodes, packageName, screenState)
+
         // ── EXTRACT FARE ────────────────────────────────────────────────
         val allFares = activeNodes.mapNotNull { node ->
             if (node.contains("km", ignoreCase = true) || node.startsWith("+")) null
             else FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
         }.filter { it >= 5.0 }
 
-        val baseFare = allFares.firstOrNull() ?: return null
+        val baseFare = allFares.firstOrNull()
+
+        // If individual nodes don't have a fare, fall back to merged node result
+        if (baseFare == null) return mergedResult
 
         // ── EXTRACT BONUS ───────────────────────────────────────────────
         var bonusAmount = 0.0
@@ -101,9 +116,14 @@ class ShadowfaxParser : IPlatformParser {
             if (match != null) {
                 bonusAmount += match.groupValues[1].toDoubleOrNull() ?: 0.0
             }
+            // Also check Guaranteed Pay / Surge Bonus from Compose merged nodes
+            SURGE_BONUS_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                bonusAmount += it
+            }
         }
 
         // ── EXTRACT DISTANCES ───────────────────────────────────────────
+        // For stacked orders (LazyColumn), sum inter-stop distances for total_km.
         val kmMatches = activeNodes.mapNotNull { node ->
             KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
         }
@@ -119,7 +139,8 @@ class ShadowfaxParser : IPlatformParser {
             }
             else -> if (kmMatches.isNotEmpty()) {
                 pickupDistanceKm = kmMatches[0]
-                rideDistanceKm = kmMatches.last()
+                // Sum remaining distances for multi-stop stacked orders
+                rideDistanceKm = kmMatches.drop(1).sum()
             }
         }
 
@@ -176,6 +197,62 @@ class ShadowfaxParser : IPlatformParser {
             screenState = screenState,
             bonus = bonusAmount,
             fare = baseFare + bonusAmount
+        )
+    }
+
+    /**
+     * Strategy 2: Parse from a Compose-merged node where Modifier.clickable()
+     * (mergeDescendants=true) concatenates all text into a single NodeInfo.
+     * Example: "Guaranteed Pay: ₹85 · Surge Bonus: ₹15 · 3.2 km · Accept"
+     */
+    private fun tryParseMergedNode(
+        nodes: List<String>,
+        packageName: String,
+        screenState: ScreenState
+    ): ParsedRide? {
+        // Find a merged node that contains BOTH fare and distance patterns
+        val merged = nodes.firstOrNull { node ->
+            FARE_REGEX.containsMatchIn(node) && KM_REGEX.containsMatchIn(node)
+        } ?: return null
+
+        // Only use merged parsing if the text is long enough to be a concatenated node
+        if (merged.length < 20) return null
+
+        val fareValue = GUARANTEED_PAY_REGEX.find(merged)?.groupValues?.get(1)?.toDoubleOrNull()
+            ?: FARE_REGEX.find(merged)?.groupValues?.get(1)?.toDoubleOrNull()
+            ?: return null
+
+        if (fareValue < 5.0) return null
+
+        val surgeBonus = SURGE_BONUS_REGEX.find(merged)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+
+        // Sum all distances in the merged text for multi-stop orders
+        val distances = KM_REGEX.findAll(merged)
+            .mapNotNull { it.groupValues[1].toDoubleOrNull() }
+            .toList()
+        val totalDistanceKm = distances.sum()
+
+        val durationMin = MIN_REGEX.find(merged)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+        Log.d(TAG, "🔍 Shadowfax merged-node parse: fare=₹$fareValue " +
+            "surge=₹$surgeBonus dist=${totalDistanceKm}km")
+
+        return ParsedRide(
+            baseFare = fareValue,
+            premiumAmount = surgeBonus,
+            rideDistanceKm = totalDistanceKm,
+            pickupDistanceKm = 0.0,
+            estimatedDurationMin = durationMin,
+            platform = packageName,
+            packageName = packageName,
+            rawTextNodes = nodes,
+            pickupAddress = "",
+            dropAddress = "",
+            paymentType = "",
+            vehicleType = VehicleType.BIKE,
+            screenState = screenState,
+            bonus = surgeBonus,
+            fare = fareValue + surgeBonus
         )
     }
 }

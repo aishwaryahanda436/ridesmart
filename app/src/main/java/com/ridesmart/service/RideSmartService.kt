@@ -47,17 +47,13 @@ class RideSmartService : AccessibilityService() {
 
         val SUPPORTED_PACKAGES = setOf(
             "com.rapido.rider",
-            "in.rapido.captain",
-            "com.rapido.captain",
             "com.ubercab.driver",
             "com.ubercab",
-            "com.olacabs.driver",
-            "com.ola.driver",
+            "com.olacabs.oladriver",
             "in.juspay.nammayatri",
             "net.openkochi.yatri",
             "in.juspay.nammayatripartner",
-            "com.shadowfax.driver",
-            "com.shadowfax.zeus"
+            "in.shadowfax.gandalf"
         )
 
         private const val PICKUP_PENALTY_PER_KM = 1.5
@@ -121,8 +117,7 @@ class RideSmartService : AccessibilityService() {
         pkg.contains("ubercab", ignoreCase = true) ||
         pkg.contains("uber", ignoreCase = true)       -> "uber"
         pkg.contains("rapido", ignoreCase = true)     -> "rapido"
-        pkg.contains("olacabs", ignoreCase = true) ||
-        pkg.contains("ola.driver", ignoreCase = true) -> "ola"
+        pkg.contains("olacabs", ignoreCase = true)      -> "ola"
         pkg.contains("nammayatri", ignoreCase = true) ||
         pkg.contains("juspay", ignoreCase = true) ||
         pkg.contains("yatri", ignoreCase = true)      -> "nammayatri"
