@@ -20,7 +20,9 @@ object PlatformConfig {
         Platform("com.namma.yatri",     "Namma",  0.0,  0.0),
         Platform("in.swiggy.partner",   "Swiggy", 0.0,  0.0),
         Platform("com.zomato.captain",  "Zomato", 0.0,  0.0),
-        Platform("porter.in.android",   "Porter", 15.0, 0.0)
+        Platform("porter.in.android",   "Porter", 15.0, 0.0),
+        Platform("com.shadowfax.driver", "Shadowfax", 0.0, 0.0),
+        Platform("com.shadowfax.zeus",   "Shadowfax", 0.0, 0.0)
     )
 
     fun get(packageName: String) =

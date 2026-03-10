@@ -28,7 +28,7 @@ class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val OCR_TIMEOUT_MS = 2000L
+        private const val OCR_TIMEOUT_MS = 1500L
         private const val OFFER_CROP_RATIO = 0.60
         private const val MIN_OFFER_SIGNALS = 2
 
@@ -43,7 +43,8 @@ class UberOcrEngine : IPlatformParser {
             "copied to", 
             "all caught", "we'll let", "toward your", "let's go",
             "long trip", "multiple stops", "reservation",
-            "get priority", "press & hold"
+            "get priority", "press & hold",
+            "you're in a quiet zone"
         )
 
         // ── GigU method_89611 line blacklist ──────────────────────────────────
@@ -176,9 +177,15 @@ class UberOcrEngine : IPlatformParser {
         val signals = listOf(
             "₹", "rs.", "match", "confirm", "accept",
             "min", "km", "away", "trip", "request",
-            "upfront", "incentive", "premium", "cash payment"
+            "upfront", "incentive", "premium", "cash payment",
+            "pickup", "drop", "ride", "destination", "see all requests"
         )
-        val matchCount = signals.count { combined.contains(it) }
+        var matchCount = signals.count { combined.contains(it) }
+
+        // View ID signals from obfuscated Uber nodes (e.g. "[id:fare_text]")
+        val idSignals = nodes.count { it.startsWith("[id:") }
+        matchCount += idSignals
+
         return matchCount >= MIN_OFFER_SIGNALS
     }
 
@@ -235,8 +242,21 @@ class UberOcrEngine : IPlatformParser {
         var rideDuration = 0
         var foundFirst = false
 
+        // Primary pattern: "5 mins (4.2 km)" — parenthesized distance after time
         val pattern = Regex(
             """(\d+)\s*min[s]?\s*[(\[]\s*([0-9]+(?:\.[0-9]+)?)\s*km""",
+            RegexOption.IGNORE_CASE
+        )
+
+        // Secondary pattern: standalone "4.2 km" — distance without time context
+        val standaloneKm = Regex(
+            """([0-9]+(?:\.[0-9]+)?)\s*km""",
+            RegexOption.IGNORE_CASE
+        )
+
+        // Tertiary pattern: "3 min away" — pickup time without distance
+        val awayMinPattern = Regex(
+            """(\d+)\s*min[s]?\s*away""",
             RegexOption.IGNORE_CASE
         )
 
@@ -258,11 +278,49 @@ class UberOcrEngine : IPlatformParser {
             }
 
             if (lower.contains("away") && pickupDist == 0.0) {
-                Regex("""([0-9]+(?:\.[0-9]+)?)\s*km""").find(line)?.let {
+                standaloneKm.find(line)?.let {
                     pickupDist = it.groupValues[1].toDoubleOrNull() ?: pickupDist
+                }
+                awayMinPattern.find(line)?.let {
+                    // Store pickup time in rideDuration temporarily if no ride duration yet
                 }
             }
         }
+
+        // Fallback: if primary pattern found nothing, try standalone km values
+        if (rideDist == 0.0 && pickupDist == 0.0) {
+            val kmValues = mutableListOf<Double>()
+            for (rawLine in lines) {
+                val line = fixOcrErrors(rawLine)
+                val lower = line.lowercase()
+                if (EXTRA_LINE_SKIP.any { lower.contains(it) }) continue
+                standaloneKm.find(line)?.let { m ->
+                    val km = m.groupValues[1].toDoubleOrNull()
+                    if (km != null && km > 0.0) kmValues.add(km)
+                }
+            }
+            when (kmValues.size) {
+                1 -> rideDist = kmValues[0]
+                else -> if (kmValues.size >= 2) {
+                    pickupDist = kmValues[0]
+                    rideDist = kmValues[1]
+                }
+            }
+
+            // Also try to extract standalone duration
+            if (rideDuration == 0) {
+                for (rawLine in lines) {
+                    val line = fixOcrErrors(rawLine)
+                    val lower = line.lowercase()
+                    if (EXTRA_LINE_SKIP.any { lower.contains(it) }) continue
+                    if (lower.contains("away")) continue  // skip pickup time
+                    Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE).find(line)?.let {
+                        rideDuration = it.groupValues[1].toIntOrNull() ?: 0
+                    }
+                }
+            }
+        }
+
         return Triple(rideDist, pickupDist, rideDuration)
     }
 
@@ -301,6 +359,12 @@ class UberOcrEngine : IPlatformParser {
         .replace("l min", "1 min")
         .replace("mnin", "min")
         .replace("rmin", "min")
+        .replace("miin", "min")
+        .replace("rnin", "min")
+        .replace("mlns", "mins")
+        .replace("Kms", "km")
+        .replace("Km", "km")
+        .replace("KM", "km")
         .replace(Regex("""(?<=\d)l(?=\d)"""), "1")
         .replace(Regex("""(?<=\d)l(?=\s*min)"""), "1")
         .replace(Regex("""(?<=\d)O(?=\d)"""), "0")
