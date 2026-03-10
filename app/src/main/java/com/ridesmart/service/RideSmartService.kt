@@ -242,6 +242,13 @@ class RideSmartService : AccessibilityService() {
                 }
                 return
             }
+
+            // On TYPE_WINDOW_CONTENT_CHANGED (type=2048), Uber updates offer UI.
+            // Try accessibility tree first; if data is insufficient (obfuscated),
+            // fall through to the hybrid path which triggers OCR.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                resetUberPollingBackoff()
+            }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
             uberAppInForeground = false
             activeForegroundPlatform = normalizePlatform(evtPkg)
@@ -325,12 +332,22 @@ class RideSmartService : AccessibilityService() {
                         val hasUberSignal = combined.contains("Uber Driver", ignoreCase = true) ||
                                             combined.contains("Uber Request", ignoreCase = true) ||
                                             combined.contains("See all requests", ignoreCase = true)
-                        if (!isRideApp && !hasUberSignal) continue
+                        val isUberPkg = windowPkg.contains("ubercab", ignoreCase = true) ||
+                                        windowPkg.contains("uber", ignoreCase = true)
+                        if (!isRideApp && !hasUberSignal && !isUberPkg) continue
 
                         // Score this window: higher score = more likely to be a ride popup
                         var score = 0
                         if (Regex("""₹\d+""").containsMatchIn(combined)) score += 10
                         if (combined.contains("km", ignoreCase = true)) score += 5
+                        if (combined.contains("min", ignoreCase = true)) score += 3
+                        if (combined.contains("accept", ignoreCase = true) ||
+                            combined.contains("match", ignoreCase = true) ||
+                            combined.contains("confirm", ignoreCase = true)) score += 8
+
+                        // For Uber packages, boost score even with minimal data
+                        // since nodes may be partially obfuscated
+                        if (isUberPkg && nodes.isNotEmpty()) score += 2
 
                         if (score > 0) {
                             candidates.add(WindowCandidate(windowPkg, nodes, score))
@@ -373,7 +390,21 @@ class RideSmartService : AccessibilityService() {
                 }
             }
 
-            if (allNodes.isEmpty()) return@launch
+            if (allNodes.isEmpty()) {
+                // For Uber: even with 0 text nodes, a window change likely
+                // means an offer appeared with fully obfuscated content.
+                // Trigger OCR screenshot as immediate fallback.
+                if (uberAppInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastScreenshotMs > screenshotCooldownMs) {
+                        Log.d(TAG, "🔍 UBER: empty accessibility tree — triggering OCR fallback")
+                        withContext(Dispatchers.Main) {
+                            triggerUberScreenshot()
+                        }
+                    }
+                }
+                return@launch
+            }
             
             val combined = allNodes.joinToString("|")
             if (combined.contains("See all requests", ignoreCase = true)) {
@@ -452,6 +483,7 @@ class RideSmartService : AccessibilityService() {
 
     private suspend fun processScreen(textNodes: List<String>, packageName: String) {
         val state = stateFor(packageName)
+        val isUber = packageName.contains("uber", ignoreCase = true)
         val parser = ParserFactory.getParser(packageName)
 
         val screenState = parser.detectScreenState(textNodes)
@@ -462,10 +494,36 @@ class RideSmartService : AccessibilityService() {
         }
         if (screenState == com.ridesmart.model.ScreenState.ACTIVE_RIDE) return
 
-        val allRides = parser.parseAll(textNodes, packageName)
+        var allRides = parser.parseAll(textNodes, packageName)
+
+        // ── HYBRID FALLBACK FOR UBER ────────────────────────────────────
+        // When accessibility parsing returns no rides but we detect offer
+        // signals in the (possibly obfuscated) nodes, trigger an immediate
+        // OCR screenshot. Also try the generic RideDataParser as a secondary
+        // fallback since it may extract data the UberOcrEngine missed.
+        if (allRides.isEmpty() && isUber) {
+            // Secondary parser fallback: try the generic parser on same nodes
+            val fallbackRides = ParserFactory.getFallbackParser().parseAll(textNodes, packageName)
+            if (fallbackRides.isNotEmpty()) {
+                allRides = fallbackRides
+            } else if (uberOcrEngine.hasOfferSignals(textNodes)) {
+                // Nodes suggest an offer exists but data is obfuscated → OCR
+                Log.d(TAG, "🔍 UBER HYBRID: offer signals detected but parsing failed — triggering OCR")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastScreenshotMs > screenshotCooldownMs) {
+                        lastScreenshotMs = now
+                        withContext(Dispatchers.Main) {
+                            triggerUberScreenshot()
+                        }
+                    }
+                }
+                return
+            }
+        }
 
         if (allRides.isEmpty()) {
-            if (packageName.contains("uber", ignoreCase = true)) {
+            if (isUber) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val now = System.currentTimeMillis()
                     if (now - lastScreenshotMs > screenshotCooldownMs) {
@@ -641,6 +699,16 @@ class RideSmartService : AccessibilityService() {
 
     @Volatile private var lastScreenshotMs = 0L
 
+    /**
+     * Recursively extracts all text from the accessibility node tree.
+     *
+     * Enhanced for Uber obfuscation: in addition to node.text and
+     * contentDescription, also extracts tooltipText (API 28+) and
+     * hintText. Uber marks many views as not-important-for-accessibility,
+     * but the FLAG_INCLUDE_NOT_IMPORTANT_VIEWS flag (set in onServiceConnected)
+     * forces their inclusion. This method then extracts whatever text
+     * properties those nodes still expose.
+     */
     private fun collectAllText(node: AccessibilityNodeInfo?): List<String> {
         if (node == null) return emptyList()
         val texts = mutableListOf<String>()
@@ -648,6 +716,22 @@ class RideSmartService : AccessibilityService() {
         if (!nodeText.isNullOrBlank()) texts.add(nodeText)
         val contentDesc = node.contentDescription?.toString()?.trim()
         if (!contentDesc.isNullOrBlank() && contentDesc != nodeText) texts.add(contentDesc)
+
+        // API 28+: tooltipText can carry ride data on some Uber UI elements
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val tooltip = node.tooltipText?.toString()?.trim()
+            if (!tooltip.isNullOrBlank() && tooltip != nodeText && tooltip != contentDesc) {
+                texts.add(tooltip)
+            }
+        }
+        // API 26+: hintText may carry placeholder values with ride info
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val hint = node.hintText?.toString()?.trim()
+            if (!hint.isNullOrBlank() && hint !in texts) {
+                texts.add(hint)
+            }
+        }
+
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
