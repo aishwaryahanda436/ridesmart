@@ -191,6 +191,7 @@ class RideSmartService : AccessibilityService() {
     /** Increase polling interval after empty OCR results to save battery. */
     private fun increaseUberPollingBackoff() {
         consecutiveEmptyPolls++
+        // Exponential backoff: base × 2^n, capped at max (2.5s → 5s → 10s → 10s)
         uberPollingIntervalMs = (UBER_POLL_BASE_MS * (1L shl consecutiveEmptyPolls.coerceAtMost(3)))
             .coerceAtMost(UBER_POLL_MAX_MS)
     }
@@ -638,7 +639,7 @@ class RideSmartService : AccessibilityService() {
         }
     }
 
-    private var lastScreenshotMs = 0L
+    @Volatile private var lastScreenshotMs = 0L
 
     private fun collectAllText(node: AccessibilityNodeInfo?): List<String> {
         if (node == null) return emptyList()
