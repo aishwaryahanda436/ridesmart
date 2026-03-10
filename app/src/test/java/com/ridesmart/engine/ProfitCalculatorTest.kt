@@ -176,6 +176,7 @@ class ProfitCalculatorTest {
     fun `CNG auto ride should use CNG price not petrol price`() {
         // CNG Auto ride: ₹80, 6.0km ride, 1.0km pickup
         // CNG_AUTO has: defaultMileage=28.0 km/kg, fuelType=CNG, wearMultiplier=1.6
+        // Profile default mileage is 45.0 (bike); since vehicle is CNG_AUTO, uses 28.0 km/kg
         // Arithmetic:
         // totalDistanceKm  = 6.0 + 1.0 = 7.0
         // effectiveMileage  = 28.0 (vehicle-type default, since profile is 45.0 and vehicle is not bike)
