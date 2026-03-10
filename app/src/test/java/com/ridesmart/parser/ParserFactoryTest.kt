@@ -60,9 +60,21 @@ class ParserFactoryTest {
     }
 
     @Test
-    fun `namma yatri routes to RideDataParser`() {
+    fun `namma yatri routes to NammaYatriParser`() {
         val parser = ParserFactory.getParser("in.juspay.nammayatripartner")
-        assertTrue("Namma Yatri should use RideDataParser", parser is RideDataParser)
+        assertTrue("Namma Yatri should use NammaYatriParser", parser is NammaYatriParser)
+    }
+
+    @Test
+    fun `in juspay nammayatri routes to NammaYatriParser`() {
+        val parser = ParserFactory.getParser("in.juspay.nammayatri")
+        assertTrue("in.juspay.nammayatri should use NammaYatriParser", parser is NammaYatriParser)
+    }
+
+    @Test
+    fun `net openkochi yatri routes to NammaYatriParser`() {
+        val parser = ParserFactory.getParser("net.openkochi.yatri")
+        assertTrue("net.openkochi.yatri should use NammaYatriParser", parser is NammaYatriParser)
     }
 
     @Test
@@ -108,6 +120,20 @@ class ParserFactoryTest {
     }
 
     @Test
+    fun `isNammaYatri returns true for nammayatri packages`() {
+        assertTrue(ParserFactory.isNammaYatri("in.juspay.nammayatri"))
+        assertTrue(ParserFactory.isNammaYatri("net.openkochi.yatri"))
+        assertTrue(ParserFactory.isNammaYatri("in.juspay.nammayatripartner"))
+    }
+
+    @Test
+    fun `isNammaYatri returns false for non-nammayatri packages`() {
+        assertFalse(ParserFactory.isNammaYatri("com.ubercab.driver"))
+        assertFalse(ParserFactory.isNammaYatri("com.rapido.rider"))
+        assertFalse(ParserFactory.isNammaYatri("com.unknown.app"))
+    }
+
+    @Test
     fun `getUberParser returns UberOcrEngine`() {
         assertTrue(ParserFactory.getUberParser() is UberOcrEngine)
     }
@@ -120,6 +146,11 @@ class ParserFactoryTest {
     @Test
     fun `getShadowfaxParser returns ShadowfaxParser`() {
         assertTrue(ParserFactory.getShadowfaxParser() is ShadowfaxParser)
+    }
+
+    @Test
+    fun `getNammaYatriParser returns NammaYatriParser`() {
+        assertTrue(ParserFactory.getNammaYatriParser() is NammaYatriParser)
     }
 
     @Test

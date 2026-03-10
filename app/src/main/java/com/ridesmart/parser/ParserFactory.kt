@@ -25,14 +25,21 @@ object ParserFactory {
         "com.shadowfax.zeus"
     )
 
+    private val nammayatriPackages = setOf(
+        "in.juspay.nammayatri",
+        "net.openkochi.yatri",
+        "in.juspay.nammayatripartner"
+    )
+
     // Returns the correct parser for a given package name.
     fun getParser(packageName: String): IPlatformParser {
         return when {
-            isRapido(packageName)    -> RapidoParser()
-            isUber(packageName)      -> UberOcrEngine()
-            isOla(packageName)       -> OlaParser()
-            isShadowfax(packageName) -> ShadowfaxParser()
-            else                     -> RideDataParser()
+            isRapido(packageName)      -> RapidoParser()
+            isUber(packageName)        -> UberOcrEngine()
+            isOla(packageName)         -> OlaParser()
+            isShadowfax(packageName)   -> ShadowfaxParser()
+            isNammaYatri(packageName)  -> NammaYatriParser()
+            else                       -> RideDataParser()
         }
     }
 
@@ -44,6 +51,8 @@ object ParserFactory {
 
     fun getShadowfaxParser(): ShadowfaxParser = ShadowfaxParser()
 
+    fun getNammaYatriParser(): NammaYatriParser = NammaYatriParser()
+
     fun getFallbackParser(): RideDataParser = RideDataParser()
 
     fun isRapido(packageName: String): Boolean = packageName in rapidoPackages
@@ -53,4 +62,6 @@ object ParserFactory {
     fun isOla(packageName: String): Boolean = packageName in olaPackages
 
     fun isShadowfax(packageName: String): Boolean = packageName in shadowfaxPackages
+
+    fun isNammaYatri(packageName: String): Boolean = packageName in nammayatriPackages
 }
