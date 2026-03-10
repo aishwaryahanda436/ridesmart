@@ -97,8 +97,8 @@ class RapidoParser : IPlatformParser {
                 premiumAmount += it
             }
 
-            // Tip
-            if (node.contains("Tip", ignoreCase = true)) {
+            // Tip (first match wins)
+            if (tipAmount == 0.0 && node.contains("Tip", ignoreCase = true)) {
                 FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { tipAmount = it }
             }
 

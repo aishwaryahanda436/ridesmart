@@ -30,6 +30,7 @@ import com.ridesmart.model.ProfitResult
 import com.ridesmart.model.RideResult
 import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.ParserFactory
+import com.ridesmart.parser.UberNotificationParser
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,6 +67,11 @@ class RideSmartService : AccessibilityService() {
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
         private const val MAX_TREE_DEPTH         = 20
+        // 20 levels covers all observed real-world ride offer UIs (typically 5–10 levels deep)
+        // while preventing O(n²) worst-case performance on pathologically deep trees.
+
+        // Pre-compiled for the window scoring path; called on every accessibility event.
+        private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -75,6 +81,8 @@ class RideSmartService : AccessibilityService() {
     private lateinit var historyRepository: RideHistoryRepository
     private val uberOcrEngine = UberOcrEngine()
 
+    // Debounced flow for Uber: batches rapid accessibility events before triggering OCR.
+    // Capacity of 30 prevents back-pressure while staying well within memory budget.
     private val eventFlow = MutableSharedFlow<Pair<String, List<String>>>(
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -82,6 +90,7 @@ class RideSmartService : AccessibilityService() {
 
     // Fast path: non-Uber events are dispatched immediately (no debounce needed because
     // the fingerprint dedup in onAccessibilityEvent already prevents redundant processing).
+    // Same capacity as eventFlow — at most one platform is active at a time in practice.
     private val fastEventFlow = MutableSharedFlow<Pair<String, List<String>>>(
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -281,12 +290,16 @@ class RideSmartService : AccessibilityService() {
             val pkg = event.packageName?.toString() ?: ""
 
             if (pkg.contains("ubercab") || pkg.contains("uber")) {
-                val notification = event.parcelableData as? Notification
-                val extras = notification?.extras
+                val notification = event.parcelableData as? Notification ?: return
 
+                // Try UberNotificationParser first — it extracts richer data from
+                // RemoteViews when standard extras are sparse or obfuscated.
+                val lines = UberNotificationParser.extractFromNotification(notification)
+
+                val extras = notification.extras
                 fun getExtra(key: String) = extras?.getCharSequence(key)?.toString()?.trim() ?: ""
-                val title   = getExtra(Notification.EXTRA_TITLE)
-                val text    = getExtra(Notification.EXTRA_TEXT)
+                val title = getExtra(Notification.EXTRA_TITLE)
+                val text  = getExtra(Notification.EXTRA_TEXT)
                 val combined = "$title $text"
 
                 if (combined.isNotBlank() && combined != lastUberNotifHash) {
@@ -295,7 +308,9 @@ class RideSmartService : AccessibilityService() {
                                   combined.contains("request", ignoreCase = true) ||
                                   combined.contains("₹")
                     if (isOffer) {
-                        serviceScope.launch { processScreen(listOf(title, text), "com.ubercab.driver") }
+                        // Prefer richer lines from UberNotificationParser; fall back to title+text.
+                        val nodes = if (!lines.isNullOrEmpty()) lines else listOf(title, text)
+                        serviceScope.launch { processScreen(nodes, "com.ubercab.driver") }
                     }
                 }
                 return
@@ -318,10 +333,8 @@ class RideSmartService : AccessibilityService() {
             if (isRideApp || isRideNotification) {
                 Log.d(TAG, "🔔 NOTIFICATION: pkg=$pkg title=\"$title\" text=\"$text\"")
                 wakeScreen()
-                serviceScope.launch {
-                    delay(300)
-                    processNotificationData(pkg, title, text)
-                }
+                // Notification data is fully available immediately — no delay needed.
+                serviceScope.launch { processNotificationData(pkg, title, text) }
             }
             return
         }
@@ -359,7 +372,7 @@ class RideSmartService : AccessibilityService() {
 
                         // Score this window: higher score = more likely to be a ride popup
                         var score = 0
-                        if (Regex("""₹\d+""").containsMatchIn(combined)) score += 10
+                        if (FARE_SIGNAL_REGEX.containsMatchIn(combined)) score += 10
                         if (combined.contains("km", ignoreCase = true)) score += 5
                         if (combined.contains("min", ignoreCase = true)) score += 3
                         if (combined.contains("accept", ignoreCase = true) ||
