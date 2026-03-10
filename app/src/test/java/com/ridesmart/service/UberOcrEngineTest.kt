@@ -137,4 +137,47 @@ class UberOcrEngineTest {
         val result = engine.parseFromNodes(nodes)
         assertNull("Fare below ₹25 threshold should return null", result)
     }
+
+    // ── Hybrid detection: hasOfferSignals tests ──────────────────────
+
+    @Test
+    fun `hasOfferSignals detects offer with fare and match`() {
+        val nodes = listOf("₹120", "Match")
+        assertTrue("Should detect offer signals from fare + match", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals detects offer with km and accept`() {
+        val nodes = listOf("4.2 km", "Accept")
+        assertTrue("Should detect offer signals from km + accept", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals rejects idle screen`() {
+        val nodes = listOf("You're online", "Finding trips")
+        assertFalse("Should reject idle screen", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals rejects empty input`() {
+        assertFalse("Should reject empty input", engine.hasOfferSignals(emptyList()))
+    }
+
+    @Test
+    fun `hasOfferSignals rejects single unrelated keyword`() {
+        val nodes = listOf("Settings", "Profile")
+        assertFalse("Should reject unrelated text", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals detects partial offer with fare and min`() {
+        val nodes = listOf("₹95", "12 min")
+        assertTrue("Should detect partial offer signals", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals detects offer with trip keyword`() {
+        val nodes = listOf("New trip request", "₹85")
+        assertTrue("Should detect trip + fare", engine.hasOfferSignals(nodes))
+    }
 }

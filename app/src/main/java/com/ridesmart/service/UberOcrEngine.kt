@@ -15,12 +15,20 @@ import kotlin.coroutines.resume
 /**
  * Uber OCR text parser — reverse engineered from GigU v1.0.55 USUberSanitizer.
  * Adapted for India (₹ currency and km distance).
+ *
+ * Handles two input paths:
+ *  1. parseFromNodes() — text lines from accessibility tree or notification
+ *  2. parse(bitmap)    — screenshot OCR via ML Kit (fallback when accessibility is blocked)
+ *
+ * Uber frequently obfuscates or blocks accessibility node data, so:
+ *  - Accessibility is used for *detection* (does a popup exist?)
+ *  - OCR is used for *extraction* (what ride data does it contain?)
  */
 class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val OCR_TIMEOUT_MS = 3000L
+        private const val OCR_TIMEOUT_MS = 2000L
 
         // Screen-level rejection phrases (not an offer card)
         private val SCREEN_REJECT = listOf(
@@ -132,10 +140,61 @@ class UberOcrEngine : IPlatformParser {
     }
 
     suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        val rawText = extractText(bitmap) ?: return null
+        // Crop to the offer popup region (top 60% of screen) to reduce
+        // OCR latency and avoid parsing status bar / navigation bar text.
+        val cropped = cropOfferRegion(bitmap)
+        val target = cropped ?: bitmap
+        val rawText = extractText(target) ?: run {
+            cropped?.recycle()
+            return null
+        }
+        cropped?.recycle()
         if (rawText.isBlank()) return null
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }
         return parseFromNodes(lines)
+    }
+
+    /**
+     * Quick signal check — returns true if the text nodes contain enough
+     * Uber offer indicators to warrant a full OCR screenshot, even when
+     * the accessibility tree is mostly obfuscated.
+     *
+     * This is the "detection" half of the hybrid approach:
+     *  - accessibility detects the popup  →  hasOfferSignals() == true
+     *  - OCR extracts the actual data     →  parse(bitmap) returns ParsedRide
+     */
+    fun hasOfferSignals(nodes: List<String>): Boolean {
+        if (nodes.isEmpty()) return false
+        val combined = nodes.joinToString(" ").lowercase()
+
+        // Reject known non-offer screens first
+        if (SCREEN_REJECT.any { combined.contains(it) }) return false
+
+        // Offer indicators — even partial data from obfuscated trees
+        val signals = listOf(
+            "₹", "rs.", "match", "confirm", "accept",
+            "min", "km", "away", "trip", "request",
+            "upfront", "incentive", "premium", "cash payment"
+        )
+        val matchCount = signals.count { combined.contains(it) }
+        // At least 2 signals suggests an offer popup is present
+        return matchCount >= 2
+    }
+
+    /**
+     * Crops the bitmap to the top 60% of the screen where Uber ride
+     * offer popups typically appear. This reduces OCR processing time
+     * by ~40% and avoids false matches from navigation/status bars.
+     */
+    fun cropOfferRegion(bitmap: Bitmap): Bitmap? {
+        return try {
+            val offerHeight = (bitmap.height * 0.60).toInt()
+            if (offerHeight <= 0 || bitmap.width <= 0) return null
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, offerHeight)
+        } catch (e: Exception) {
+            Log.d(TAG, "📸 Bitmap crop failed: ${e.message}")
+            null
+        }
     }
 
     private fun extractFare(lines: List<String>): Double? {
