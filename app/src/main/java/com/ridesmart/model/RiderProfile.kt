@@ -17,6 +17,10 @@ data class RiderProfile(
     // Current petrol price in rider's city (₹ per litre)
     // Delhi petrol price as of 2024 ≈ ₹94-104
 
+    val cngPricePerKg: Double = 85.0,
+    // Current CNG price in rider's city (₹ per kg)
+    // Delhi CNG price as of 2024 ≈ ₹74-85
+
     // ── COST SETTINGS ──
     val maintenancePerKm: Double = 0.80,
     // Tyre wear, chain, brake pads, engine oil per km

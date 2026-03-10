@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.ridesmart.data.RideEntry
 import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.model.Signal
+import com.ridesmart.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,9 +37,31 @@ fun RideHistoryScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val history by repo.historyFlow.collectAsState(initial = emptyList())
 
+    // Date filter state
+    var selectedFilter by remember { mutableStateOf("All") }
+    val filterOptions = listOf("All", "Today", "This Week", "This Month")
+
+    val filteredHistory = remember(history, selectedFilter) {
+        val now = Calendar.getInstance()
+        history.filter { entry ->
+            val entryCal = Calendar.getInstance().apply { timeInMillis = entry.timestampMs }
+            when (selectedFilter) {
+                "Today" -> entryCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                           entryCal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+                "This Week" -> {
+                    val weekAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -7) }
+                    entry.timestampMs >= weekAgo.timeInMillis
+                }
+                "This Month" -> entryCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                                entryCal.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+                else -> true
+            }
+        }
+    }
+
     // Group rides by calendar date
-    val grouped = remember(history) {
-        history.groupBy { entry ->
+    val grouped = remember(filteredHistory) {
+        filteredHistory.groupBy { entry ->
             val cal = Calendar.getInstance().apply { timeInMillis = entry.timestampMs }
             Triple(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
         }.toSortedMap(compareByDescending<Triple<Int,Int,Int>> { it.first }
@@ -48,7 +71,7 @@ fun RideHistoryScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(Color(0xFF0F0F13))) {
+            Column(modifier = Modifier.background(DarkBackground)) {
                 Spacer(Modifier.height(48.dp))
                 Row(
                     modifier = Modifier
@@ -57,7 +80,7 @@ fun RideHistoryScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onBack) {
-                        Text("← Back", color = Color(0xFF3DDC84), fontSize = 15.sp)
+                        Text("← Back", color = RideGreen, fontSize = 15.sp)
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
@@ -68,14 +91,49 @@ fun RideHistoryScreen(onBack: () -> Unit) {
                     )
                     Spacer(Modifier.weight(1f))
                     IconButton(onClick = { scope.launch { repo.clearHistory() } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Clear", tint = Color(0xFF6B6B85))
+                        Icon(Icons.Filled.Delete, contentDescription = "Clear", tint = TextSecondary)
                     }
                 }
+                // ── DATE FILTER CHIPS ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    filterOptions.forEach { option ->
+                        FilterChip(
+                            selected = selectedFilter == option,
+                            onClick = { selectedFilter = option },
+                            label = {
+                                Text(
+                                    option,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selectedFilter == option) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = RideGreen.copy(alpha = 0.15f),
+                                selectedLabelColor = RideGreen,
+                                containerColor = DarkSurfaceVariant,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = DarkBorder,
+                                selectedBorderColor = RideGreen.copy(alpha = 0.3f),
+                                enabled = true,
+                                selected = selectedFilter == option
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
             }
         },
-        containerColor = Color(0xFF0F0F13)
+        containerColor = DarkBackground
     ) { padding ->
-        if (history.isEmpty()) {
+        if (filteredHistory.isEmpty()) {
             EmptyHistoryState(Modifier.padding(padding))
         } else {
             LazyColumn(
@@ -112,13 +170,13 @@ fun EmptyHistoryState(modifier: Modifier = Modifier) {
             Icon(
                 Icons.Filled.History,
                 contentDescription = null,
-                tint = Color(0xFF1A1A22),
+                tint = DarkSurfaceVariant,
                 modifier = Modifier.size(100.dp)
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 "No rides recorded yet.\nRides are saved automatically\nwhen the overlay appears.",
-                color = Color(0xFF555555),
+                color = TextSecondary,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
@@ -151,7 +209,7 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 12.dp, bottom = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A22)),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -160,14 +218,14 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(label, color = Color(0xFF3DDC84), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(label, color = RideGreen, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Surface(
-                    color = Color(0xFF16A34A).copy(alpha = 0.1f),
+                    color = SignalGreen.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(100.dp)
                 ) {
                     Text(
                         "$greenCount GREEN · ${rides.size} TOTAL",
-                        color = Color(0xFF3DDC84),
+                        color = RideGreen,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -187,7 +245,7 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
 @Composable
 fun SummaryCell(label: String, value: String, modifier: Modifier) {
     Column(modifier = modifier) {
-        Text(label, color = Color(0xFF6B6B85), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp)
+        Text(label, color = TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp)
         Text(value, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
     }
 }
@@ -195,9 +253,9 @@ fun SummaryCell(label: String, value: String, modifier: Modifier) {
 @Composable
 fun RideRow(entry: RideEntry) {
     val (signalColor, signalIcon) = when (entry.signal) {
-        Signal.GREEN  -> Pair(Color(0xFF16A34A), "🟢")
-        Signal.YELLOW -> Pair(Color(0xFFCA8A04), "🟡")
-        Signal.RED    -> Pair(Color(0xFFDC2626), "🔴")
+        Signal.GREEN  -> Pair(SignalGreen, "🟢")
+        Signal.YELLOW -> Pair(SignalYellow, "🟡")
+        Signal.RED    -> Pair(SignalRed, "🔴")
     }
     val timeStr = remember(entry.timestampMs) {
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(entry.timestampMs))
@@ -209,7 +267,7 @@ fun RideRow(entry: RideEntry) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded },
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF16161C)),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -225,7 +283,7 @@ fun RideRow(entry: RideEntry) {
                     )
                     Text(
                         "${entry.platform} · pickup ${"%.1f".format(entry.pickupKm)}km",
-                        color = Color(0xFF6B6B85),
+                        color = TextSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -237,11 +295,11 @@ fun RideRow(entry: RideEntry) {
                         fontSize = 17.sp
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(timeStr, color = Color(0xFF444455), fontSize = 11.sp)
+                        Text(timeStr, color = TextMuted, fontSize = 11.sp)
                         Icon(
                             Icons.Filled.ArrowDropDown,
                             contentDescription = null,
-                            tint = Color(0xFF444455),
+                            tint = TextMuted,
                             modifier = Modifier.size(16.dp).rotate(rotation)
                         )
                     }
@@ -251,7 +309,7 @@ fun RideRow(entry: RideEntry) {
             AnimatedVisibility(visible = expanded) {
                 Column {
                     Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFF2A2A36), thickness = 0.5.dp)
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
                     Spacer(Modifier.height(12.dp))
 
                     if (entry.pickupAddress.isNotBlank()) {
@@ -293,7 +351,7 @@ fun RideRow(entry: RideEntry) {
                             if (check.isNotBlank()) {
                                 Text(
                                     "⚠️ $check",
-                                    color = Color(0xFFCA8A04),
+                                    color = SignalYellow,
                                     fontSize = 11.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
@@ -309,15 +367,15 @@ fun RideRow(entry: RideEntry) {
 @Composable
 fun DetailRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-        Text(label, color = Color(0xFF6B6B85), fontSize = 12.sp, modifier = Modifier.width(75.dp), fontWeight = FontWeight.Medium)
-        Text(value, color = Color(0xFFE2E2EC), fontSize = 12.sp, modifier = Modifier.weight(1f), lineHeight = 16.sp)
+        Text(label, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.width(75.dp), fontWeight = FontWeight.Medium)
+        Text(value, color = TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f), lineHeight = 16.sp)
     }
 }
 
 @Composable
 fun MiniStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = Color(0xFF6B6B85), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp)
+        Text(label, color = TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.05.sp)
         Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }

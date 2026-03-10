@@ -21,6 +21,7 @@ class ProfileRepository(private val context: Context) {
     companion object {
         val KEY_MILEAGE         = doublePreferencesKey("mileage_km_per_litre")
         val KEY_FUEL_PRICE      = doublePreferencesKey("fuel_price_per_litre")
+        val KEY_CNG_PRICE       = doublePreferencesKey("cng_price_per_kg")
         val KEY_MAINTENANCE     = doublePreferencesKey("maintenance_per_km")
         val KEY_DEPRECIATION    = doublePreferencesKey("depreciation_per_km")
         val KEY_MIN_PROFIT      = doublePreferencesKey("min_acceptable_net_profit")
@@ -48,6 +49,7 @@ class ProfileRepository(private val context: Context) {
             RiderProfile(
                 mileageKmPerLitre         = preferences[KEY_MILEAGE]         ?: defaults.mileageKmPerLitre,
                 fuelPricePerLitre         = preferences[KEY_FUEL_PRICE]      ?: defaults.fuelPricePerLitre,
+                cngPricePerKg             = preferences[KEY_CNG_PRICE]       ?: defaults.cngPricePerKg,
                 maintenancePerKm          = preferences[KEY_MAINTENANCE]     ?: defaults.maintenancePerKm,
                 depreciationPerKm         = preferences[KEY_DEPRECIATION]    ?: defaults.depreciationPerKm,
                 minAcceptableNetProfit    = preferences[KEY_MIN_PROFIT]      ?: defaults.minAcceptableNetProfit,
@@ -64,6 +66,7 @@ class ProfileRepository(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[KEY_MILEAGE]         = profile.mileageKmPerLitre
             preferences[KEY_FUEL_PRICE]      = profile.fuelPricePerLitre
+            preferences[KEY_CNG_PRICE]       = profile.cngPricePerKg
             preferences[KEY_MAINTENANCE]     = profile.maintenancePerKm
             preferences[KEY_DEPRECIATION]    = profile.depreciationPerKm
             preferences[KEY_MIN_PROFIT]      = profile.minAcceptableNetProfit

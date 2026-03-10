@@ -31,13 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.ridesmart.ui.ProfileSetupScreen
-import com.ridesmart.ui.RideHistoryScreen
-import com.ridesmart.ui.theme.RidesmartTheme
+import com.ridesmart.ui.*
+import com.ridesmart.ui.theme.*
 
 class MainActivity : ComponentActivity() {
-
-    private var refreshTrigger by mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,37 +43,14 @@ class MainActivity : ComponentActivity() {
             RidesmartTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF0F0F13)
+                    color = DarkBackground
                 ) {
-                    var showProfileSetup by remember { mutableStateOf(false) }
-                    var showHistory by remember { mutableStateOf(false) }
-
-                    when {
-                        showProfileSetup -> {
-                            ProfileSetupScreen(onSaved = { showProfileSetup = false })
-                        }
-                        showHistory -> {
-                            RideHistoryScreen(onBack = { showHistory = false })
-                        }
-                        else -> {
-                            PermissionSetupScreen(
-                                refreshTrigger = refreshTrigger,
-                                onEditProfile = { showProfileSetup = true },
-                                onViewHistory = { showHistory = true },
-                                onRefresh = { refreshTrigger++ }
-                            )
-                        }
-                    }
+                    RideSmartApp()
                 }
             }
         }
-        
-        requestOverlayPermissionIfNeeded()
-    }
 
-    override fun onResume() {
-        super.onResume()
-        refreshTrigger++
+        requestOverlayPermissionIfNeeded()
     }
 
     private fun requestOverlayPermissionIfNeeded() {
@@ -90,19 +64,66 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * App navigation — state-based routing between screens.
+ * Flow: Splash → Main Driver Screen → (History/Dashboard/Settings/Permissions)
+ */
 @Composable
-fun PermissionSetupScreen(
-    refreshTrigger: Int,
-    onEditProfile: () -> Unit,
-    onViewHistory: () -> Unit,
-    onRefresh: () -> Unit
-) {
+fun RideSmartApp() {
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
+
+    when (currentScreen) {
+        Screen.Splash -> SplashScreen(
+            onFinished = { currentScreen = Screen.Main }
+        )
+        Screen.Main -> MainDriverScreen(
+            onNavigateHistory = { currentScreen = Screen.History },
+            onNavigateDashboard = { currentScreen = Screen.Dashboard },
+            onNavigateSettings = { currentScreen = Screen.Settings },
+            onNavigatePermissions = { currentScreen = Screen.Permissions }
+        )
+        Screen.History -> RideHistoryScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.Dashboard -> DashboardScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.Settings -> SettingsScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.Permissions -> PermissionSetupScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.ProfileSetup -> ProfileSetupScreen(
+            onSaved = { currentScreen = Screen.Settings }
+        )
+    }
+}
+
+/** Navigation destinations */
+sealed class Screen {
+    data object Splash : Screen()
+    data object Main : Screen()
+    data object History : Screen()
+    data object Dashboard : Screen()
+    data object Settings : Screen()
+    data object Permissions : Screen()
+    data object ProfileSetup : Screen()
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Permission Setup Screen
+// ═══════════════════════════════════════════════════════════════════
+
+@Composable
+fun PermissionSetupScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    var refreshTrigger by remember { mutableIntStateOf(0) }
     val scrollState = rememberScrollState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { onRefresh() }
+        onResult = { refreshTrigger++ }
     )
 
     key(refreshTrigger) {
@@ -114,22 +135,36 @@ fun PermissionSetupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0F0F13))
+                .background(DarkBackground)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(64.dp))
+            // ── TOP BAR ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 52.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBack) {
+                    Text("← Back", color = RideGreen, fontSize = 15.sp)
+                }
+                Spacer(Modifier.weight(1f))
+                Text("Permissions", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.width(60.dp))
+            }
 
-            // ── DYNAMIC HEADER ──
+            Spacer(modifier = Modifier.height(32.dp))
+
             HeaderSection(allGranted)
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ── PERMISSION LIST ──
             Text(
                 "REQUIRED PERMISSIONS",
-                color = Color(0xFF6B6B85),
+                color = TextSecondary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
@@ -142,8 +177,8 @@ fun PermissionSetupScreen(
                 icon = "🖼️",
                 isGranted = isOverlayGranted,
                 onClick = {
-                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-                    context.startActivity(intent)
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}")))
                 }
             )
 
@@ -155,8 +190,7 @@ fun PermissionSetupScreen(
                 icon = "🔍",
                 isGranted = isAccessibilityGranted,
                 onClick = {
-                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    context.startActivity(intent)
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
             )
 
@@ -171,10 +205,9 @@ fun PermissionSetupScreen(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                             data = Uri.parse("package:${context.packageName}")
-                        }
-                        context.startActivity(intent)
+                        })
                     }
                 }
             )
@@ -184,27 +217,8 @@ fun PermissionSetupScreen(
                 RestrictedSettingsGuide()
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ── ACTION BUTTONS ──
-            QuickActionButton(
-                text = "Edit Earning Targets",
-                icon = "⚙️",
-                onClick = onEditProfile
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            QuickActionButton(
-                text = "View Ride History",
-                icon = "📊",
-                onClick = onViewHistory
-            )
-
             Spacer(modifier = Modifier.height(24.dp))
-
             ManufacturerBatteryGuide()
-
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
@@ -217,27 +231,27 @@ fun HeaderSection(isReady: Boolean) {
             modifier = Modifier
                 .size(80.dp)
                 .background(
-                    if (isReady) Color(0xFF16A34A).copy(alpha = 0.1f) 
-                    else Color(0xFFDC2626).copy(alpha = 0.1f),
+                    if (isReady) SignalGreen.copy(alpha = 0.1f)
+                    else SignalRed.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(24.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(if (isReady) "🚀" else "🛡️", fontSize = 40.sp)
         }
-        
+
         Spacer(Modifier.height(16.dp))
-        
+
         Text(
             text = if (isReady) "System Ready" else "Setup Required",
             color = Color.White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
-        
+
         Text(
             text = if (isReady) "Monitoring for ride offers..." else "Grant permissions to begin monitoring",
-            color = if (isReady) Color(0xFF3DDC84) else Color(0xFF6B6B85),
+            color = if (isReady) RideGreen else TextSecondary,
             fontSize = 14.sp
         )
     }
@@ -247,9 +261,9 @@ fun HeaderSection(isReady: Boolean) {
 fun PermissionCard(title: String, status: String, icon: String, isGranted: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { if (!isGranted) onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF16161C)),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(16.dp),
-        border = if (!isGranted) BorderStroke(1.dp, Color(0xFF2A2A36)) else null
+        border = if (!isGranted) BorderStroke(1.dp, DarkBorder) else null
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -259,29 +273,13 @@ fun PermissionCard(title: String, status: String, icon: String, isGranted: Boole
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(status, color = if (isGranted) Color(0xFF3DDC84) else Color(0xFFDC2626), fontSize = 12.sp)
+                Text(status, color = if (isGranted) RideGreen else SignalRed, fontSize = 12.sp)
             }
             if (isGranted) {
                 Text("✅", fontSize = 20.sp)
             } else {
-                Text("➔", color = Color(0xFF3DDC84), fontWeight = FontWeight.Bold)
+                Text("➔", color = RideGreen, fontWeight = FontWeight.Bold)
             }
-        }
-    }
-}
-
-@Composable
-fun QuickActionButton(text: String, icon: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A36)),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(icon, fontSize = 18.sp)
-            Spacer(Modifier.width(12.dp))
-            Text(text, color = Color.White, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -292,12 +290,12 @@ fun RestrictedSettingsGuide() {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0F00)),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFEAB308).copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, SignalYellow.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "If Accessibility is greyed out:",
-                color = Color(0xFFEAB308),
+                color = SignalYellow,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
@@ -315,18 +313,18 @@ fun RestrictedSettingsGuide() {
 fun ManufacturerBatteryGuide() {
     val manufacturer = Build.MANUFACTURER.lowercase()
     val guideText = when {
-        manufacturer.contains("samsung") -> 
+        manufacturer.contains("samsung") ->
             "Samsung Fix: Settings → Battery → Background usage → Never sleeping apps → Add RideSmart"
-        manufacturer.contains("xiaomi") -> 
+        manufacturer.contains("xiaomi") ->
             "Xiaomi Fix: Settings → Apps → RideSmart → Battery Saver → No Restrictions"
-        else -> 
+        else ->
             "Battery Fix: Settings → Apps → RideSmart → Battery → Unrestricted"
     }
 
     Text(
         text = guideText,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        color = Color(0xFF6B6B85),
+        color = TextSecondary,
         fontSize = 11.sp,
         lineHeight = 16.sp
     )
