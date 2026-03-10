@@ -60,6 +60,9 @@ class RideSmartService : AccessibilityService() {
         private const val PICKUP_PENALTY_PER_KM = 1.5
         private const val MIN_SCORE_IMPROVEMENT  = 5.0
         private const val SAME_FARE_COOLDOWN_MS  = 15_000L
+        private const val MAX_PLATFORM_STATES    = 8
+        private const val UBER_POLL_BASE_MS      = 2500L
+        private const val UBER_POLL_MAX_MS       = 10_000L
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -70,7 +73,7 @@ class RideSmartService : AccessibilityService() {
     private val uberOcrEngine = UberOcrEngine()
 
     private val eventFlow = MutableSharedFlow<Pair<String, List<String>>>(
-        extraBufferCapacity = 10,
+        extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
@@ -86,6 +89,11 @@ class RideSmartService : AccessibilityService() {
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
         return platformStates.getOrPut(key) {
+            // Evict oldest entry if map grows beyond supported platform count
+            if (platformStates.size >= MAX_PLATFORM_STATES) {
+                val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
+                oldest?.let { platformStates.remove(it.key) }
+            }
             Log.d(TAG, "🗂 Created PlatformState for: $key")
             PlatformState()
         }
@@ -108,13 +116,14 @@ class RideSmartService : AccessibilityService() {
 
     private var lastUberNotifHash = ""
 
-    private var lastScreenshotAttemptMs = 0L
     private val screenshotCooldownMs = 2000L
 
     private val screenshotExecutor = Executors.newSingleThreadExecutor()
-    private var isScreenshotProcessing = false
+    @Volatile private var isScreenshotProcessing = false
     private var uberPollingJob: Job? = null
     private var uberAppInForeground = false
+    private var uberPollingIntervalMs = UBER_POLL_BASE_MS
+    private var consecutiveEmptyPolls = 0
 
     @OptIn(FlowPreview::class)
     override fun onServiceConnected() {
@@ -157,7 +166,7 @@ class RideSmartService : AccessibilityService() {
         uberPollingJob?.cancel()
         uberPollingJob = serviceScope.launch {
             while (isActive) {
-                delay(3300)
+                delay(uberPollingIntervalMs)
                 val anotherActive = activeForegroundPlatform.isNotBlank() &&
                                     activeForegroundPlatform != "uber"
                 if (anotherActive) {
@@ -171,6 +180,19 @@ class RideSmartService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    /** Reset polling to fast interval when a window change hints at a new offer. */
+    private fun resetUberPollingBackoff() {
+        consecutiveEmptyPolls = 0
+        uberPollingIntervalMs = UBER_POLL_BASE_MS
+    }
+
+    /** Increase polling interval after empty OCR results to save battery. */
+    private fun increaseUberPollingBackoff() {
+        consecutiveEmptyPolls++
+        uberPollingIntervalMs = (UBER_POLL_BASE_MS * (1L shl consecutiveEmptyPolls.coerceAtMost(3)))
+            .coerceAtMost(UBER_POLL_MAX_MS)
     }
 
     private fun stopUberPolling() {
@@ -207,13 +229,10 @@ class RideSmartService : AccessibilityService() {
             uberAppInForeground = true
             activeForegroundPlatform = "uber"
             
-            // On TYPE_WINDOW_STATE_CHANGED (type=32) specifically, reset flag
-            // and let the tree scanner decide if it's an offer
+            // On TYPE_WINDOW_STATE_CHANGED (type=32) specifically,
+            // trigger an immediate screenshot for faster offer detection.
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                val anotherActive = activeForegroundPlatform.isNotBlank() &&
-                                    activeForegroundPlatform != "uber"
-                if (anotherActive) return
-
+                resetUberPollingBackoff()
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
                 if (!isScreenshotProcessing) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -448,8 +467,8 @@ class RideSmartService : AccessibilityService() {
             if (packageName.contains("uber", ignoreCase = true)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val now = System.currentTimeMillis()
-                    if (now - lastScreenshotAttemptMs > screenshotCooldownMs) {
-                        lastScreenshotAttemptMs = now
+                    if (now - lastScreenshotMs > screenshotCooldownMs) {
+                        lastScreenshotMs = now
                         withContext(Dispatchers.Main) {
                             triggerUberScreenshot()
                         }
@@ -547,8 +566,9 @@ class RideSmartService : AccessibilityService() {
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     private fun triggerUberScreenshot() {
         if (activeForegroundPlatform.isNotBlank() && activeForegroundPlatform != "uber") return
+        if (isScreenshotProcessing) return
         val now = System.currentTimeMillis()
-        if (now - lastScreenshotMs < 2000L) return
+        if (now - lastScreenshotMs < screenshotCooldownMs) return
         isScreenshotProcessing = true
         lastScreenshotMs = now
 
@@ -568,12 +588,14 @@ class RideSmartService : AccessibilityService() {
                         }
                         if (bitmap == null) {
                             isScreenshotProcessing = false
+                            increaseUberPollingBackoff()
                             return
                         }
                         serviceScope.launch {
                             try {
                                 val parsed = uberOcrEngine.parse(bitmap)
                                 if (parsed != null && parsed.baseFare > 0) {
+                                    resetUberPollingBackoff()
                                     val fakeNodes = mutableListOf<String>().apply {
                                         add("₹${"%.2f".format(parsed.baseFare)}")
 
@@ -592,9 +614,12 @@ class RideSmartService : AccessibilityService() {
                                         if (parsed.dropAddress.isNotBlank()) add(parsed.dropAddress)
                                     }
                                     processScreen(fakeNodes, "com.ubercab.driver")
+                                } else {
+                                    increaseUberPollingBackoff()
                                 }
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error processing screenshot bitmap: ${e.message}")
+                                increaseUberPollingBackoff()
                             } finally {
                                 bitmap.recycle()
                                 isScreenshotProcessing = false
@@ -603,11 +628,13 @@ class RideSmartService : AccessibilityService() {
                     }
                     override fun onFailure(errorCode: Int) {
                         isScreenshotProcessing = false
+                        increaseUberPollingBackoff()
                     }
                 }
             )
         } catch (e: Exception) {
             isScreenshotProcessing = false
+            increaseUberPollingBackoff()
         }
     }
 

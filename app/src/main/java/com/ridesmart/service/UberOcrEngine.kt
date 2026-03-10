@@ -9,6 +9,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.parser.IPlatformParser
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
@@ -19,6 +20,7 @@ class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
+        private const val OCR_TIMEOUT_MS = 3000L
 
         // Screen-level rejection phrases (not an offer card)
         private val SCREEN_REJECT = listOf(
@@ -247,8 +249,13 @@ class UberOcrEngine : IPlatformParser {
         .replace(Regex("""\(\.\s*([0-9])\s*km\)"""), "(0.$1 km)")
         .replace(Regex("""\s{2,}"""), " ")
 
-    private suspend fun extractText(bitmap: Bitmap): String? = suspendCancellableCoroutine { cont ->
-        val image = InputImage.fromBitmap(bitmap, 0)
-        recognizer.process(image).addOnSuccessListener { cont.resume(it.text) }.addOnFailureListener { cont.resume(null) }
+
+    private suspend fun extractText(bitmap: Bitmap): String? = withTimeoutOrNull(OCR_TIMEOUT_MS) {
+        suspendCancellableCoroutine { cont ->
+            val image = InputImage.fromBitmap(bitmap, 0)
+            recognizer.process(image)
+                .addOnSuccessListener { cont.resume(it.text) }
+                .addOnFailureListener { cont.resume(null) }
+        }
     }
 }
