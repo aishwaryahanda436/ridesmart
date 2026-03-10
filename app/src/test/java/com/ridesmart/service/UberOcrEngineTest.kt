@@ -180,4 +180,42 @@ class UberOcrEngineTest {
         val nodes = listOf("New trip request", "₹85")
         assertTrue("Should detect trip + fare", engine.hasOfferSignals(nodes))
     }
+
+    // ── New: View ID signal tests ────────────────────────────────────
+
+    @Test
+    fun `hasOfferSignals detects viewId signals from obfuscated nodes`() {
+        val nodes = listOf("[id:fare_text]", "[id:distance_value]")
+        assertTrue("Should detect offer from view ID signals", engine.hasOfferSignals(nodes))
+    }
+
+    @Test
+    fun `hasOfferSignals detects mixed viewId and text signals`() {
+        val nodes = listOf("[id:trip_card]", "₹120")
+        assertTrue("Should detect mixed viewId + fare", engine.hasOfferSignals(nodes))
+    }
+
+    // ── New: Standalone km/min parsing tests ─────────────────────────
+
+    @Test
+    fun `uber offer with standalone km values parses distances`() {
+        val nodes = listOf(
+            "₹95",
+            "4.2 km",
+            "1.5 km away",
+            "12 min",
+            "Match",
+            "Uber"
+        )
+        val result = engine.parseFromNodes(nodes)
+
+        assertNotNull("Should parse offer with standalone km", result)
+        assertEquals("Fare", 95.0, result!!.baseFare, 0.01)
+    }
+
+    @Test
+    fun `uber offer with see all requests triggers detection`() {
+        val nodes = listOf("See all requests", "₹100", "5 km")
+        assertTrue("Should detect see all requests + fare", engine.hasOfferSignals(nodes))
+    }
 }

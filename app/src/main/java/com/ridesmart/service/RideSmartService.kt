@@ -54,14 +54,16 @@ class RideSmartService : AccessibilityService() {
             "com.ola.driver",
             "in.juspay.nammayatri",
             "net.openkochi.yatri",
-            "in.juspay.nammayatripartner"
+            "in.juspay.nammayatripartner",
+            "com.shadowfax.driver",
+            "com.shadowfax.zeus"
         )
 
         private const val PICKUP_PENALTY_PER_KM = 1.5
         private const val MIN_SCORE_IMPROVEMENT  = 5.0
         private const val SAME_FARE_COOLDOWN_MS  = 15_000L
         private const val MAX_PLATFORM_STATES    = 8
-        private const val UBER_POLL_BASE_MS      = 2500L
+        private const val UBER_POLL_BASE_MS      = 1500L
         private const val UBER_POLL_MAX_MS       = 10_000L
     }
 
@@ -107,6 +109,7 @@ class RideSmartService : AccessibilityService() {
         pkg.contains("nammayatri", ignoreCase = true) ||
         pkg.contains("juspay", ignoreCase = true) ||
         pkg.contains("yatri", ignoreCase = true)      -> "nammayatri"
+        pkg.contains("shadowfax", ignoreCase = true)  -> "shadowfax"
         // Launcher / System Home Screen is neutral — should not block Uber
         pkg.contains("launcher", ignoreCase = true) ||
         pkg.contains("systemui", ignoreCase = true)   -> ""
@@ -116,7 +119,7 @@ class RideSmartService : AccessibilityService() {
 
     private var lastUberNotifHash = ""
 
-    private val screenshotCooldownMs = 2000L
+    private val screenshotCooldownMs = 1200L
 
     private val screenshotExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var isScreenshotProcessing = false
@@ -151,7 +154,7 @@ class RideSmartService : AccessibilityService() {
 
         serviceScope.launch {
             eventFlow
-                .debounce(250L)
+                .debounce(150L)
                 .collect { (pkg, nodes) ->
                     processScreen(nodes, pkg)
                 }
@@ -708,6 +711,10 @@ class RideSmartService : AccessibilityService() {
      * but the FLAG_INCLUDE_NOT_IMPORTANT_VIEWS flag (set in onServiceConnected)
      * forces their inclusion. This method then extracts whatever text
      * properties those nodes still expose.
+     *
+     * Also extracts meaningful viewIdResourceNames — Uber's view IDs
+     * sometimes contain keywords like "fare", "distance", "pickup" that
+     * help signal an offer is present even when text content is empty.
      */
     private fun collectAllText(node: AccessibilityNodeInfo?): List<String> {
         if (node == null) return emptyList()
@@ -729,6 +736,18 @@ class RideSmartService : AccessibilityService() {
             val hint = node.hintText?.toString()?.trim()
             if (!hint.isNullOrBlank() && hint !in texts) {
                 texts.add(hint)
+            }
+        }
+
+        // Extract viewIdResourceName — useful for Uber where text is blocked
+        // but view IDs like "fare_text", "distance_value" hint at offer presence
+        val viewId = node.viewIdResourceName?.toString()?.trim()
+        if (!viewId.isNullOrBlank()) {
+            val idPart = viewId.substringAfterLast("/").lowercase()
+            val offerIdKeywords = listOf("fare", "price", "amount", "distance", "pickup",
+                "drop", "trip", "ride", "accept", "match", "confirm", "offer", "request")
+            if (offerIdKeywords.any { idPart.contains(it) }) {
+                texts.add("[id:$idPart]")
             }
         }
 
