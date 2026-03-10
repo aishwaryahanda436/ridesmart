@@ -28,6 +28,11 @@ class ProfileRepository(private val context: Context) {
         val KEY_MIN_PER_KM      = doublePreferencesKey("min_acceptable_per_km")
         val KEY_TARGET_PER_HOUR = doublePreferencesKey("target_earning_per_hour")
         val KEY_COMMISSION      = doublePreferencesKey("platform_commission_percent")
+        val KEY_CITY_AVG_SPEED  = doublePreferencesKey("city_avg_speed_kmh")
+        val KEY_CONGESTION      = doublePreferencesKey("congestion_factor")
+        val KEY_SUBSCRIPTION    = doublePreferencesKey("subscription_daily_cost")
+        val KEY_AVG_TRIPS       = doublePreferencesKey("avg_trips_per_day")
+        val KEY_DIESEL_PRICE    = doublePreferencesKey("diesel_price_per_litre")
     }
 
     // ── READ PROFILE ────────────────────────────────────────────────
@@ -55,7 +60,12 @@ class ProfileRepository(private val context: Context) {
                 minAcceptableNetProfit    = preferences[KEY_MIN_PROFIT]      ?: defaults.minAcceptableNetProfit,
                 minAcceptablePerKm        = preferences[KEY_MIN_PER_KM]      ?: defaults.minAcceptablePerKm,
                 targetEarningPerHour      = preferences[KEY_TARGET_PER_HOUR] ?: defaults.targetEarningPerHour,
-                platformCommissionPercent = preferences[KEY_COMMISSION]      ?: defaults.platformCommissionPercent
+                platformCommissionPercent = preferences[KEY_COMMISSION]      ?: defaults.platformCommissionPercent,
+                cityAvgSpeedKmH           = preferences[KEY_CITY_AVG_SPEED]  ?: defaults.cityAvgSpeedKmH,
+                congestionFactor          = preferences[KEY_CONGESTION]      ?: defaults.congestionFactor,
+                subscriptionDailyCost     = preferences[KEY_SUBSCRIPTION]    ?: defaults.subscriptionDailyCost,
+                avgTripsPerDay            = preferences[KEY_AVG_TRIPS]       ?: defaults.avgTripsPerDay,
+                dieselPricePerLitre       = preferences[KEY_DIESEL_PRICE]    ?: defaults.dieselPricePerLitre
             )
         }
 
@@ -73,6 +83,11 @@ class ProfileRepository(private val context: Context) {
             preferences[KEY_MIN_PER_KM]      = profile.minAcceptablePerKm
             preferences[KEY_TARGET_PER_HOUR] = profile.targetEarningPerHour
             preferences[KEY_COMMISSION]      = profile.platformCommissionPercent
+            preferences[KEY_CITY_AVG_SPEED]  = profile.cityAvgSpeedKmH
+            preferences[KEY_CONGESTION]      = profile.congestionFactor
+            preferences[KEY_SUBSCRIPTION]    = profile.subscriptionDailyCost
+            preferences[KEY_AVG_TRIPS]       = profile.avgTripsPerDay
+            preferences[KEY_DIESEL_PRICE]    = profile.dieselPricePerLitre
         }
     }
 }

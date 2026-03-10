@@ -22,200 +22,345 @@ class ProfitCalculatorTest {
             maintenancePerKm          = 0.80,
             depreciationPerKm         = 0.30,
             minAcceptableNetProfit    = 30.0,
-            minAcceptablePerKm        = 3.50,   // net ₹/km — corrected from 15.0
+            minAcceptablePerKm        = 3.50,
             targetEarningPerHour      = 200.0,
-            platformCommissionPercent = 0.0
+            platformCommissionPercent = 0.0,
+            cityAvgSpeedKmH           = 25.0,
+            congestionFactor          = 1.3
         )
     }
 
-    // ─────────────────────────────────────────────────────────────────
+    // ── EXISTING TESTS (UPDATED FOR RIDESCORE) ──────────────────────
+
     @Test
     fun `rapido basic ride low fare should be YELLOW`() {
-        // Real popup: ₹37, 5.2km ride, 1.1km pickup
-        // Arithmetic:
-        // totalDistanceKm  = 5.2 + 1.1 = 6.3
-        // fuelCost         = (6.3 / 45) × 102 = 14.28
-        // wearCost         = 6.3 × 1.10 = 6.93
-        // netProfit        = 37 - 14.28 - 6.93 = 15.79
-        // earningPerKm     = 15.79 / 5.2 = 3.04  ← below ₹3.50 threshold
-        // failedChecks     = [profit below 30, ₹/km below 3.50] = 2 checks
-        // signal           = YELLOW (1–2 failed checks)
+        // ₹37, 5.2km ride, 1.1km pickup — low fare but still above hard overrides
         val ride = ParsedRide(
             baseFare         = 37.0,
             rideDistanceKm   = 5.2,
-            pickupDistanceKm = 1.1
+            pickupDistanceKm = 1.1,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
         assertEquals("totalFare", 37.0, result.totalFare, 0.01)
         assertTrue("netProfit should be positive", result.netProfit > 0.0)
         assertTrue("netProfit below 30 minimum", result.netProfit < 30.0)
         assertTrue("earningPerKm below 3.50", result.earningPerKm < 3.50)
-        assertEquals("2 failed checks → YELLOW", Signal.YELLOW, result.signal)
-        assertEquals("exactly 2 failed checks", 2, result.failedChecks.size)
+        assertFalse("no hard override", result.overrideActive)
+        assertTrue("rideScore in YELLOW range", result.rideScore >= 45.0 && result.rideScore < 75.0)
+        assertEquals("YELLOW signal", Signal.YELLOW, result.signal)
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
-    fun `rapido ride with tip should be GREEN`() {
-        // Real popup: ₹76 + ₹10 tip, 12.1km ride, 0.8km pickup
-        // Arithmetic:
-        // totalFare        = 76 + 10 = 86
-        // totalDistanceKm  = 12.1 + 0.8 = 12.9
-        // fuelCost         = (12.9 / 45) × 102 = 29.24
-        // wearCost         = 12.9 × 1.10 = 14.19
-        // netProfit        = 86 - 29.24 - 14.19 = 42.57  ← above 30 ✓
-        // earningPerKm     = 42.57 / 12.1 = 3.52          ← above 3.50 ✓
-        // pickupRatio      = 0.8 / 12.1 = 0.066           ← below 0.40 ✓
-        // failedChecks     = [] → signal = GREEN
+    fun `rapido ride with tip should be YELLOW without time data`() {
+        // ₹76 + ₹10 tip, 12.1km ride, 0.8km pickup — profitable but no time data
+        // RideScore is limited without time data (TES defaults to neutral 50)
         val ride = ParsedRide(
             baseFare         = 76.0,
             tipAmount        = 10.0,
             rideDistanceKm   = 12.1,
-            pickupDistanceKm = 0.8
+            pickupDistanceKm = 0.8,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
         assertEquals("totalFare includes tip", 86.0, result.totalFare, 0.01)
         assertTrue("netProfit above 30", result.netProfit > 30.0)
         assertTrue("earningPerKm above 3.50", result.earningPerKm > 3.50)
         assertTrue("pickupRatio below 0.40", result.pickupRatio < 0.40)
-        assertEquals("Should be GREEN", Signal.GREEN, result.signal)
-        assertTrue("No failed checks", result.failedChecks.isEmpty())
+        assertFalse("no hard override", result.overrideActive)
+        assertEquals("YELLOW — profitable but no time data / no surge", Signal.YELLOW, result.signal)
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
-    fun `uber ride with premium earningPerHour should be calculated`() {
-        // Real popup: ₹74.40 + ₹18 premium, 7.4km ride, 1.1km pickup, 17 mins
-        // Arithmetic:
-        // totalFare        = 74.40 + 18 = 92.40
-        // totalDistanceKm  = 7.4 + 1.1 = 8.5
-        // fuelCost         = (8.5 / 45) × 102 = 19.27
-        // wearCost         = 8.5 × 1.10 = 9.35
-        // netProfit        = 92.40 - 19.27 - 9.35 = 63.78  ← above 30 ✓
-        // earningPerKm     = 63.78 / 7.4 = 8.62            ← above 3.50 ✓
-        // earningPerHour   = 63.78 / (17/60) = 225.2       ← above 200 ✓
-        // failedChecks     = [] → signal = GREEN
+    fun `uber ride with premium and time data should be GREEN`() {
+        // ₹74.40 + ₹18 premium, 7.4km ride, 1.1km pickup, 17 mins
+        // With time data, TES is computed properly → higher RideScore
         val ride = ParsedRide(
             baseFare         = 74.40,
             premiumAmount    = 18.0,
             rideDistanceKm   = 7.4,
             pickupDistanceKm = 1.1,
-            estimatedDurationMin = 17
+            estimatedDurationMin = 17,
+            packageName      = "com.ubercab.driver"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
         assertEquals("totalFare includes premium", 92.40, result.totalFare, 0.01)
         assertTrue("netProfit above 30", result.netProfit > 30.0)
         assertTrue("earningPerHour calculated and not zero", result.earningPerHour > 0.0)
-        assertTrue("earningPerHour above 200 target", result.earningPerHour > 200.0)
+        assertTrue("TES computed from time data", result.tes > 0.0)
+        assertTrue("TRT computed", result.trt > 0.0)
+        assertTrue("HRR computed", result.hrr > 0.0)
+        assertFalse("no hard override", result.overrideActive)
+        assertTrue("rideScore >= 75 for GREEN", result.rideScore >= 75.0)
         assertEquals("Should be GREEN", Signal.GREEN, result.signal)
-        assertTrue("No failed checks", result.failedChecks.isEmpty())
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
-    fun `very long pickup should be RED`() {
-        // ₹40 fare, 3.0km ride, 2.5km pickup
-        // Arithmetic:
-        // totalDistanceKm  = 3.0 + 2.5 = 5.5
-        // fuelCost         = (5.5 / 45) × 102 = 12.47
-        // wearCost         = 5.5 × 1.10 = 6.05
-        // netProfit        = 40 - 12.47 - 6.05 = 21.48   ← below 30 ✗
-        // earningPerKm     = 21.48 / 3.0 = 7.16          ← above 3.50 ✓
-        // pickupRatio      = 2.5 / 3.0 = 0.833           ← above 0.40 ✗
-        // failedChecks     = [profit, pickup] = 2 checks
-        // signal           = YELLOW (2 failed checks)
-        // NOTE: To make this RED we need 3+ failures
-        // earningPerHour is 0 (no time data) so that check is skipped
-        // We test for YELLOW here — the pickup warning is the key assertion
+    fun `very long pickup should trigger PPR hard override RED`() {
+        // ₹40 fare, 3.0km ride, 2.5km pickup → PPR = 0.833 > 0.80 → hard override
         val ride = ParsedRide(
             baseFare         = 40.0,
             rideDistanceKm   = 3.0,
-            pickupDistanceKm = 2.5
+            pickupDistanceKm = 2.5,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
-        assertTrue("pickupRatio above 0.40", result.pickupRatio > 0.40)
-        assertTrue("failedChecks contains pickup warning",
-            result.failedChecks.any { it.contains("Pickup", ignoreCase = true) }
+        assertTrue("pickupRatio above 0.80", result.pickupRatio > 0.80)
+        assertTrue("hard override active", result.overrideActive)
+        assertEquals("hard override → RED", Signal.RED, result.signal)
+        assertTrue("failedChecks contains pickup/deadhead warning",
+            result.failedChecks.any { it.contains("deadhead", ignoreCase = true) || it.contains("Pickup", ignoreCase = true) }
         )
-        assertTrue("netProfit below 30", result.netProfit < 30.0)
-        assertNotEquals("Should not be GREEN", Signal.GREEN, result.signal)
-        assertTrue("Should have 2 or more failed checks", result.failedChecks.size >= 2)
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
-    fun `borderline ride should be GREEN with corrected threshold`() {
-        // ₹55 fare, 4.0km ride, 1.0km pickup
-        // Arithmetic:
-        // totalDistanceKm  = 4.0 + 1.0 = 5.0
-        // fuelCost         = (5.0 / 45) × 102 = 11.33
-        // wearCost         = 5.0 × 1.10 = 5.50
-        // netProfit        = 55 - 11.33 - 5.50 = 38.17   ← above 30 ✓
-        // earningPerKm     = 38.17 / 4.0 = 9.54          ← above 3.50 ✓
-        // pickupRatio      = 1.0 / 4.0 = 0.25            ← below 0.40 ✓
-        // failedChecks     = [] → signal = GREEN
+    fun `borderline ride should be YELLOW with RideScore`() {
+        // ₹55 fare, 4.0km ride, 1.0km pickup — profitable but no time data
+        // RideScore ~73.75 at midday → just below GREEN threshold
         val ride = ParsedRide(
             baseFare         = 55.0,
             rideDistanceKm   = 4.0,
-            pickupDistanceKm = 1.0
+            pickupDistanceKm = 1.0,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
         assertTrue("netProfit above 30", result.netProfit > 30.0)
         assertTrue("earningPerKm above 3.50", result.earningPerKm > 3.50)
-        assertEquals("Should be GREEN", Signal.GREEN, result.signal)
-        assertTrue("No failed checks", result.failedChecks.isEmpty())
+        assertFalse("no hard override", result.overrideActive)
+        assertTrue("rideScore near but below 75", result.rideScore > 60.0)
+        assertEquals("YELLOW — profitable but no time/surge data", Signal.YELLOW, result.signal)
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
     fun `CNG auto ride should use CNG price not petrol price`() {
-        // CNG Auto ride: ₹80, 6.0km ride, 1.0km pickup
-        // CNG_AUTO has: defaultMileage=28.0 km/kg, fuelType=CNG, wearMultiplier=1.6
-        // Profile default mileage is 45.0 (bike); since vehicle is CNG_AUTO, uses 28.0 km/kg
-        // Arithmetic:
-        // totalDistanceKm  = 6.0 + 1.0 = 7.0
-        // effectiveMileage  = 28.0 (vehicle-type default, since profile is 45.0 and vehicle is not bike)
-        // kgUsed            = 7.0 / 28.0 = 0.25
-        // fuelCost          = 0.25 × 85.0 = 21.25  (CNG price, NOT petrol price)
-        // wearCost          = 7.0 × (0.80 + 0.30) × 1.6 = 12.32
-        // netProfit         = 80 - 21.25 - 12.32 = 46.43
         val ride = ParsedRide(
             baseFare         = 80.0,
             rideDistanceKm   = 6.0,
             pickupDistanceKm = 1.0,
-            vehicleType      = VehicleType.CNG_AUTO
+            vehicleType      = VehicleType.CNG_AUTO,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
-        // If petrol price (102) were used, fuelCost would be 0.25 × 102 = 25.5
-        // With CNG price (85), fuelCost = 0.25 × 85 = 21.25
         assertEquals("Fuel cost uses CNG price", 21.25, result.fuelCost, 0.5)
         assertTrue("netProfit above 30", result.netProfit > 30.0)
     }
 
-    // ─────────────────────────────────────────────────────────────────
     @Test
     fun `eBike ride should have zero fuel cost`() {
-        // eBike ride: ₹50, 5.0km ride, 0.5km pickup
-        // EBIKE has: defaultMileage=0.0, fuelType=ELECTRIC, wearMultiplier=0.7
-        // Arithmetic:
-        // fuelCost          = 0.0 (electric — no fuel)
-        // wearCost          = 5.5 × (0.80 + 0.30) × 0.7 = 4.235
-        // netProfit         = 50 - 0 - 4.235 = 45.765
         val ride = ParsedRide(
             baseFare         = 50.0,
             rideDistanceKm   = 5.0,
             pickupDistanceKm = 0.5,
-            vehicleType      = VehicleType.EBIKE
+            vehicleType      = VehicleType.EBIKE,
+            packageName      = "in.rapido.captain"
         )
-        val result = calculator.calculate(ride, profile)
+        val result = calculator.calculate(ride, profile, 12)
 
         assertEquals("Electric vehicle has zero fuel cost", 0.0, result.fuelCost, 0.01)
         assertTrue("netProfit higher due to zero fuel", result.netProfit > 45.0)
+    }
+
+    // ── NEW TESTS FOR RIDESCORE FEATURES ────────────────────────────
+
+    @Test
+    fun `surge multiplier should boost fare and RideScore`() {
+        val rideNoSurge = ParsedRide(
+            baseFare         = 60.0,
+            rideDistanceKm   = 8.0,
+            pickupDistanceKm = 1.0,
+            estimatedDurationMin = 20,
+            packageName      = "in.rapido.captain"
+        )
+        val rideSurge = rideNoSurge.copy(surgeMultiplier = 1.5)
+
+        val resultNoSurge = calculator.calculate(rideNoSurge, profile, 12)
+        val resultSurge = calculator.calculate(rideSurge, profile, 12)
+
+        assertTrue("surge increases actual payout", resultSurge.actualPayout > resultNoSurge.actualPayout)
+        assertTrue("surge increases net profit", resultSurge.netProfit > resultNoSurge.netProfit)
+        assertTrue("surge increases RideScore", resultSurge.rideScore > resultNoSurge.rideScore)
+    }
+
+    @Test
+    fun `negative net profit should trigger hard override RED`() {
+        // Very low fare with long distance → negative profit
+        val ride = ParsedRide(
+            baseFare         = 10.0,
+            rideDistanceKm   = 15.0,
+            pickupDistanceKm = 3.0,
+            packageName      = "in.rapido.captain"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        assertTrue("net profit is negative", result.netProfit < 0.0)
+        assertTrue("hard override active", result.overrideActive)
+        assertEquals("hard override → RED", Signal.RED, result.signal)
+        assertEquals("RideScore forced to 15.0", 15.0, result.rideScore, 0.01)
+    }
+
+    @Test
+    fun `subscription amortisation should reduce actual payout`() {
+        val profileWithSub = profile.copy(
+            subscriptionDailyCost = 100.0,
+            avgTripsPerDay = 10.0
+        )
+        val ride = ParsedRide(
+            baseFare         = 60.0,
+            rideDistanceKm   = 8.0,
+            pickupDistanceKm = 1.0,
+            packageName      = "in.rapido.captain"
+        )
+
+        val resultNoSub = calculator.calculate(ride, profile, 12)
+        val resultWithSub = calculator.calculate(ride, profileWithSub, 12)
+
+        // Subscription amortised: 100/10 = ₹10 per trip
+        assertTrue("subscription reduces payout", resultWithSub.actualPayout < resultNoSub.actualPayout)
+        assertEquals("payout reduced by ₹10", resultNoSub.actualPayout - 10.0, resultWithSub.actualPayout, 0.01)
+    }
+
+    @Test
+    fun `idle time cost should reduce net profit and RideScore`() {
+        val rideNoWait = ParsedRide(
+            baseFare         = 60.0,
+            rideDistanceKm   = 8.0,
+            pickupDistanceKm = 1.0,
+            packageName      = "in.rapido.captain"
+        )
+        val rideWithWait = rideNoWait.copy(waitTimeMin = 10)
+
+        val resultNoWait = calculator.calculate(rideNoWait, profile, 12)
+        val resultWithWait = calculator.calculate(rideWithWait, profile, 12)
+
+        // Idle cost = (10/60) × 200 = ₹33.33
+        assertTrue("idle time cost is positive", resultWithWait.idleTimeCost > 0.0)
+        assertEquals("idle cost = (10/60)*200", 33.33, resultWithWait.idleTimeCost, 0.5)
+        assertTrue("net profit reduced by idle cost", resultWithWait.netProfit < resultNoWait.netProfit)
+        assertTrue("RideScore reduced by idle cost", resultWithWait.rideScore < resultNoWait.rideScore)
+    }
+
+    @Test
+    fun `diesel vehicle should use diesel fuel price`() {
+        val ride = ParsedRide(
+            baseFare         = 120.0,
+            rideDistanceKm   = 10.0,
+            pickupDistanceKm = 1.5,
+            vehicleType      = VehicleType.DIESEL_CAR,
+            packageName      = "com.ubercab.driver"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // DIESEL_CAR: mileage=18 km/l, diesel price=87.67
+        // totalDist = 11.5, fuelUnitsUsed = 11.5/18 = 0.639
+        // fuelCost = 0.639 × 87.67 = 56.01
+        assertEquals("Fuel cost uses diesel price", 56.01, result.fuelCost, 1.0)
+        assertTrue("CPK reflects diesel", result.cpk > 0.0)
+    }
+
+    @Test
+    fun `time of day affects RideScore weights`() {
+        val ride = ParsedRide(
+            baseFare         = 80.0,
+            rideDistanceKm   = 8.0,
+            pickupDistanceKm = 1.0,
+            estimatedDurationMin = 18,
+            packageName      = "in.rapido.captain"
+        )
+
+        val resultMorning = calculator.calculate(ride, profile, 7)   // Morning rush
+        val resultMidday  = calculator.calculate(ride, profile, 12)  // Midday lull
+        val resultNight   = calculator.calculate(ride, profile, 20)  // Night
+
+        // Same ride, different weights → different scores
+        assertEquals("same net profit", resultMorning.netProfit, resultMidday.netProfit, 0.01)
+        assertTrue("morning score computed", resultMorning.rideScore > 0.0)
+        assertTrue("midday score computed", resultMidday.rideScore > 0.0)
+        assertTrue("night score computed", resultNight.rideScore > 0.0)
+        // Weights differ across time bands so scores differ for non-uniform sub-scores
+        assertFalse("morning vs midday scores differ",
+            resultMorning.rideScore == resultMidday.rideScore && resultMidday.rideScore == resultNight.rideScore
+        )
+    }
+
+    @Test
+    fun `TES and TRT computed correctly with time data`() {
+        val ride = ParsedRide(
+            baseFare         = 100.0,
+            rideDistanceKm   = 10.0,
+            pickupDistanceKm = 2.0,
+            estimatedDurationMin = 25,
+            packageName      = "in.rapido.captain"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // pickupTimeMin = (2.0/25) × 60 × 1.3 = 6.24 min
+        // tripTimeMin = 25
+        // trt = 6.24 + 25 + 0 = 31.24
+        // tes = (25/31.24) × 100 = 80.0
+        assertTrue("TRT includes pickup and trip time", result.trt > 25.0)
+        assertTrue("TES between 0 and 100", result.tes in 0.0..100.0)
+        assertTrue("TES shows good efficiency", result.tes > 70.0)
+        assertTrue("HRR computed", result.hrr > 0.0)
+    }
+
+    @Test
+    fun `min viable fare triggers hard override for very cheap long ride`() {
+        // Very low fare for a long distance — fare below operational cost × 1.25
+        val ride = ParsedRide(
+            baseFare         = 15.0,
+            rideDistanceKm   = 8.0,
+            pickupDistanceKm = 2.0,
+            packageName      = "in.rapido.captain"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        assertTrue("hard override active", result.overrideActive)
+        assertEquals("hard override → RED", Signal.RED, result.signal)
+    }
+
+    @Test
+    fun `high value ride with surge and time data should be GREEN`() {
+        // Premium ride: ₹120 base, 1.3× surge, ₹15 bonus, 12km, 25min
+        val ride = ParsedRide(
+            baseFare         = 120.0,
+            surgeMultiplier  = 1.3,
+            bonus            = 15.0,
+            rideDistanceKm   = 12.0,
+            pickupDistanceKm = 1.5,
+            estimatedDurationMin = 25,
+            packageName      = "in.rapido.captain"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        assertTrue("high net profit", result.netProfit > 100.0)
+        assertTrue("high EPK", result.earningPerKm > 8.0)
+        assertFalse("no override", result.overrideActive)
+        assertTrue("rideScore well above 75", result.rideScore >= 75.0)
+        assertEquals("GREEN signal", Signal.GREEN, result.signal)
+    }
+
+    @Test
+    fun `CPK includes fuel and maintenance costs`() {
+        val ride = ParsedRide(
+            baseFare         = 50.0,
+            rideDistanceKm   = 5.0,
+            pickupDistanceKm = 1.0,
+            packageName      = "in.rapido.captain"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // CPK = fuelCPK + maintenanceCPK + timeCostPerKm × congestion
+        // fuelCPK = 102/45 = 2.267
+        // maintenanceCPK = (0.80+0.30) × 1.0 = 1.10
+        // timeCostPerKm = 200/25 = 8.0
+        // cpk = 2.267 + 1.10 + 8.0 × 1.3 = 13.77
+        assertTrue("CPK is positive", result.cpk > 0.0)
+        assertTrue("CPK includes fuel, maintenance, and time", result.cpk > 10.0)
     }
 }

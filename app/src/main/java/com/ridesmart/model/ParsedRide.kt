@@ -20,5 +20,8 @@ data class ParsedRide(
     val bonus: Double = 0.0,
     val fare: Double = 0.0,
     val vehicleType: VehicleType = VehicleType.UNKNOWN,
-    val screenState: ScreenState = ScreenState.OFFER_LOADED
+    val screenState: ScreenState = ScreenState.OFFER_LOADED,
+    // RideScore fields — surge multiplier and wait/idle time
+    val surgeMultiplier: Double = 1.0,
+    val waitTimeMin: Int = 0
 )
