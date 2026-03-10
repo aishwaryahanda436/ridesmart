@@ -36,9 +36,27 @@ class ParserFactoryTest {
     }
 
     @Test
-    fun `ola package routes to RideDataParser`() {
+    fun `ola driver package routes to OlaParser`() {
         val parser = ParserFactory.getParser("com.olacabs.driver")
-        assertTrue("Ola should use generic RideDataParser", parser is RideDataParser)
+        assertTrue("Ola should use OlaParser", parser is OlaParser)
+    }
+
+    @Test
+    fun `ola package routes to OlaParser`() {
+        val parser = ParserFactory.getParser("com.ola.driver")
+        assertTrue("Ola driver should use OlaParser", parser is OlaParser)
+    }
+
+    @Test
+    fun `shadowfax driver package routes to ShadowfaxParser`() {
+        val parser = ParserFactory.getParser("com.shadowfax.driver")
+        assertTrue("Shadowfax should use ShadowfaxParser", parser is ShadowfaxParser)
+    }
+
+    @Test
+    fun `shadowfax zeus package routes to ShadowfaxParser`() {
+        val parser = ParserFactory.getParser("com.shadowfax.zeus")
+        assertTrue("Shadowfax zeus should use ShadowfaxParser", parser is ShadowfaxParser)
     }
 
     @Test
@@ -66,8 +84,42 @@ class ParserFactoryTest {
     }
 
     @Test
+    fun `isOla returns true for ola packages`() {
+        assertTrue(ParserFactory.isOla("com.olacabs.driver"))
+        assertTrue(ParserFactory.isOla("com.ola.driver"))
+    }
+
+    @Test
+    fun `isOla returns false for non-ola packages`() {
+        assertFalse(ParserFactory.isOla("com.ubercab.driver"))
+        assertFalse(ParserFactory.isOla("com.rapido.rider"))
+    }
+
+    @Test
+    fun `isShadowfax returns true for shadowfax packages`() {
+        assertTrue(ParserFactory.isShadowfax("com.shadowfax.driver"))
+        assertTrue(ParserFactory.isShadowfax("com.shadowfax.zeus"))
+    }
+
+    @Test
+    fun `isShadowfax returns false for non-shadowfax packages`() {
+        assertFalse(ParserFactory.isShadowfax("com.ubercab.driver"))
+        assertFalse(ParserFactory.isShadowfax("com.rapido.rider"))
+    }
+
+    @Test
     fun `getUberParser returns UberOcrEngine`() {
         assertTrue(ParserFactory.getUberParser() is UberOcrEngine)
+    }
+
+    @Test
+    fun `getOlaParser returns OlaParser`() {
+        assertTrue(ParserFactory.getOlaParser() is OlaParser)
+    }
+
+    @Test
+    fun `getShadowfaxParser returns ShadowfaxParser`() {
+        assertTrue(ParserFactory.getShadowfaxParser() is ShadowfaxParser)
     }
 
     @Test
