@@ -7,6 +7,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
+import com.ridesmart.model.VehicleType
 import com.ridesmart.parser.IPlatformParser
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -28,7 +29,7 @@ class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val OCR_TIMEOUT_MS = 1500L
+        private const val OCR_TIMEOUT_MS = 800L
         private const val OFFER_CROP_RATIO = 0.60
         private const val MIN_OFFER_SIGNALS = 2
 
@@ -123,6 +124,7 @@ class UberOcrEngine : IPlatformParser {
         val (rideDistKm, pickupDistKm, durationMin) = extractTimeAndDistance(lines)
         val (pickupAddr, dropAddr) = extractAddresses(lines)
         val rating = extractRating(lines)
+        val vehicleType = extractVehicleType(combinedRaw)
 
         return ParsedRide(
             baseFare             = effectiveFare,
@@ -138,7 +140,8 @@ class UberOcrEngine : IPlatformParser {
             paymentType          = if (combinedRaw.contains("cash")) "cash" else "digital",
             premiumAmount        = bonus,
             bonus                = bonus,
-            fare                 = effectiveFare
+            fare                 = effectiveFare,
+            vehicleType          = vehicleType
         )
     }
 
@@ -203,6 +206,14 @@ class UberOcrEngine : IPlatformParser {
             Log.d(TAG, "📸 Bitmap crop failed: ${e.message}")
             null
         }
+    }
+
+    private fun extractVehicleType(combinedLower: String): VehicleType = when {
+        combinedLower.contains("moto") || combinedLower.contains("bike") -> VehicleType.BIKE
+        combinedLower.contains("auto")                                    -> VehicleType.AUTO
+        combinedLower.contains("xl") || combinedLower.contains("suv")    -> VehicleType.CAR
+        combinedLower.contains("go") || combinedLower.contains("premier") -> VehicleType.CAR
+        else                                                               -> VehicleType.UNKNOWN
     }
 
     private fun extractFare(lines: List<String>): Double? {

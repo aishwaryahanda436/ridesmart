@@ -35,6 +35,8 @@ class OlaParser : IPlatformParser {
             "you are offline", "go online", "no rides available",
             "earnings today", "my earnings", "ride history"
         )
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -82,88 +84,101 @@ class OlaParser : IPlatformParser {
         val screenState = detectScreenState(activeNodes)
         if (screenState == ScreenState.ACTIVE_RIDE || screenState == ScreenState.IDLE) return null
 
-        // ── EXTRACT FARE ────────────────────────────────────────────────
-        // Ola shows the driver's payout (post-commission) — take the minimum
-        // fare value since higher values may be surge indicators
-        val allFares = activeNodes.mapNotNull { node ->
-            if (node.contains("km", ignoreCase = true) || node.startsWith("+")) null
-            else FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
-        }.filter { it >= 10.0 }
-
-        val baseFare = allFares.minOrNull() ?: return null
-
-        // ── EXTRACT BONUS ───────────────────────────────────────────────
+        // ── SINGLE-PASS EXTRACTION ────────────────────────────────────────
+        // All fields are collected in one iteration to minimise processing time.
+        // Ola shows the driver's payout (post-commission) — we take the minimum fare.
         var bonusAmount = 0.0
-        activeNodes.forEach { node ->
-            val match = BONUS_REGEX.find(node)
-            if (match != null) {
-                bonusAmount += match.groupValues[1].toDoubleOrNull() ?: 0.0
+        var durationMin = 0
+        var tipAmount = 0.0
+        var paymentType = ""
+        val fareCandidates = mutableListOf<Double>()
+        val kmMatches = mutableListOf<Double>()
+        val addressCandidates = mutableListOf<String>()
+        // Boolean flags for vehicle type detection — resolved after the loop with the
+        // same priority order as the original single-pass `when` on full joined text.
+        var foundVehicleCar  = false
+        var foundVehicleAuto = false
+        var foundVehicleBike = false
+
+        for (node in activeNodes) {
+            val trimmed = node.trim()
+
+            // Fare: skip distance lines and boost lines
+            if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
+                FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                    if (it >= 10.0) fareCandidates.add(it)
+                }
+            }
+
+            // Bonus
+            BONUS_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                bonusAmount += it
+            }
+
+            // Distance
+            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { kmMatches.add(it) }
+
+            // Duration (first match wins)
+            if (durationMin == 0) {
+                MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()?.let { durationMin = it }
+            }
+
+            // Vehicle type keywords — collect flags for priority resolution after the loop.
+            // Priority order matches original: Mini/Prime/Sedan > Auto > Bike/Moto > else.
+            when {
+                node.contains("Mini",  ignoreCase = true) ||
+                node.contains("Prime", ignoreCase = true) ||
+                node.contains("Sedan", ignoreCase = true) -> foundVehicleCar  = true
+                node.contains("Auto",  ignoreCase = true) -> foundVehicleAuto = true
+                node.contains("Bike",  ignoreCase = true) ||
+                node.contains("Moto",  ignoreCase = true) -> foundVehicleBike = true
+            }
+
+            // Payment type (first match wins)
+            if (paymentType.isEmpty() && PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }) {
+                paymentType = node
+            }
+
+            // Tip (first match wins)
+            if (tipAmount == 0.0 && node.contains("Tip", ignoreCase = true)) {
+                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+            }
+
+            // Address candidates
+            if (node.length > 12 &&
+                !KM_REGEX.containsMatchIn(node) &&
+                !MIN_REGEX.containsMatchIn(node) &&
+                !FARE_REGEX.containsMatchIn(node) &&
+                !node.equals("Accept", ignoreCase = true) &&
+                !node.equals("Confirm", ignoreCase = true) &&
+                !node.startsWith("+")) {
+                addressCandidates.add(node)
             }
         }
 
-        // ── EXTRACT DISTANCES ───────────────────────────────────────────
-        val kmMatches = activeNodes.mapNotNull { node ->
-            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
+        val baseFare = fareCandidates.minOrNull() ?: return null
+
+        val vehicleType = when {
+            foundVehicleCar  -> VehicleType.CAR
+            foundVehicleAuto -> VehicleType.AUTO
+            foundVehicleBike -> VehicleType.BIKE
+            else             -> VehicleType.UNKNOWN
         }
 
+        // ── DISTANCE RESOLUTION ───────────────────────────────────────────
         var pickupDistanceKm = 0.0
         var rideDistanceKm = 0.0
 
         when (kmMatches.size) {
-            1 -> rideDistanceKm = kmMatches[0]
-            2 -> {
-                pickupDistanceKm = kmMatches[0]
-                rideDistanceKm = kmMatches[1]
-            }
+            1    -> rideDistanceKm = kmMatches[0]
+            2    -> { pickupDistanceKm = kmMatches[0]; rideDistanceKm = kmMatches[1] }
             else -> if (kmMatches.isNotEmpty()) {
-                pickupDistanceKm = kmMatches[0]
-                rideDistanceKm = kmMatches.last()
+                pickupDistanceKm = kmMatches[0]; rideDistanceKm = kmMatches.last()
             }
         }
 
-        // ── EXTRACT DURATION ────────────────────────────────────────────
-        val durationMin = activeNodes.mapNotNull { node ->
-            MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-        }.firstOrNull() ?: 0
-
-        // ── DETECT VEHICLE TYPE ─────────────────────────────────────────
-        val fullText = activeNodes.joinToString(" ")
-        val vehicleType = when {
-            fullText.contains("Mini", ignoreCase = true) -> VehicleType.CAR
-            fullText.contains("Prime", ignoreCase = true) -> VehicleType.CAR
-            fullText.contains("Sedan", ignoreCase = true) -> VehicleType.CAR
-            fullText.contains("Auto", ignoreCase = true) -> VehicleType.AUTO
-            fullText.contains("Bike", ignoreCase = true) ||
-            fullText.contains("Moto", ignoreCase = true) -> VehicleType.BIKE
-            else -> VehicleType.UNKNOWN
-        }
-
-        // ── EXTRACT ADDRESSES ───────────────────────────────────────────
-        val addressCandidates = activeNodes.filter { node ->
-            node.length > 12 &&
-            !KM_REGEX.containsMatchIn(node) &&
-            !MIN_REGEX.containsMatchIn(node) &&
-            !FARE_REGEX.containsMatchIn(node) &&
-            !node.equals("Accept", ignoreCase = true) &&
-            !node.equals("Confirm", ignoreCase = true) &&
-            !node.startsWith("+")
-        }
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
-        val dropAddress = addressCandidates.getOrElse(1) { "" }
-
-        // ── EXTRACT PAYMENT TYPE ────────────────────────────────────────
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
-        val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
-        } ?: ""
-
-        // ── EXTRACT TIP ────────────────────────────────────────────────
-        var tipAmount = 0.0
-        activeNodes.forEach { node ->
-            if (node.contains("Tip", ignoreCase = true)) {
-                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            }
-        }
+        val dropAddress   = addressCandidates.getOrElse(1) { "" }
 
         Log.d(TAG, "🔍 Ola parsed: vehicle=$vehicleType fare=₹$baseFare " +
             "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +

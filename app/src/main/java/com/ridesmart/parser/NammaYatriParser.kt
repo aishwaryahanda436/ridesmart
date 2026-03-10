@@ -47,6 +47,8 @@ class NammaYatriParser : IPlatformParser {
             "new ride request", "new request", "accept", "decline",
             "confirm", "ride request"
         )
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -96,92 +98,106 @@ class NammaYatriParser : IPlatformParser {
         val screenState = detectScreenState(activeNodes)
         if (screenState == ScreenState.ACTIVE_RIDE || screenState == ScreenState.IDLE) return null
 
-        // ── EXTRACT FARE ────────────────────────────────────────────────
+        // ── SINGLE-PASS EXTRACTION ────────────────────────────────────────
+        // All fields are collected in one iteration to minimise processing time.
         // NammaYatri shows driver payout directly (subscription model, no per-ride commission).
         // Use the minimum fare to avoid surge/display price confusion.
-        val allFares = activeNodes.mapNotNull { node ->
-            if (node.contains("km", ignoreCase = true) || node.startsWith("+")) null
-            else FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
-        }.filter { it >= 10.0 }
-
-        val baseFare = allFares.minOrNull() ?: return null
-
-        // ── EXTRACT BONUS ───────────────────────────────────────────────
         var bonusAmount = 0.0
-        activeNodes.forEach { node ->
-            val match = BONUS_REGEX.find(node)
-            if (match != null) {
-                bonusAmount += match.groupValues[1].toDoubleOrNull() ?: 0.0
+        var durationMin = 0
+        var tipAmount = 0.0
+        var paymentType = ""
+        val fareCandidates = mutableListOf<Double>()
+        val kmMatches = mutableListOf<Double>()
+        val addressCandidates = mutableListOf<String>()
+        // Boolean flags for vehicle type — resolved after the loop with the same
+        // priority order as the original: CNG Auto > Auto > Bike/Moto > Cab/Car > AUTO default.
+        var foundCngAuto     = false
+        var foundBike        = false
+        var foundCar         = false
+
+        for (node in activeNodes) {
+            val trimmed = node.trim()
+
+            // Fare: skip distance lines and boost lines
+            if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
+                FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                    if (it >= 10.0) fareCandidates.add(it)
+                }
+            }
+
+            // Bonus
+            BONUS_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                bonusAmount += it
+            }
+
+            // Distance
+            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { kmMatches.add(it) }
+
+            // Duration (first match wins)
+            if (durationMin == 0) {
+                MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()?.let { durationMin = it }
+            }
+
+            // Vehicle type keywords — collect flags; resolved after the loop.
+            // CNG Auto is checked before Auto to avoid the substring match taking precedence.
+            when {
+                node.contains("CNG Auto", ignoreCase = true) -> foundCngAuto = true
+                node.contains("Bike",     ignoreCase = true) ||
+                node.contains("Moto",     ignoreCase = true) -> foundBike = true
+                node.contains("Cab",      ignoreCase = true) ||
+                node.contains("Car",      ignoreCase = true) -> foundCar  = true
+                // Plain "Auto" keeps the platform default (AUTO) — no flag needed.
+            }
+
+            // Payment type (first match wins)
+            if (paymentType.isEmpty() && PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }) {
+                paymentType = node
+            }
+
+            // Tip (first match wins)
+            if (tipAmount == 0.0 && node.contains("Tip", ignoreCase = true)) {
+                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+            }
+
+            // Address candidates
+            if (node.length > 12 &&
+                !KM_REGEX.containsMatchIn(node) &&
+                !MIN_REGEX.containsMatchIn(node) &&
+                !FARE_REGEX.containsMatchIn(node) &&
+                !node.equals("Accept", ignoreCase = true) &&
+                !node.equals("Decline", ignoreCase = true) &&
+                !node.equals("Confirm", ignoreCase = true) &&
+                !node.startsWith("+") &&
+                !node.contains("New Ride Request", ignoreCase = true) &&
+                !node.contains("New Request", ignoreCase = true)) {
+                addressCandidates.add(node)
             }
         }
 
-        // ── EXTRACT DISTANCES ───────────────────────────────────────────
-        val kmMatches = activeNodes.mapNotNull { node ->
-            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
+        val baseFare = fareCandidates.minOrNull() ?: return null
+
+        // NammaYatri is primarily an auto-rickshaw platform; default to AUTO.
+        val vehicleType = when {
+            foundCngAuto -> VehicleType.CNG_AUTO
+            foundBike    -> VehicleType.BIKE
+            foundCar     -> VehicleType.CAR
+            else         -> VehicleType.AUTO
         }
 
+        // ── DISTANCE RESOLUTION ───────────────────────────────────────────
         var pickupDistanceKm = 0.0
         var rideDistanceKm   = 0.0
 
         when (kmMatches.size) {
             1    -> rideDistanceKm = kmMatches[0]
-            2    -> {
-                pickupDistanceKm = kmMatches[0]
-                rideDistanceKm   = kmMatches[1]
-            }
+            2    -> { pickupDistanceKm = kmMatches[0]; rideDistanceKm = kmMatches[1] }
             else -> if (kmMatches.isNotEmpty()) {
-                pickupDistanceKm = kmMatches[0]
-                rideDistanceKm   = kmMatches.last()
+                pickupDistanceKm = kmMatches[0]; rideDistanceKm = kmMatches.last()
             }
         }
 
-        // ── EXTRACT DURATION ────────────────────────────────────────────
-        val durationMin = activeNodes.mapNotNull { node ->
-            MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-        }.firstOrNull() ?: 0
-
-        // ── DETECT VEHICLE TYPE ─────────────────────────────────────────
-        // NammaYatri is primarily an auto-rickshaw platform; default to AUTO.
-        val fullText = activeNodes.joinToString(" ")
-        val vehicleType = when {
-            fullText.contains("CNG Auto", ignoreCase = true) -> VehicleType.CNG_AUTO
-            fullText.contains("Auto", ignoreCase = true)     -> VehicleType.AUTO
-            fullText.contains("Bike", ignoreCase = true) ||
-            fullText.contains("Moto", ignoreCase = true)     -> VehicleType.BIKE
-            fullText.contains("Cab", ignoreCase = true) ||
-            fullText.contains("Car", ignoreCase = true)      -> VehicleType.CAR
-            else                                              -> VehicleType.AUTO
-        }
-
-        // ── EXTRACT ADDRESSES ───────────────────────────────────────────
-        val addressCandidates = activeNodes.filter { node ->
-            node.length > 12 &&
-            !KM_REGEX.containsMatchIn(node) &&
-            !MIN_REGEX.containsMatchIn(node) &&
-            !FARE_REGEX.containsMatchIn(node) &&
-            !node.equals("Accept", ignoreCase = true) &&
-            !node.equals("Decline", ignoreCase = true) &&
-            !node.equals("Confirm", ignoreCase = true) &&
-            !node.startsWith("+") &&
-            !node.contains("New Ride Request", ignoreCase = true) &&
-            !node.contains("New Request", ignoreCase = true)
-        }
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
         val dropAddress   = addressCandidates.getOrElse(1) { "" }
-
-        // ── EXTRACT PAYMENT TYPE ────────────────────────────────────────
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
-        val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
-        } ?: ""
-
-        // ── EXTRACT TIP ────────────────────────────────────────────────
-        var tipAmount = 0.0
-        activeNodes.forEach { node ->
-            if (node.contains("Tip", ignoreCase = true)) {
-                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            }
-        }
 
         Log.d(TAG, "🔍 NammaYatri parsed: vehicle=$vehicleType fare=₹$baseFare " +
             "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +

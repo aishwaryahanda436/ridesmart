@@ -36,6 +36,8 @@ class ShadowfaxParser : IPlatformParser {
             "no orders", "you are offline", "go online",
             "earnings", "my deliveries", "order history"
         )
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card", "cod", "prepaid")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -150,9 +152,8 @@ class ShadowfaxParser : IPlatformParser {
         val dropAddress = addressCandidates.getOrElse(1) { "" }
 
         // ── EXTRACT PAYMENT TYPE ────────────────────────────────────────
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card", "cod", "prepaid")
         val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
+            PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }
         } ?: ""
 
         Log.d(TAG, "🔍 Shadowfax parsed: vehicle=$vehicleType fare=₹$baseFare " +

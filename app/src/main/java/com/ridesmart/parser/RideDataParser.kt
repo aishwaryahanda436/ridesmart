@@ -39,6 +39,14 @@ class RideDataParser : IPlatformParser {
             "Points reset",
             "More ways to earn"
         )
+
+        // Pre-compiled to avoid regex compilation cost on every detectScreenState call.
+        private val QUEST_TRIPS_REGEX  = Regex("Complete \\d+ more trips", RegexOption.IGNORE_CASE)
+        private val QUEST_POINTS_REGEX = Regex("Collect \\d+ more points", RegexOption.IGNORE_CASE)
+
+        private val RATING_REGEX = Regex("""^[1-5]\.\d{1,2}$""")
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -63,12 +71,8 @@ class RideDataParser : IPlatformParser {
     fun isUberHomeScreen(nodes: List<String>): Boolean {
         val combined = nodes.joinToString("|")
         val isHomeScreen = UBER_HOME_MARKERS.any { combined.contains(it, ignoreCase = true) }
-
-        val hasQuestText = Regex("Complete \\d+ more trips", RegexOption.IGNORE_CASE)
-            .containsMatchIn(combined) ||
-            Regex("Collect \\d+ more points", RegexOption.IGNORE_CASE)
-            .containsMatchIn(combined)
-
+        val hasQuestText = QUEST_TRIPS_REGEX.containsMatchIn(combined) ||
+                           QUEST_POINTS_REGEX.containsMatchIn(combined)
         return isHomeScreen || hasQuestText
     }
 
@@ -222,16 +226,14 @@ class RideDataParser : IPlatformParser {
         }
 
         // ── EXTRACT RIDER RIDER RATING ───────────────────────────────────
-        val RATING_REGEX = Regex("""^[1-5]\.\d{1,2}$""")
         val riderRating = activeNodes.mapNotNull { node ->
             val cleaned = node.replace("★", "").trim()
             if (RATING_REGEX.matches(cleaned)) cleaned.toDoubleOrNull() else null
         }.firstOrNull() ?: 0.0
 
         // ── EXTRACT PAYMENT TYPE ─────────────────────────────────────────
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
         val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
+            PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }
         } ?: ""
 
         // ── EXTRACT DURATION ─────────────────────────────────────────────
