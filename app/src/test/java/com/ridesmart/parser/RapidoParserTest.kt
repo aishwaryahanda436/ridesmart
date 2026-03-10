@@ -96,14 +96,14 @@ class RapidoParserTest {
             "Accept",
             "MG Road, Bangalore"
         )
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull("Should parse valid Rapido offer", result)
         assertEquals("Fare", 65.0, result!!.baseFare, 0.01)
         assertEquals("Pickup distance", 1.2, result.pickupDistanceKm, 0.01)
         assertEquals("Ride distance", 4.5, result.rideDistanceKm, 0.01)
         assertEquals("Duration", 12, result.estimatedDurationMin)
-        assertEquals("Package", "com.rapido.captain", result.packageName)
+        assertEquals("Package", "com.rapido.rider", result.packageName)
     }
 
     @Test
@@ -117,7 +117,7 @@ class RapidoParserTest {
             "10 min",
             "Accept"
         )
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull("Should parse Bike Boost offer", result)
         assertEquals("Base fare", 80.0, result!!.baseFare, 0.01)
@@ -128,7 +128,7 @@ class RapidoParserTest {
     @Test
     fun `single km value parsed as ride distance`() {
         val nodes = listOf("₹55", "3.5 km", "Accept")
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull(result)
         assertEquals("Ride distance", 3.5, result!!.rideDistanceKm, 0.01)
@@ -138,7 +138,7 @@ class RapidoParserTest {
     @Test
     fun `cash payment type is detected`() {
         val nodes = listOf("Bike", "₹70", "2.0 km", "5.0 km", "Accept", "Cash")
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull(result)
         assertTrue("Payment type contains 'cash'", result!!.paymentType.contains("cash", ignoreCase = true))
@@ -146,25 +146,25 @@ class RapidoParserTest {
 
     @Test
     fun `empty input returns null`() {
-        assertNull(parser.parseExpandedCard(emptyList(), "com.rapido.captain"))
+        assertNull(parser.parseExpandedCard(emptyList(), "com.rapido.rider"))
     }
 
     @Test
     fun `active ride screen returns null`() {
         val nodes = listOf("₹80", "End Ride", "Arrived at pickup", "3.0 km")
-        assertNull(parser.parseExpandedCard(nodes, "com.rapido.captain"))
+        assertNull(parser.parseExpandedCard(nodes, "com.rapido.rider"))
     }
 
     @Test
     fun `idle screen returns null`() {
         val nodes = listOf("Settings", "Profile")
-        assertNull(parser.parseExpandedCard(nodes, "com.rapido.captain"))
+        assertNull(parser.parseExpandedCard(nodes, "com.rapido.rider"))
     }
 
     @Test
     fun `no fare returns null`() {
         val nodes = listOf("Bike", "3.5 km", "10 min", "Accept")
-        assertNull(parser.parseExpandedCard(nodes, "com.rapido.captain"))
+        assertNull(parser.parseExpandedCard(nodes, "com.rapido.rider"))
     }
 
     @Test
@@ -172,13 +172,13 @@ class RapidoParserTest {
         // 0.5 km pickup distance, 5.0 km ride distance.
         // ₹800 for 5.0 km ride = ₹160/km — well above the ₹80/km sanity threshold.
         val nodes = listOf("₹800", "0.5 km", "5.0 km", "Accept")
-        assertNull("Should reject unrealistic fare-per-km", parser.parseExpandedCard(nodes, "com.rapido.captain"))
+        assertNull("Should reject unrealistic fare-per-km", parser.parseExpandedCard(nodes, "com.rapido.rider"))
     }
 
     @Test
     fun `tip amount is extracted from Tip node`() {
         val nodes = listOf("₹80", "Tip ₹20", "2.0 km", "5.0 km", "Accept")
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull(result)
         assertEquals("Tip amount", 20.0, result!!.tipAmount, 0.01)
@@ -195,7 +195,7 @@ class RapidoParserTest {
             "Koramangala 5th Block, Bangalore",
             "Whitefield Main Road, Bangalore"
         )
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull(result)
         assertEquals("Pickup address", "Koramangala 5th Block, Bangalore", result!!.pickupAddress)
@@ -206,7 +206,7 @@ class RapidoParserTest {
     fun `pickup and ride distances swapped if pickup is suspiciously large`() {
         // pickup=8.0 > rideDistance=3.0 and pickup > 5.0 → should swap
         val nodes = listOf("₹90", "8.0 km", "3.0 km", "Accept")
-        val result = parser.parseExpandedCard(nodes, "com.rapido.captain")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
         assertNotNull(result)
         // After swap: pickup=3.0, ride=8.0
@@ -219,7 +219,7 @@ class RapidoParserTest {
     @Test
     fun `parseAll returns single ride for simple offer`() {
         val nodes = listOf("₹70", "2.0 km", "6.0 km", "Accept", "12 min")
-        val results = parser.parseAll(nodes, "com.rapido.captain")
+        val results = parser.parseAll(nodes, "com.rapido.rider")
 
         assertEquals("Should return exactly one ride", 1, results.size)
         assertEquals("Fare", 70.0, results[0].baseFare, 0.01)
@@ -228,7 +228,7 @@ class RapidoParserTest {
     @Test
     fun `parseAll returns empty list for idle screen`() {
         val nodes = listOf("Settings", "Profile", "Help")
-        assertTrue(parser.parseAll(nodes, "com.rapido.captain").isEmpty())
+        assertTrue(parser.parseAll(nodes, "com.rapido.rider").isEmpty())
     }
 
     @Test
@@ -237,18 +237,8 @@ class RapidoParserTest {
             "Bike", "₹65", "2.0 km", "5.0 km", "Accept",
             "Auto", "₹90", "1.5 km", "7.0 km", "Accept"
         )
-        val results = parser.parseAll(nodes, "com.rapido.captain")
+        val results = parser.parseAll(nodes, "com.rapido.rider")
         assertTrue("Should return multiple rides for multiple cards", results.size >= 1)
     }
 
-    // ── in.rapido.captain package tests ─────────────────────────────
-
-    @Test
-    fun `in_rapido_captain package parses correctly`() {
-        val nodes = listOf("Bike", "₹60", "1.0 km", "3.5 km", "Accept", "8 min")
-        val result = parser.parseExpandedCard(nodes, "in.rapido.captain")
-
-        assertNotNull(result)
-        assertEquals("in.rapido.captain", result!!.packageName)
-    }
 }

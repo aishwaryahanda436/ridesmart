@@ -10,19 +10,15 @@ object PlatformConfig {
     )
 
     val ALL = listOf(
-        Platform("com.rapido.rider",    "Rapido", 0.0, 0.0),
-        Platform("in.rapido.captain",   "Rapido", 0.0, 0.0),
-        Platform("com.rapido.captain",  "Rapido", 0.0, 0.0),
-        Platform("com.ubercab.driver",  "Uber",   0.0, 0.0),
-        Platform("com.ubercab",         "Uber",   0.0, 0.0),
-        Platform("com.olacabs.driver",  "Ola",    20.0, 0.0),
-        Platform("com.ola.driver",      "Ola",    20.0, 0.0),
+        Platform("com.rapido.rider",      "Rapido", 0.0, 0.0),
+        Platform("com.ubercab.driver",    "Uber",   0.0, 0.0),
+        Platform("com.ubercab",           "Uber",   0.0, 0.0),
+        Platform("com.olacabs.oladriver", "Ola",    20.0, 0.0),
         Platform("com.namma.yatri",     "Namma",  0.0,  0.0),
         Platform("in.swiggy.partner",   "Swiggy", 0.0,  0.0),
         Platform("com.zomato.captain",  "Zomato", 0.0,  0.0),
         Platform("porter.in.android",   "Porter", 15.0, 0.0),
-        Platform("com.shadowfax.driver", "Shadowfax", 0.0, 0.0),
-        Platform("com.shadowfax.zeus",   "Shadowfax", 0.0, 0.0)
+        Platform("in.shadowfax.gandalf",  "Shadowfax", 0.0, 0.0)
     )
 
     fun get(packageName: String) =

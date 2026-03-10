@@ -22,6 +22,7 @@ class OlaParser : IPlatformParser {
         private const val TAG = "RideSmart"
 
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
+        private val RS_FARE_REGEX = Regex("""[Rr]s\s*(\d+(?:[.,]\d{1,2})?)""")
         private val KM_REGEX = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
         private val MIN_REGEX = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BONUS_REGEX = Regex("""\+₹\s*(\d+(?:\.\d{1,2})?)""")
@@ -103,9 +104,11 @@ class OlaParser : IPlatformParser {
         for (node in activeNodes) {
             val trimmed = node.trim()
 
-            // Fare: skip distance lines and boost lines
+            // Fare: skip distance lines and boost lines. Check both ₹ and Rs formats
+            // (Ola uses contentDescription="Rs 124.00" alongside getText()="₹124").
             if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
-                FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                val fareMatch = FARE_REGEX.find(trimmed) ?: RS_FARE_REGEX.find(trimmed)
+                fareMatch?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()?.let {
                     if (it >= 10.0) fareCandidates.add(it)
                 }
             }
