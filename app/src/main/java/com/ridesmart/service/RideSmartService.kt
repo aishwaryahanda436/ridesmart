@@ -63,8 +63,9 @@ class RideSmartService : AccessibilityService() {
         private const val MIN_SCORE_IMPROVEMENT  = 5.0
         private const val SAME_FARE_COOLDOWN_MS  = 15_000L
         private const val MAX_PLATFORM_STATES    = 8
-        private const val UBER_POLL_BASE_MS      = 1500L
+        private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
+        private const val MAX_TREE_DEPTH         = 20
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -75,6 +76,13 @@ class RideSmartService : AccessibilityService() {
     private val uberOcrEngine = UberOcrEngine()
 
     private val eventFlow = MutableSharedFlow<Pair<String, List<String>>>(
+        extraBufferCapacity = 30,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    // Fast path: non-Uber events are dispatched immediately (no debounce needed because
+    // the fingerprint dedup in onAccessibilityEvent already prevents redundant processing).
+    private val fastEventFlow = MutableSharedFlow<Pair<String, List<String>>>(
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
@@ -119,7 +127,7 @@ class RideSmartService : AccessibilityService() {
 
     private var lastUberNotifHash = ""
 
-    private val screenshotCooldownMs = 1200L
+    private val screenshotCooldownMs = 800L
 
     private val screenshotExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var isScreenshotProcessing = false
@@ -151,6 +159,13 @@ class RideSmartService : AccessibilityService() {
             }
         }
         historyRepository = RideHistoryRepository(this)
+
+        serviceScope.launch {
+            // Fast path: non-Uber platforms processed immediately (no debounce).
+            fastEventFlow.collect { (pkg, nodes) ->
+                processScreen(nodes, pkg)
+            }
+        }
 
         serviceScope.launch {
             eventFlow
@@ -435,7 +450,15 @@ class RideSmartService : AccessibilityService() {
             if (fingerprint == state.lastProcessedText) return@launch
             state.lastProcessedText = fingerprint
 
-            eventFlow.emit(Pair(detectedPackage, allNodes))
+            // Route to fast path for non-Uber platforms, debounced path for Uber.
+            // Non-Uber platforms (Rapido, Ola, NammaYatri, Shadowfax) use accessibility
+            // tree text directly — no OCR involved, so no debounce is needed. Fingerprint
+            // dedup above already prevents redundant processing.
+            if (ParserFactory.isUber(detectedPackage)) {
+                eventFlow.emit(Pair(detectedPackage, allNodes))
+            } else {
+                fastEventFlow.emit(Pair(detectedPackage, allNodes))
+            }
         }
     }
 
@@ -719,8 +742,8 @@ class RideSmartService : AccessibilityService() {
      * sometimes contain keywords like "fare", "distance", "pickup" that
      * help signal an offer is present even when text content is empty.
      */
-    private fun collectAllText(node: AccessibilityNodeInfo?): List<String> {
-        if (node == null) return emptyList()
+    private fun collectAllText(node: AccessibilityNodeInfo?, depth: Int = 0): List<String> {
+        if (node == null || depth > MAX_TREE_DEPTH) return emptyList()
         val texts = mutableListOf<String>()
         val nodeText = node.text?.toString()?.trim()
         if (!nodeText.isNullOrBlank()) texts.add(nodeText)
@@ -758,7 +781,7 @@ class RideSmartService : AccessibilityService() {
             val child = node.getChild(i)
             if (child != null) {
                 try {
-                    texts.addAll(collectAllText(child))
+                    texts.addAll(collectAllText(child, depth + 1))
                 } finally {
                     @Suppress("DEPRECATION")
                     child.recycle()

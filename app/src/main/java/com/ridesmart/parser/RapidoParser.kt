@@ -24,6 +24,8 @@ class RapidoParser : IPlatformParser {
             "end ride", "complete ride", "drop otp", "arrived at pickup",
             "start ride", "otp to start", "you are on a trip"
         )
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -68,36 +70,72 @@ class RapidoParser : IPlatformParser {
 
         val vehicleType = detectVehicleType(activeNodes)
 
+        // ── SINGLE-PASS EXTRACTION ────────────────────────────────────────
+        // All fields are captured in one iteration to minimise processing time.
         var baseFare = 0.0
         var fareIndex = -1
+        var premiumAmount = 0.0
+        var tipAmount = 0.0
+        var durationMin = 0
+        var paymentType = ""
+        val addressCandidates = mutableListOf<String>()
+        val allKmValues = mutableListOf<Pair<Int, Double>>() // (nodeIndex, value)
+
         for (i in activeNodes.indices) {
-            val v = FARE_REGEX.find(activeNodes[i])?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            if (v > baseFare) {
-                baseFare = v
-                fareIndex = i
+            val node = activeNodes[i]
+            val trimmed = node.trim()
+
+            // Fare: skip boost lines (+₹...) and distance lines
+            if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
+                FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let { v ->
+                    if (v > baseFare) { baseFare = v; fareIndex = i }
+                }
+            }
+
+            // Boost / premium
+            BOOST_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                premiumAmount += it
+            }
+
+            // Tip
+            if (node.contains("Tip", ignoreCase = true)) {
+                FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { tipAmount = it }
+            }
+
+            // Distance — record index so we can filter by fareIndex later
+            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                allKmValues.add(Pair(i, it))
+            }
+
+            // Duration (first match wins)
+            if (durationMin == 0) {
+                MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()?.let { durationMin = it }
+            }
+
+            // Payment type (first match wins)
+            if (paymentType.isEmpty() && PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }) {
+                paymentType = node
+            }
+
+            // Address candidates
+            if (node.length > 15 &&
+                !KM_REGEX.containsMatchIn(node) &&
+                !MIN_REGEX.containsMatchIn(node) &&
+                !node.equals("Accept", ignoreCase = true) &&
+                !node.equals("Match", ignoreCase = true) &&
+                !node.startsWith("+") &&
+                !node.contains("₹")) {
+                addressCandidates.add(node)
             }
         }
+
         if (baseFare == 0.0) return null
 
-        var premiumAmount = 0.0
-        activeNodes.forEach { node ->
-            val boostMatch = BOOST_REGEX.find(node.trim())
-            if (boostMatch != null) {
-                val bonus = boostMatch.groupValues[1].toDoubleOrNull() ?: 0.0
-                premiumAmount += bonus
-            }
-        }
-
-        var tipAmount = 0.0
-        activeNodes.forEach { node ->
-            if (node.contains("Tip", ignoreCase = true)) {
-                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            }
-        }
-
-        val kmValues = activeNodes
-            .drop(if (fareIndex > 0) fareIndex else 0)
-            .mapNotNull { node -> KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() }
+        // ── DISTANCE RESOLUTION ───────────────────────────────────────────
+        // Only consider km values at or after the fare node (same as original logic).
+        val kmValues = allKmValues
+            .filter { (idx, _) -> idx >= (if (fareIndex > 0) fareIndex else 0) }
+            .map { (_, v) -> v }
 
         var pickupDistanceKm = 0.0
         var rideDistanceKm   = 0.0
@@ -121,26 +159,8 @@ class RapidoParser : IPlatformParser {
             return null
         }
 
-        val durationMin = activeNodes.mapNotNull { node ->
-            MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-        }.firstOrNull() ?: 0
-
-        val addressCandidates = activeNodes.filter { node ->
-            node.length > 15 &&
-            !KM_REGEX.containsMatchIn(node) &&
-            !MIN_REGEX.containsMatchIn(node) &&
-            !node.equals("Accept", ignoreCase = true) &&
-            !node.equals("Match", ignoreCase = true) &&
-            !node.startsWith("+") &&
-            !node.contains("₹")
-        }
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
         val dropAddress   = addressCandidates.getOrElse(1) { "" }
-
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
-        val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
-        } ?: ""
 
         Log.d(TAG, "🔍 Rapido parsed: vehicle=$vehicleType fare=₹$baseFare " +
             "boost=₹$premiumAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +

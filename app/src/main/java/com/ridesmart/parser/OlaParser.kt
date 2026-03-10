@@ -35,6 +35,8 @@ class OlaParser : IPlatformParser {
             "you are offline", "go online", "no rides available",
             "earnings today", "my earnings", "ride history"
         )
+
+        private val PAYMENT_KEYWORDS = listOf("cash", "upi", "online", "wallet", "card")
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
@@ -152,9 +154,8 @@ class OlaParser : IPlatformParser {
         val dropAddress = addressCandidates.getOrElse(1) { "" }
 
         // ── EXTRACT PAYMENT TYPE ────────────────────────────────────────
-        val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
         val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
+            PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }
         } ?: ""
 
         // ── EXTRACT TIP ────────────────────────────────────────────────
