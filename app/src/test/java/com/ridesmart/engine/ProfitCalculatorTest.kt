@@ -226,7 +226,7 @@ class ProfitCalculatorTest {
     }
 
     @Test
-    fun `idle time cost should reduce net profit`() {
+    fun `idle time cost should reduce net profit and RideScore`() {
         val rideNoWait = ParsedRide(
             baseFare         = 60.0,
             rideDistanceKm   = 8.0,
@@ -242,6 +242,7 @@ class ProfitCalculatorTest {
         assertTrue("idle time cost is positive", resultWithWait.idleTimeCost > 0.0)
         assertEquals("idle cost = (10/60)*200", 33.33, resultWithWait.idleTimeCost, 0.5)
         assertTrue("net profit reduced by idle cost", resultWithWait.netProfit < resultNoWait.netProfit)
+        assertTrue("RideScore reduced by idle cost", resultWithWait.rideScore < resultNoWait.rideScore)
     }
 
     @Test
@@ -277,12 +278,14 @@ class ProfitCalculatorTest {
         val resultNight   = calculator.calculate(ride, profile, 20)  // Night
 
         // Same ride, different weights → different scores
-        // Net profit and metrics are identical, but score differs due to weights
         assertEquals("same net profit", resultMorning.netProfit, resultMidday.netProfit, 0.01)
-        // Weights differ so scores should differ (unless all sub-scores are identical)
         assertTrue("morning score computed", resultMorning.rideScore > 0.0)
         assertTrue("midday score computed", resultMidday.rideScore > 0.0)
         assertTrue("night score computed", resultNight.rideScore > 0.0)
+        // Weights differ across time bands so scores differ for non-uniform sub-scores
+        assertFalse("morning vs midday scores differ",
+            resultMorning.rideScore == resultMidday.rideScore && resultMidday.rideScore == resultNight.rideScore
+        )
     }
 
     @Test
