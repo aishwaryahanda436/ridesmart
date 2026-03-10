@@ -29,6 +29,8 @@ class UberOcrEngine : IPlatformParser {
     companion object {
         private const val TAG = "RideSmart"
         private const val OCR_TIMEOUT_MS = 2000L
+        private const val OFFER_CROP_RATIO = 0.60
+        private const val MIN_OFFER_SIGNALS = 2
 
         // Screen-level rejection phrases (not an offer card)
         private val SCREEN_REJECT = listOf(
@@ -177,8 +179,7 @@ class UberOcrEngine : IPlatformParser {
             "upfront", "incentive", "premium", "cash payment"
         )
         val matchCount = signals.count { combined.contains(it) }
-        // At least 2 signals suggests an offer popup is present
-        return matchCount >= 2
+        return matchCount >= MIN_OFFER_SIGNALS
     }
 
     /**
@@ -188,7 +189,7 @@ class UberOcrEngine : IPlatformParser {
      */
     fun cropOfferRegion(bitmap: Bitmap): Bitmap? {
         return try {
-            val offerHeight = (bitmap.height * 0.60).toInt()
+            val offerHeight = (bitmap.height * OFFER_CROP_RATIO).toInt()
             if (offerHeight <= 0 || bitmap.width <= 0) return null
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, offerHeight)
         } catch (e: Exception) {

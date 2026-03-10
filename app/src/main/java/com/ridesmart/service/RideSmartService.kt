@@ -727,7 +727,7 @@ class RideSmartService : AccessibilityService() {
         // API 26+: hintText may carry placeholder values with ride info
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val hint = node.hintText?.toString()?.trim()
-            if (!hint.isNullOrBlank() && hint != nodeText && hint != contentDesc) {
+            if (!hint.isNullOrBlank() && hint !in texts) {
                 texts.add(hint)
             }
         }
