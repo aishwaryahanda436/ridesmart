@@ -46,9 +46,31 @@ data class RiderProfile(
     // Used to score whether ride pace is good or bad
 
     // ── PLATFORM SETTING ──
-    val platformCommissionPercent: Double = 0.0
+    val platformCommissionPercent: Double = 0.0,
     // Commission % the platform takes from the fare shown
     // Set to 0.0 if the fare shown in popup is ALREADY the driver's payout
     // Set to 20.0 if platform takes 20% and fare shown is the gross amount
     // Rapido/Uber typically show post-commission fare to driver — default 0
+
+    // ── CITY & CONGESTION SETTINGS ──
+    val cityAvgSpeedKmH: Double = 25.0,
+    // Average city driving speed in km/h — used to compute pickup time when not provided
+    // Delhi NCR default: 25.5 km/h. Bengaluru: 17 km/h. Tier-2: 30+ km/h.
+
+    val congestionFactor: Double = 1.3,
+    // Multiplier for congestion: AvgCitySpeed / CurrentSegmentSpeed (capped at 2.5)
+    // 1.0 = free-flowing, 1.3 = moderate, 2.0+ = heavy congestion
+
+    // ── SUBSCRIPTION SETTINGS ──
+    val subscriptionDailyCost: Double = 0.0,
+    // Daily subscription fee (e.g. Rapido ₹50, Uber Pass ₹113, Ola ₹80)
+    // Set to 0.0 for commission-based platforms
+
+    val avgTripsPerDay: Double = 10.0,
+    // Average trips per day — used to amortise subscription cost per trip
+
+    // ── DIESEL FUEL PRICE ──
+    val dieselPricePerLitre: Double = 87.67
+    // Current diesel price in rider's city (₹ per litre)
+    // Delhi NCR diesel price as of March 2026 ≈ ₹87.67
 )
