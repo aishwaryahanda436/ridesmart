@@ -65,8 +65,9 @@ class RideHistoryRepository(private val context: Context) {
     companion object {
         private val KEY_HISTORY = stringPreferencesKey("history_csv")
         private const val MAX_ENTRIES = 200
-        private const val SEP_FIELD = ","
+        private const val SEP_FIELD = "\u200B"   // zero-width space — safe against commas in addresses
         private const val SEP_ROW = "\n"
+        private const val LEGACY_SEP_FIELD = ","  // fallback for rows saved before separator migration
     }
 
     // Flow of all saved ride entries, newest first
@@ -103,17 +104,21 @@ class RideHistoryRepository(private val context: Context) {
         e.fuelCost, e.wearCost, e.totalCost,
         e.netProfit, e.earningPerKm, e.earningPerHour,
         e.signal.name,
-        e.failedChecks.replace(",", ";"),  // guard against field separator
+        e.failedChecks,
         e.smartScore,
-        e.pickupAddress.replace(",", "~"),
-        e.dropAddress.replace(",", "~"),
+        e.pickupAddress,
+        e.dropAddress,
         e.riderRating,
-        e.paymentType.replace(",", ";")
+        e.paymentType
     ).joinToString(SEP_FIELD)
 
     private fun parseRow(row: String): RideEntry? {
         return try {
-            val p = row.split(SEP_FIELD)
+            // Try new separator first, fall back to legacy comma separator
+            val p = row.split(SEP_FIELD).let { parts ->
+                if (parts.size >= 23) parts
+                else row.split(LEGACY_SEP_FIELD)
+            }
             if (p.size < 23) return null  // reject old short-format rows
             RideEntry(
                 timestampMs        = p[0].toLong(),
@@ -137,12 +142,12 @@ class RideHistoryRepository(private val context: Context) {
                 earningPerKm       = p[18].toDouble(),
                 earningPerHour     = p[19].toDouble(),
                 signal             = Signal.valueOf(p[20]),
-                failedChecks       = p[21].replace(";", ","),
+                failedChecks       = p[21],
                 smartScore         = p[22].toDouble(),
-                pickupAddress      = if (p.size > 23) p[23].replace("~", ",") else "",
-                dropAddress        = if (p.size > 24) p[24].replace("~", ",") else "",
+                pickupAddress      = if (p.size > 23) p[23] else "",
+                dropAddress        = if (p.size > 24) p[24] else "",
                 riderRating        = if (p.size > 25) p[25].toDoubleOrNull() ?: 0.0 else 0.0,
-                paymentType        = if (p.size > 26) p[26].replace(";", ",") else ""
+                paymentType        = if (p.size > 26) p[26] else ""
             )
         } catch (e: Exception) { null }
     }

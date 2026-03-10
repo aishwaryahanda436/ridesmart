@@ -3,6 +3,7 @@ package com.ridesmart.engine
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.RiderProfile
 import com.ridesmart.model.Signal
+import com.ridesmart.model.VehicleType
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -168,5 +169,52 @@ class ProfitCalculatorTest {
         assertTrue("earningPerKm above 3.50", result.earningPerKm > 3.50)
         assertEquals("Should be GREEN", Signal.GREEN, result.signal)
         assertTrue("No failed checks", result.failedChecks.isEmpty())
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    @Test
+    fun `CNG auto ride should use CNG price not petrol price`() {
+        // CNG Auto ride: ₹80, 6.0km ride, 1.0km pickup
+        // CNG_AUTO has: defaultMileage=28.0 km/kg, fuelType=CNG, wearMultiplier=1.6
+        // Arithmetic:
+        // totalDistanceKm  = 6.0 + 1.0 = 7.0
+        // effectiveMileage  = 28.0 (vehicle-type default, since profile is 45.0 and vehicle is not bike)
+        // kgUsed            = 7.0 / 28.0 = 0.25
+        // fuelCost          = 0.25 × 85.0 = 21.25  (CNG price, NOT petrol price)
+        // wearCost          = 7.0 × (0.80 + 0.30) × 1.6 = 12.32
+        // netProfit         = 80 - 21.25 - 12.32 = 46.43
+        val ride = ParsedRide(
+            baseFare         = 80.0,
+            rideDistanceKm   = 6.0,
+            pickupDistanceKm = 1.0,
+            vehicleType      = VehicleType.CNG_AUTO
+        )
+        val result = calculator.calculate(ride, profile)
+
+        // If petrol price (102) were used, fuelCost would be 0.25 × 102 = 25.5
+        // With CNG price (85), fuelCost = 0.25 × 85 = 21.25
+        assertEquals("Fuel cost uses CNG price", 21.25, result.fuelCost, 0.5)
+        assertTrue("netProfit above 30", result.netProfit > 30.0)
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    @Test
+    fun `eBike ride should have zero fuel cost`() {
+        // eBike ride: ₹50, 5.0km ride, 0.5km pickup
+        // EBIKE has: defaultMileage=0.0, fuelType=ELECTRIC, wearMultiplier=0.7
+        // Arithmetic:
+        // fuelCost          = 0.0 (electric — no fuel)
+        // wearCost          = 5.5 × (0.80 + 0.30) × 0.7 = 4.235
+        // netProfit         = 50 - 0 - 4.235 = 45.765
+        val ride = ParsedRide(
+            baseFare         = 50.0,
+            rideDistanceKm   = 5.0,
+            pickupDistanceKm = 0.5,
+            vehicleType      = VehicleType.EBIKE
+        )
+        val result = calculator.calculate(ride, profile)
+
+        assertEquals("Electric vehicle has zero fuel cost", 0.0, result.fuelCost, 0.01)
+        assertTrue("netProfit higher due to zero fuel", result.netProfit > 45.0)
     }
 }

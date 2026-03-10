@@ -27,6 +27,7 @@ fun ProfileSetupScreen(
 
     var mileage      by remember(savedProfile) { mutableStateOf(savedProfile.mileageKmPerLitre.toString()) }
     var fuelPrice    by remember(savedProfile) { mutableStateOf(savedProfile.fuelPricePerLitre.toString()) }
+    var cngPrice     by remember(savedProfile) { mutableStateOf(savedProfile.cngPricePerKg.toString()) }
     var maintenance  by remember(savedProfile) { mutableStateOf(savedProfile.maintenancePerKm.toString()) }
     var depreciation by remember(savedProfile) { mutableStateOf(savedProfile.depreciationPerKm.toString()) }
     var minProfit    by remember(savedProfile) { mutableStateOf(savedProfile.minAcceptableNetProfit.toString()) }
@@ -80,6 +81,7 @@ fun ProfileSetupScreen(
             ProfileGroupCard(title = "Vehicle & Fuel", icon = "🏍️", bgColor = cardBg) {
                 InputField("Bike Mileage (km/L)", mileage, { mileage = it }, "Delhi avg is 45")
                 InputField("Petrol Price (₹/L)", fuelPrice, { fuelPrice = it }, "Current city price")
+                InputField("CNG Price (₹/kg)", cngPrice, { cngPrice = it }, "For CNG auto (~₹85)")
             }
 
             // ── SECTION: RUNNING COSTS ──
@@ -110,6 +112,7 @@ fun ProfileSetupScreen(
                 onClick = {
                     val pMileage = mileage.toDoubleOrNull() ?: -1.0
                     val pFuel = fuelPrice.toDoubleOrNull() ?: -1.0
+                    val pCng = cngPrice.toDoubleOrNull() ?: -1.0
                     val pMaint = maintenance.toDoubleOrNull() ?: -1.0
                     val pDepr = depreciation.toDoubleOrNull() ?: -1.0
                     val pMinProfit = minProfit.toDoubleOrNull()
@@ -117,13 +120,14 @@ fun ProfileSetupScreen(
                     val pHour = targetPerHr.toDoubleOrNull() ?: -1.0
                     val pComm = commission.toDoubleOrNull() ?: -1.0
 
-                    if (pMileage <= 0 || pFuel <= 0 || pMaint < 0 || pDepr < 0 || 
+                    if (pMileage <= 0 || pFuel <= 0 || pCng <= 0 || pMaint < 0 || pDepr < 0 || 
                         pMinProfit == null || pMinKm == null || pHour <= 0 || pComm < 0) {
                         errorMessage = "Please enter valid numbers in all fields"
                     } else {
                         viewModel.saveProfile(RiderProfile(
                             mileageKmPerLitre = pMileage,
                             fuelPricePerLitre = pFuel,
+                            cngPricePerKg = pCng,
                             maintenancePerKm = pMaint,
                             depreciationPerKm = pDepr,
                             minAcceptableNetProfit = pMinProfit,

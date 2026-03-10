@@ -46,7 +46,11 @@ class ProfitCalculator {
         }
 
         val litresUsed = if (effectiveMileage > 0.0) totalDistanceKm / effectiveMileage else 0.0
-        val fuelCost = litresUsed * profile.fuelPricePerLitre
+        val fuelCost = when (ride.vehicleType.fuelType) {
+            FuelType.ELECTRIC -> 0.0
+            FuelType.CNG      -> litresUsed * profile.cngPricePerKg
+            FuelType.PETROL   -> litresUsed * profile.fuelPricePerLitre
+        }
 
         // ── STEP 4: WEAR AND TEAR COST ──────────────────────────────────
         // Scale maintenance and depreciation by vehicle type multiplier
