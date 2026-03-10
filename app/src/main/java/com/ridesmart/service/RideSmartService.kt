@@ -154,7 +154,7 @@ class RideSmartService : AccessibilityService() {
 
         serviceScope.launch {
             eventFlow
-                .debounce(150L)
+                .debounce(100L)
                 .collect { (pkg, nodes) ->
                     processScreen(nodes, pkg)
                 }
@@ -233,8 +233,10 @@ class RideSmartService : AccessibilityService() {
             uberAppInForeground = true
             activeForegroundPlatform = "uber"
             
-            // On TYPE_WINDOW_STATE_CHANGED (type=32) specifically,
-            // trigger an immediate screenshot for faster offer detection.
+            // ── STAGE 1: EARLY DETECTION via window/content change ──────────
+            // TYPE_WINDOW_STATE_CHANGED (32): a new screen/dialog appeared —
+            // highest-priority signal; trigger OCR immediately without waiting
+            // for the debounced accessibility-tree scan.
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 resetUberPollingBackoff()
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
@@ -246,10 +248,11 @@ class RideSmartService : AccessibilityService() {
                 return
             }
 
-            // On TYPE_WINDOW_CONTENT_CHANGED (type=2048), Uber updates offer UI.
-            // Try accessibility tree first; if data is insufficient (obfuscated),
-            // fall through to the hybrid path which triggers OCR.
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // TYPE_WINDOW_CONTENT_CHANGED (2048): offer UI updated.
+            // TYPE_VIEW_TEXT_CHANGED (16): a text field on the offer card changed.
+            // Both reset backoff so the polling loop stays fast during an offer.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
                 resetUberPollingBackoff()
             }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
