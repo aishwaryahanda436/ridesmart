@@ -170,7 +170,7 @@ fun StatusBadge(isActive: Boolean, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                if (isActive) "●" else "●",
+                "●",
                 color = if (isActive) RideGreen else SignalRed,
                 fontSize = 10.sp
             )
