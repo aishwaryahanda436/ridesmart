@@ -4,6 +4,7 @@ import android.util.Log
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.model.PlatformConfig
 
 /**
  * Dedicated parser for NammaYatri (JUSPAY) ride requests.
@@ -210,7 +211,7 @@ class NammaYatriParser : IPlatformParser {
             rideDistanceKm       = rideDistanceKm,
             pickupDistanceKm     = pickupDistanceKm,
             estimatedDurationMin = durationMin,
-            platform             = packageName,
+            platform              = PlatformConfig.get(packageName).displayName,
             packageName          = packageName,
             rawTextNodes         = activeNodes,
             pickupAddress        = pickupAddress,

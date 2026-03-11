@@ -15,7 +15,11 @@ class BootReceiver : BroadcastReceiver() {
             // RideSmartForegroundService does not exist in the project,
             // so we start RideSmartService as a foreground service as requested.
             val serviceIntent = Intent(context, RideSmartService::class.java)
-            context.startForegroundService(serviceIntent)
+            try {
+                context.startForegroundService(serviceIntent)
+            } catch (e: Exception) {
+                Log.e("RideSmart", "Failed to start service from boot: ${e.message}")
+            }
         }
     }
 }

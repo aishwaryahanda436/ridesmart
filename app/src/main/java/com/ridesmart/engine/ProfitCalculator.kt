@@ -72,7 +72,12 @@ class ProfitCalculator {
     /**
      * Main calculation with explicit hour parameter for testability.
      */
-    fun calculate(ride: ParsedRide, profile: RiderProfile, currentHour: Int): ProfitResult {
+    fun calculate(
+        ride: ParsedRide,
+        profile: RiderProfile,
+        currentHour: Int,
+        idleMinutes: Double = 0.0
+    ): ProfitResult {
 
         // ── STEP 1: GROSS FARE WITH SURGE/BONUS/COMMISSION/SUBSCRIPTION ─
         val surgedBase = ride.baseFare * ride.surgeMultiplier
@@ -101,12 +106,12 @@ class ProfitCalculator {
         val totalDistanceKm = ride.pickupDistanceKm + ride.rideDistanceKm
 
         // ── STEP 3: FUEL COST ───────────────────────────────────────────
-        val effectiveMileage = if (ride.vehicleType != VehicleType.UNKNOWN &&
-                                   ride.vehicleType != VehicleType.BIKE &&
-                                   ride.vehicleType != VehicleType.BIKE_BOOST &&
-                                   profile.mileageKmPerLitre == 45.0) {
+        val profileIsDefault = profile.mileageKmPerLitre == 45.0  // driver never customised mileage
+        val effectiveMileage = if (ride.vehicleType != VehicleType.UNKNOWN && profileIsDefault) {
+            // Driver hasn't set a custom mileage — use the vehicle type's known default
             ride.vehicleType.defaultMileageKmPerLitre
         } else {
+            // Driver explicitly set a custom mileage — always honour their setting
             profile.mileageKmPerLitre
         }
 
@@ -179,8 +184,8 @@ class ProfitCalculator {
         } else 0.0
 
         // ── STEP 11: MINIMUM VIABLE FARE CHECK ─────────────────────────
-        // Uses operational CPK (fuel + maintenance only) per the spec pseudocode
-        val minViableFare = operationalCPK * totalDistanceKm * 1.25
+        // Uses full CPK (fuel + maintenance + time cost) per the spec
+        val minViableFare = cpk * totalDistanceKm * 1.25
 
         // ── STEP 12: HARD OVERRIDE CHECK ────────────────────────────────
         val failedChecks = mutableListOf<String>()
@@ -207,7 +212,29 @@ class ProfitCalculator {
             overrideActive = true
         }
 
-        // Hard override → instant RED
+        // INFORMATIONAL WARNINGS
+        if (netProfit < profile.minAcceptableNetProfit) {
+            failedChecks.add(
+                "Profit ₹${netProfit.toInt()} below your ₹${profile.minAcceptableNetProfit.toInt()} minimum"
+            )
+        }
+        if (epk < profile.minAcceptablePerKm) {
+            failedChecks.add(
+                "₹/km ₹${"%.1f".format(epk)} below your ₹${"%.1f".format(profile.minAcceptablePerKm)} target"
+            )
+        }
+        if (earningPerHour > 0.0 && earningPerHour < profile.targetEarningPerHour) {
+            failedChecks.add(
+                "₹/hr pace ₹${earningPerHour.toInt()} below your ₹${profile.targetEarningPerHour.toInt()} goal"
+            )
+        }
+        if (ppr > 0.40) {
+            failedChecks.add(
+                "Pickup ${ride.pickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — too far"
+            )
+        }
+
+        // Hard override → instant RED with complete failure list
         if (overrideActive) {
             return ProfitResult(
                 totalFare      = totalFare,
@@ -239,8 +266,8 @@ class ProfitCalculator {
         }
         val s1 = clamp((netProfit / targetNetProfit) * 100.0)
 
-        // S2 — EPK Score (target = operational CPK × 2 — per spec pseudocode)
-        val targetEPK = if (operationalCPK > 0.0) operationalCPK * 2.0 else profile.minAcceptablePerKm * 2.0
+        // S2 — EPK Score (target = full CPK × 2 — per spec)
+        val targetEPK = if (cpk > 0.0) cpk * 2.0 else profile.minAcceptablePerKm * 2.0
         val s2 = clamp((epk / targetEPK) * 100.0)
 
         // S3 — Time Efficiency Score (neutral 50 when no time data available)
@@ -252,36 +279,19 @@ class ProfitCalculator {
         // S5 — Surge & Bonus Score
         val s5 = clamp((ride.surgeMultiplier - 1.0) * 50.0 + ride.bonus / 5.0)
 
-        // S6 — Opportunity Cost Score (simplified: based on idle time and demand)
-        val s6 = clamp(50.0)  // Neutral default — real impl uses zone heat index
+        // S6 — Opportunity Cost Score
+        // IdleUrgency: 0.0 when just started, 1.0 after 5+ idle minutes
+        // When idle (driver waiting for rides), accepting even mediocre rides is better
+        val idleUrgency = (idleMinutes / 5.0).coerceIn(0.0, 1.0)
+        // Default zone heat = 0.5 (neutral). High idle urgency → higher S6 → accept more rides
+        val zoneHeatIndex = 0.5  // neutral; future: replace with real zone demand data
+        val s6 = clamp(100.0 - (zoneHeatIndex * (1.0 - idleUrgency) * 100.0))
 
         // ── STEP 14: DYNAMIC WEIGHTS ────────────────────────────────────
         val w = getTimeAdjustedWeights(currentHour)
 
         // ── STEP 15: COMPOSITE RIDESCORE ────────────────────────────────
         val rideScore = s1 * w.profit + s2 * w.epk + s3 * w.time + s4 * w.pickup + s5 * w.surge + s6 * w.opp
-
-        // ── STEP 16: INFORMATIONAL WARNINGS (non-override) ─────────────
-        if (netProfit < profile.minAcceptableNetProfit) {
-            failedChecks.add(
-                "Profit ₹${netProfit.toInt()} below your ₹${profile.minAcceptableNetProfit.toInt()} minimum"
-            )
-        }
-        if (epk < profile.minAcceptablePerKm) {
-            failedChecks.add(
-                "₹/km ₹${"%.1f".format(epk)} below your ₹${"%.1f".format(profile.minAcceptablePerKm)} target"
-            )
-        }
-        if (earningPerHour > 0.0 && earningPerHour < profile.targetEarningPerHour) {
-            failedChecks.add(
-                "₹/hr pace ₹${earningPerHour.toInt()} below your ₹${profile.targetEarningPerHour.toInt()} goal"
-            )
-        }
-        if (ppr > 0.40) {
-            failedChecks.add(
-                "Pickup ${ride.pickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — too far"
-            )
-        }
 
         // ── STEP 17: SIGNAL FROM RIDESCORE ──────────────────────────────
         val signal = when {

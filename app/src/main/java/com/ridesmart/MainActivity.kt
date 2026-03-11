@@ -31,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ridesmart.service.OemPermissionHelper
 import com.ridesmart.ui.*
 import com.ridesmart.ui.theme.*
 
@@ -66,15 +68,25 @@ class MainActivity : ComponentActivity() {
 
 /**
  * App navigation — state-based routing between screens.
- * Flow: Splash → Main Driver Screen → (History/Dashboard/Settings/Permissions)
+ * Flow: Splash → Profile Setup (if first time) → Main Driver Screen
  */
 @Composable
-fun RideSmartApp() {
+fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
+    val hasCompletedSetup by profileViewModel.hasCompletedSetup.collectAsState()
+
+    // Handle initial routing after splash
+    val onSplashFinished = {
+        if (!hasCompletedSetup) {
+            currentScreen = Screen.ProfileSetup
+        } else {
+            currentScreen = Screen.Main
+        }
+    }
 
     when (currentScreen) {
         Screen.Splash -> SplashScreen(
-            onFinished = { currentScreen = Screen.Main }
+            onFinished = onSplashFinished
         )
         Screen.Main -> MainDriverScreen(
             onNavigateHistory = { currentScreen = Screen.History },
@@ -95,7 +107,8 @@ fun RideSmartApp() {
             onBack = { currentScreen = Screen.Main }
         )
         Screen.ProfileSetup -> ProfileSetupScreen(
-            onSaved = { currentScreen = Screen.Settings }
+            onSaved = { currentScreen = Screen.Main },
+            viewModel = profileViewModel
         )
     }
 }
@@ -218,8 +231,91 @@ fun PermissionSetupScreen(onBack: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            ManufacturerBatteryGuide()
+            
+            // ── Spec v2.0: OEM Setup Wizard ──
+            OemWizardSection()
+
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+fun OemWizardSection() {
+    val context = LocalContext.current
+    val manufacturer = Build.MANUFACTURER.uppercase()
+    val autoStartIntent = OemPermissionHelper.getAutoStartIntent(context)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "$manufacturer OPTIMIZATION",
+            color = TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = DarkCard),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, DarkBorder)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Prevent Service Death",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    "$manufacturer kills background services to save battery. Complete these steps to ensure RideSmart stays active.",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        try {
+                            context.startActivity(OemPermissionHelper.getBatteryOptimizationIntent(context))
+                        } catch (e: Exception) {
+                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = RideGreen.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("1. Disable Battery Restrictions", color = RideGreen, fontSize = 13.sp)
+                }
+
+                if (autoStartIntent != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(autoStartIntent)
+                            } catch (e: Exception) {
+                                // Fallback or silent fail
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = RideGreen.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("2. Enable Auto-Start", color = RideGreen, fontSize = 13.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                ManufacturerBatteryGuide()
+            }
         }
     }
 }
@@ -315,38 +411,20 @@ fun ManufacturerBatteryGuide() {
     val guideText = when {
         manufacturer.contains("samsung") ->
             "Samsung Fix: Settings → Battery → Background usage → Never sleeping apps → Add RideSmart"
-        manufacturer.contains("xiaomi") ->
-            "Xiaomi Fix: Settings → Apps → RideSmart → Battery Saver → No Restrictions"
-        else ->
-            "Battery Fix: Settings → Apps → RideSmart → Battery → Unrestricted"
+        manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ->
+            "Xiaomi Fix: App Info → Battery Saver → No Restrictions"
+        manufacturer.contains("oppo") || manufacturer.contains("realme") ->
+            "Oppo/Realme Fix: App Info → Battery → Allow Background Activity"
+        manufacturer.contains("vivo") ->
+            "Vivo Fix: Settings → Battery → High Background Power Consumption → Enable RideSmart"
+        else -> "Ensure battery optimization is disabled for RideSmart to function in the background."
     }
 
     Text(
         text = guideText,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        color = TextSecondary,
+        color = TextMuted,
         fontSize = 11.sp,
-        lineHeight = 16.sp
+        lineHeight = 15.sp,
+        modifier = Modifier.padding(top = 8.dp)
     )
-}
-
-fun isAccessibilityServiceEnabled(context: Context): Boolean {
-    val expectedComponentName = "${context.packageName}/com.ridesmart.service.RideSmartService"
-    val enabledServices = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-    ) ?: return false
-    return enabledServices.contains(expectedComponentName)
-}
-
-fun isNotificationPermissionGranted(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-    } else {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.areNotificationsEnabled()
-    }
 }

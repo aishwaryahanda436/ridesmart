@@ -4,6 +4,7 @@ import android.util.Log
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.model.PlatformConfig
 
 /**
  * Dedicated parser for Shadowfax Driver app ride/delivery requests.
@@ -187,7 +188,7 @@ class ShadowfaxParser : IPlatformParser {
             rideDistanceKm = rideDistanceKm,
             pickupDistanceKm = pickupDistanceKm,
             estimatedDurationMin = durationMin,
-            platform = packageName,
+            platform = PlatformConfig.get(packageName).displayName,
             packageName = packageName,
             rawTextNodes = activeNodes,
             pickupAddress = pickupAddress,
@@ -243,7 +244,7 @@ class ShadowfaxParser : IPlatformParser {
             rideDistanceKm = totalDistanceKm,
             pickupDistanceKm = 0.0,
             estimatedDurationMin = durationMin,
-            platform = packageName,
+            platform = PlatformConfig.get(packageName).displayName,
             packageName = packageName,
             rawTextNodes = nodes,
             pickupAddress = "",

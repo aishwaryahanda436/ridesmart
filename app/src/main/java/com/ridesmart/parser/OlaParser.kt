@@ -4,6 +4,7 @@ import android.util.Log
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.model.PlatformConfig
 
 /**
  * Dedicated parser for Ola Driver app ride requests.
@@ -194,7 +195,7 @@ class OlaParser : IPlatformParser {
             rideDistanceKm = rideDistanceKm,
             pickupDistanceKm = pickupDistanceKm,
             estimatedDurationMin = durationMin,
-            platform = packageName,
+            platform = PlatformConfig.get(packageName).displayName,
             packageName = packageName,
             rawTextNodes = activeNodes,
             pickupAddress = pickupAddress,

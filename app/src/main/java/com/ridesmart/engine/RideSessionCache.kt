@@ -1,14 +1,14 @@
 package com.ridesmart.engine
 
 import com.ridesmart.model.ParsedRide
+import java.util.Locale
 
 /**
  * Stores ride evaluation results across card swipes within a single
  * ride-offer session. Resets when the offer screen disappears (IDLE)
- * or when 90 seconds pass with no new cards.
+ * or when 45 seconds pass (standard offer expiry).
  *
- * This enables "best so far" comparison even though Rapido only
- * shows full data on the currently expanded card.
+ * Uses MurmurHash3 for O(1) fingerprinting of unique ride cards.
  */
 class RideSessionCache {
 
@@ -17,15 +17,16 @@ class RideSessionCache {
         val netProfit: Double,
         val smartScore: Double,
         val cardIndex: Int,          // 1-based position when this card was seen
-        val timestampMs: Long
+        val timestampMs: Long,
+        val fingerprint: Int         // MurmurHash3 result
     )
 
-    private val results = mutableMapOf<String, CachedResult>()
+    private val results = mutableMapOf<Int, CachedResult>()
     private var sessionStartMs = 0L
     private var nextCardIndex = 1
 
     companion object {
-        private const val SESSION_TIMEOUT_MS = 90_000L  // 90 seconds
+        private const val SESSION_TIMEOUT_MS = 45_000L  // 45 seconds (Spec v2.0)
     }
 
     // ── SESSION LIFECYCLE ────────────────────────────────────────────
@@ -46,24 +47,24 @@ class RideSessionCache {
     fun addResult(ride: ParsedRide, netProfit: Double, smartScore: Double) {
         if (sessionStartMs == 0L) sessionStartMs = System.currentTimeMillis()
 
-        // Key = fare + pickup rounded to 1dp + ride rounded to 1dp — identifies unique cards
-        val key = "${ride.baseFare}_${String.format("%.1f", ride.pickupDistanceKm)}_${String.format("%.1f", ride.rideDistanceKm)}"
+        // Fingerprint = MurmurHash3(fare + pickup + rideType) as per Spec v2.0
+        // Fix: Use 2 decimal places for distances and round baseFare to avoid collisions.
+        val key = "${ride.baseFare.toLong()}_${String.format(Locale.US, "%.2f", ride.pickupDistanceKm)}_${String.format(Locale.US, "%.2f", ride.rideDistanceKm)}"
+        val fingerprint = MurmurHash3.hash32(key)
 
         // Only update if this is a new card or a better reading of the same card
-        val existing = results[key]
+        val existing = results[fingerprint]
         val isNewCard = existing == null
         val isBetterScore = existing != null && smartScore > existing.smartScore
-        val isBetterData = existing != null &&
-                           ride.rideDistanceKm > existing.ride.rideDistanceKm &&
-                           smartScore >= existing.smartScore - 0.5  // same score range, more data
-
-        if (isNewCard || isBetterScore || isBetterData) {
-            results[key] = CachedResult(
+        
+        if (isNewCard || isBetterScore) {
+            results[fingerprint] = CachedResult(
                 ride       = ride,
                 netProfit  = netProfit,
                 smartScore = smartScore,
                 cardIndex  = existing?.cardIndex ?: nextCardIndex++,
-                timestampMs = System.currentTimeMillis()
+                timestampMs = System.currentTimeMillis(),
+                fingerprint = fingerprint
             )
         }
     }

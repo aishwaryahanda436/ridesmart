@@ -1,8 +1,6 @@
 package com.ridesmart.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -13,16 +11,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * RideSmart dark-first color scheme — optimized for driver use at night.
- * Uses brand green (#3DDC84) as primary with deep dark backgrounds.
+ * RideSmart HUD Theme v2.0
+ * Ultra-modern neon-dark interface optimized for high-speed decision making.
  */
 private val RideSmartColorScheme = darkColorScheme(
     primary = RideGreen,
-    onPrimary = Color.Black,
+    onPrimary = TextOnGreen,
     primaryContainer = RideGreenDark,
     onPrimaryContainer = Color.White,
-    secondary = TextSecondary,
-    onSecondary = Color.White,
+    secondary = RideBlue,
+    onSecondary = Color.Black,
     tertiary = SignalYellow,
     onTertiary = Color.Black,
     background = DarkBackground,
@@ -38,13 +36,12 @@ private val RideSmartColorScheme = darkColorScheme(
 
 @Composable
 fun RidesmartTheme(
-    darkTheme: Boolean = true,
-    dynamicColor: Boolean = false,
+    darkTheme: Boolean = true, // Always dark for drivers
     content: @Composable () -> Unit
 ) {
     val colorScheme = RideSmartColorScheme
-
     val view = LocalView.current
+    
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect

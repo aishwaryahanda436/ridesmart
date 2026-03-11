@@ -16,9 +16,8 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class ProfileRepository(private val context: Context) {
 
     // ── DATASTORE KEYS ──────────────────────────────────────────────
-    // One key per field in RiderProfile
-    // Using doublePreferencesKey so values survive as exact decimals
     companion object {
+        val KEY_HAS_COMPLETED_SETUP = booleanPreferencesKey("has_completed_setup")
         val KEY_MILEAGE         = doublePreferencesKey("mileage_km_per_litre")
         val KEY_FUEL_PRICE      = doublePreferencesKey("fuel_price_per_litre")
         val KEY_CNG_PRICE       = doublePreferencesKey("cng_price_per_kg")
@@ -33,23 +32,23 @@ class ProfileRepository(private val context: Context) {
         val KEY_SUBSCRIPTION    = doublePreferencesKey("subscription_daily_cost")
         val KEY_AVG_TRIPS       = doublePreferencesKey("avg_trips_per_day")
         val KEY_DIESEL_PRICE    = doublePreferencesKey("diesel_price_per_litre")
+        val KEY_ELEC_RATE       = doublePreferencesKey("electricity_rate_per_kwh")
+        val KEY_EV_CONS         = doublePreferencesKey("ev_consumption_kwh_per_km")
     }
 
-    // ── READ PROFILE ────────────────────────────────────────────────
-    // Returns a Flow — updates automatically if profile changes
-    // Falls back to RiderProfile defaults if no value saved yet
-    val profileFlow: Flow<RiderProfile> = context.dataStore.data
+    val hasCompletedSetupFlow: Flow<Boolean> = context.dataStore.data
         .catch { exception ->
-            // If DataStore file is corrupt, emit empty preferences
-            // so app uses default values rather than crashing
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
         }
         .map { preferences ->
-            // Read each key — if missing, use RiderProfile default value
+            preferences[KEY_HAS_COMPLETED_SETUP] ?: false
+        }
+
+    val profileFlow: Flow<RiderProfile> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
             val defaults = RiderProfile()
             RiderProfile(
                 mileageKmPerLitre         = preferences[KEY_MILEAGE]         ?: defaults.mileageKmPerLitre,
@@ -65,15 +64,15 @@ class ProfileRepository(private val context: Context) {
                 congestionFactor          = preferences[KEY_CONGESTION]      ?: defaults.congestionFactor,
                 subscriptionDailyCost     = preferences[KEY_SUBSCRIPTION]    ?: defaults.subscriptionDailyCost,
                 avgTripsPerDay            = preferences[KEY_AVG_TRIPS]       ?: defaults.avgTripsPerDay,
-                dieselPricePerLitre       = preferences[KEY_DIESEL_PRICE]    ?: defaults.dieselPricePerLitre
+                dieselPricePerLitre       = preferences[KEY_DIESEL_PRICE]    ?: defaults.dieselPricePerLitre,
+                electricityRatePerKWh     = preferences[KEY_ELEC_RATE]       ?: defaults.electricityRatePerKWh,
+                evConsumptionKWhPerKm     = preferences[KEY_EV_CONS]         ?: defaults.evConsumptionKWhPerKm
             )
         }
 
-    // ── SAVE PROFILE ────────────────────────────────────────────────
-    // suspend function — must be called from a coroutine
-    // Writes all fields atomically in one DataStore transaction
     suspend fun saveProfile(profile: RiderProfile) {
         context.dataStore.edit { preferences ->
+            preferences[KEY_HAS_COMPLETED_SETUP] = true
             preferences[KEY_MILEAGE]         = profile.mileageKmPerLitre
             preferences[KEY_FUEL_PRICE]      = profile.fuelPricePerLitre
             preferences[KEY_CNG_PRICE]       = profile.cngPricePerKg
@@ -88,6 +87,8 @@ class ProfileRepository(private val context: Context) {
             preferences[KEY_SUBSCRIPTION]    = profile.subscriptionDailyCost
             preferences[KEY_AVG_TRIPS]       = profile.avgTripsPerDay
             preferences[KEY_DIESEL_PRICE]    = profile.dieselPricePerLitre
+            preferences[KEY_ELEC_RATE]       = profile.electricityRatePerKWh
+            preferences[KEY_EV_CONS]         = profile.evConsumptionKWhPerKm
         }
     }
 }

@@ -5,7 +5,9 @@ import com.ridesmart.service.UberOcrEngine
 object ParserFactory {
 
     private val rapidoPackages = setOf(
-        "com.rapido.rider"
+        "com.rapido.rider",
+        "in.rapido.captain",
+        "com.rapido.captain"
     )
 
     private val uberPackages = setOf(
@@ -14,11 +16,15 @@ object ParserFactory {
     )
 
     private val olaPackages = setOf(
-        "com.olacabs.oladriver"
+        "com.olacabs.oladriver",
+        "com.olacabs.driver",
+        "com.ola.driver"
     )
 
     private val shadowfaxPackages = setOf(
-        "in.shadowfax.gandalf"
+        "in.shadowfax.gandalf",
+        "com.shadowfax.driver",
+        "com.shadowfax.zeus"
     )
 
     private val nammayatriPackages = setOf(
@@ -60,4 +66,8 @@ object ParserFactory {
     fun isOla(packageName: String): Boolean        = packageName in olaPackages
     fun isShadowfax(packageName: String): Boolean  = packageName in shadowfaxPackages
     fun isNammaYatri(packageName: String): Boolean = packageName in nammayatriPackages
+
+    fun isRideApp(packageName: String): Boolean =
+        isRapido(packageName) || isUber(packageName) || isOla(packageName) ||
+        isShadowfax(packageName) || isNammaYatri(packageName)
 }

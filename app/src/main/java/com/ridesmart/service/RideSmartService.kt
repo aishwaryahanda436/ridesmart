@@ -22,6 +22,7 @@ import com.ridesmart.R
 import com.ridesmart.data.ProfileRepository
 import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.data.RideEntry
+import com.ridesmart.data.RemoteConfigRepository
 import com.ridesmart.engine.ProfitCalculator
 import com.ridesmart.engine.RideSessionCache
 import com.ridesmart.model.ParsedRide
@@ -37,6 +38,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class RideSmartService : AccessibilityService() {
 
@@ -47,13 +50,19 @@ class RideSmartService : AccessibilityService() {
 
         val SUPPORTED_PACKAGES = setOf(
             "com.rapido.rider",
+            "in.rapido.captain",
+            "com.rapido.captain",
             "com.ubercab.driver",
             "com.ubercab",
             "com.olacabs.oladriver",
+            "com.olacabs.driver",
+            "com.ola.driver",
             "in.juspay.nammayatri",
             "net.openkochi.yatri",
             "in.juspay.nammayatripartner",
-            "in.shadowfax.gandalf"
+            "in.shadowfax.gandalf",
+            "com.shadowfax.driver",
+            "com.shadowfax.zeus"
         )
 
         private const val PICKUP_PENALTY_PER_KM = 1.5
@@ -62,37 +71,34 @@ class RideSmartService : AccessibilityService() {
         private const val MAX_PLATFORM_STATES    = 8
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
-        private const val MAX_TREE_DEPTH         = 20
-        // 20 levels covers all observed real-world ride offer UIs (typically 5–10 levels deep)
-        // while preventing O(n²) worst-case performance on pathologically deep trees.
+        
+        // Spec v2.0 Section 8.2: BFS depth cap 8
+        private const val MAX_TREE_DEPTH         = 8
 
-        // Pre-compiled for the window scoring path; called on every accessibility event.
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var calculator: ProfitCalculator
     private lateinit var repository: ProfileRepository
-    private lateinit var overlayManager: OverlayManager
     private lateinit var historyRepository: RideHistoryRepository
-    private val uberOcrEngine = UberOcrEngine()
+    private lateinit var remoteConfig: RemoteConfigRepository
+    private lateinit var overlayManager: OverlayManager
+    private val uberOcrEngine by lazy { UberOcrEngine() }
 
-    // Debounced flow for Uber: batches rapid accessibility events before triggering OCR.
-    // Capacity of 30 prevents back-pressure while staying well within memory budget.
+    // Stage 1 & 2 Isolation: Dedicated Pipeline Context (Spec v2.0 Section 8.3)
+    private val pipelineContext = Dispatchers.Default
+
     private val eventFlow = MutableSharedFlow<Pair<String, List<String>>>(
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    // Fast path: non-Uber events are dispatched immediately (no debounce needed because
-    // the fingerprint dedup in onAccessibilityEvent already prevents redundant processing).
-    // Same capacity as eventFlow — at most one platform is active at a time in practice.
     private val fastEventFlow = MutableSharedFlow<Pair<String, List<String>>>(
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    // ── PER-PLATFORM STATE ────────────────────────────────────────────────────
     private data class PlatformState(
         var lastFare: Float = 0f,
         var lastRideTime: Long = 0L,
@@ -104,7 +110,6 @@ class RideSmartService : AccessibilityService() {
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
         return platformStates.getOrPut(key) {
-            // Evict oldest entry if map grows beyond supported platform count
             if (platformStates.size >= MAX_PLATFORM_STATES) {
                 val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
                 oldest?.let { platformStates.remove(it.key) }
@@ -117,12 +122,14 @@ class RideSmartService : AccessibilityService() {
         pkg.contains("ubercab", ignoreCase = true) ||
         pkg.contains("uber", ignoreCase = true)       -> "uber"
         pkg.contains("rapido", ignoreCase = true)     -> "rapido"
-        pkg.contains("olacabs", ignoreCase = true)      -> "ola"
+        pkg.contains("olacabs", ignoreCase = true) ||
+        pkg.contains("ola.driver", ignoreCase = true) -> "ola"
         pkg.contains("nammayatri", ignoreCase = true) ||
         pkg.contains("juspay", ignoreCase = true) ||
-        pkg.contains("yatri", ignoreCase = true)      -> "nammayatri"
-        pkg.contains("shadowfax", ignoreCase = true)  -> "shadowfax"
-        // Launcher / System Home Screen is neutral — should not block Uber
+        pkg.contains("yatri", ignoreCase = true) ||
+        pkg.contains("net.openkochi", ignoreCase = true) -> "nammayatri"
+        pkg.contains("shadowfax", ignoreCase = true) ||
+        pkg.contains("gandalf", ignoreCase = true)    -> "shadowfax"
         pkg.contains("launcher", ignoreCase = true) ||
         pkg.contains("systemui", ignoreCase = true)   -> ""
         else -> pkg
@@ -134,20 +141,28 @@ class RideSmartService : AccessibilityService() {
     private val screenshotCooldownMs = 800L
 
     private val screenshotExecutor = Executors.newSingleThreadExecutor()
-    @Volatile private var isScreenshotProcessing = false
+    private val isScreenshotProcessing = AtomicBoolean(false)
     private var uberPollingJob: Job? = null
     private var uberAppInForeground = false
     private var uberPollingIntervalMs = UBER_POLL_BASE_MS
     private var consecutiveEmptyPolls = 0
 
+    private val screenWakeLock: PowerManager.WakeLock by lazy {
+        (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+            PowerManager.ON_AFTER_RELEASE,
+            "RideSmart::ScreenWake"
+        ).apply { setReferenceCounted(false) }
+    }
+
     @OptIn(FlowPreview::class)
     override fun onServiceConnected() {
         super.onServiceConnected()
 
-        // Force-enable flags at runtime in addition to XML config.
-        // This is required because Uber marks offer card views as
-        // importantForAccessibility="no" — without FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-        // those nodes are completely invisible and we get 0 results.
+        // MUST be called first — Android 12+ requires startForeground() within 5 seconds
+        startForegroundService()
+
         serviceInfo = serviceInfo?.also { info ->
             info.flags = info.flags or
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
@@ -157,31 +172,36 @@ class RideSmartService : AccessibilityService() {
 
         calculator = ProfitCalculator()
         repository = ProfileRepository(this)
+        historyRepository = RideHistoryRepository(this)
+        remoteConfig = RemoteConfigRepository(this)
         overlayManager = OverlayManager(this).apply {
             onAutoDismiss = { platform ->
                 stateFor(platform).lastShownSmartScore = Double.MIN_VALUE
             }
         }
-        historyRepository = RideHistoryRepository(this)
 
-        serviceScope.launch {
-            // Fast path: non-Uber platforms processed immediately (no debounce).
-            fastEventFlow.collect { (pkg, nodes) ->
-                processScreen(nodes, pkg)
-            }
+        serviceScope.launch(pipelineContext) {
+            fastEventFlow.collect { (pkg, nodes) -> processScreen(nodes, pkg) }
         }
 
-        serviceScope.launch {
-            eventFlow
-                .debounce(100L)
-                .collect { (pkg, nodes) ->
-                    processScreen(nodes, pkg)
-                }
+        serviceScope.launch(pipelineContext) {
+            eventFlow.debounce(100L).collect { (pkg, nodes) -> processScreen(nodes, pkg) }
         }
+
+        serviceScope.launch { remoteConfig.fetchConfig() }
 
         startUberPolling()
-        startForegroundService()
+        prewarmOcr()
         Log.d(TAG, "✅ RideSmartService connected — pipeline ready")
+    }
+
+    private fun prewarmOcr() {
+        serviceScope.launch(Dispatchers.Default) {
+            val dummy = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            uberOcrEngine.parse(dummy)
+            dummy.recycle()
+            Log.d(TAG, "🧠 ML Kit OCR pre-warmed")
+        }
     }
 
     private fun startUberPolling() {
@@ -191,29 +211,25 @@ class RideSmartService : AccessibilityService() {
                 delay(uberPollingIntervalMs)
                 val anotherActive = activeForegroundPlatform.isNotBlank() &&
                                     activeForegroundPlatform != "uber"
-                if (anotherActive) {
-                    Log.d(TAG, "📸 Uber OCR timer: skipped — $activeForegroundPlatform in foreground")
-                    continue
-                }
-                if (uberAppInForeground && !isScreenshotProcessing) {
+                if (anotherActive) continue
+                if (uberAppInForeground && !isScreenshotProcessing.get()) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        triggerUberScreenshot()
+                        withContext(Dispatchers.Main) {
+                            triggerUberScreenshot()
+                        }
                     }
                 }
             }
         }
     }
 
-    /** Reset polling to fast interval when a window change hints at a new offer. */
     private fun resetUberPollingBackoff() {
         consecutiveEmptyPolls = 0
         uberPollingIntervalMs = UBER_POLL_BASE_MS
     }
 
-    /** Increase polling interval after empty OCR results to save battery. */
     private fun increaseUberPollingBackoff() {
         consecutiveEmptyPolls++
-        // Exponential backoff: base × 2^n, capped at max (2.5s → 5s → 10s → 10s)
         uberPollingIntervalMs = (UBER_POLL_BASE_MS * (1L shl consecutiveEmptyPolls.coerceAtMost(3)))
             .coerceAtMost(UBER_POLL_MAX_MS)
     }
@@ -247,48 +263,53 @@ class RideSmartService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val evtPkg = event.packageName?.toString() ?: ""
+        
+        // Skip our own package — we don't need to analyse ourselves
+        if (evtPkg == packageName) return
+
+        // ── Spec v2.0 Section 3.3: Rapido Animation Debounce ──
+        if (evtPkg == "com.rapido.rider") {
+            // Note: Debounce still needed, but extraction must be on main thread.
+            // We can delay and then capture on main thread.
+            serviceScope.launch(Dispatchers.Main) {
+                delay(180L)
+                triggerNodeCollection(evtPkg)
+            }
+            return
+        }
+
         if (evtPkg.contains("uber", ignoreCase = true)) {
             Log.d(TAG, "📥 UBER EVENT type=${event.eventType} pkg=$evtPkg")
             uberAppInForeground = true
             activeForegroundPlatform = "uber"
             
-            // ── STAGE 1: EARLY DETECTION via window/content change ──────────
-            // TYPE_WINDOW_STATE_CHANGED (32): a new screen/dialog appeared —
-            // highest-priority signal; trigger OCR immediately without waiting
-            // for the debounced accessibility-tree scan.
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 resetUberPollingBackoff()
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
-                if (!isScreenshotProcessing) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        triggerUberScreenshot()
-                    }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    triggerUberScreenshot()
                 }
                 return
             }
 
-            // TYPE_WINDOW_CONTENT_CHANGED (2048): offer UI updated.
-            // TYPE_VIEW_TEXT_CHANGED (16): a text field on the offer card changed.
-            // Both reset backoff so the polling loop stays fast during an offer.
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
                 event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
                 resetUberPollingBackoff()
             }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
+            val platform = normalizePlatform(evtPkg)
+            if (ParserFactory.isRideApp(evtPkg)) {
+                Log.d(TAG, "📥 $platform EVENT type=${event.eventType} pkg=$evtPkg")
+            }
             uberAppInForeground = false
-            activeForegroundPlatform = normalizePlatform(evtPkg)
+            activeForegroundPlatform = platform
         }
 
-        // ── UBER NOTIFICATION INTERCEPTION ──────────────────────────────
-        // Dedup by content hash (not key) so notification UPDATES fire through.
         if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             val pkg = event.packageName?.toString() ?: ""
 
             if (pkg.contains("ubercab") || pkg.contains("uber")) {
                 val notification = event.parcelableData as? Notification ?: return
-
-                // Try UberNotificationParser first — it extracts richer data from
-                // RemoteViews when standard extras are sparse or obfuscated.
                 val lines = UberNotificationParser.extractFromNotification(notification)
 
                 val extras = notification.extras
@@ -303,19 +324,17 @@ class RideSmartService : AccessibilityService() {
                                   combined.contains("request", ignoreCase = true) ||
                                   combined.contains("₹")
                     if (isOffer) {
-                        // Prefer richer lines from UberNotificationParser; fall back to title+text.
+                        Log.d(TAG, "🔔 Uber Notification Offer detected")
                         val nodes = if (!lines.isNullOrEmpty()) lines else listOf(title, text)
-                        serviceScope.launch { processScreen(nodes, "com.ubercab.driver") }
+                        serviceScope.launch(pipelineContext) { processScreen(nodes, "com.ubercab.driver") }
                     }
                 }
                 return
             }
         }
-        // ── END UBER NOTIFICATION INTERCEPTION ─────────────────────────
-
-        val pkg = event.packageName?.toString() ?: "null"
 
         if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            val pkg = event.packageName?.toString() ?: ""
             val notification = event.parcelableData as? Notification
             val extras = notification?.extras
             val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
@@ -328,140 +347,129 @@ class RideSmartService : AccessibilityService() {
             if (isRideApp || isRideNotification) {
                 Log.d(TAG, "🔔 NOTIFICATION: pkg=$pkg title=\"$title\" text=\"$text\"")
                 wakeScreen()
-                // Notification data is fully available immediately — no delay needed.
-                serviceScope.launch { processNotificationData(pkg, title, text) }
+                serviceScope.launch(pipelineContext) { processNotificationData(pkg, title, text) }
             }
             return
         }
 
-        serviceScope.launch(Dispatchers.IO) {
-            val allNodes = mutableListOf<String>()
-            var detectedPackage = pkg
+        triggerNodeCollection(evtPkg)
+    }
 
-            data class WindowCandidate(
-                val pkg: String,
-                val nodes: List<String>,
-                val score: Int
-            )
-            val candidates = mutableListOf<WindowCandidate>()
+    private fun triggerNodeCollection(pkg: String) {
+        // Extraction happens on Main thread (this function is called from Main thread)
+        val allNodes = mutableListOf<String>()
+        var detectedPackage = pkg
 
-            try {
-                for (window in windows) {
-                    val root = window.root ?: continue
-                    try {
-                        val windowPkg = root.packageName?.toString() ?: ""
-                        val nodes = collectAllText(root)
+        data class WindowCandidate(
+            val pkg: String,
+            val nodes: List<String>,
+            val score: Int
+        )
+        val candidates = mutableListOf<WindowCandidate>()
 
-                        if (nodes.isEmpty()) continue
+        try {
+            for (window in windows) {
+                val root = window.root ?: continue
+                try {
+                    val windowPkg = root.packageName?.toString() ?: ""
+                    
+                    val rawNodes = mutableListOf<AccessibilityNodeInfo>()
+                    collectRawNodes(root, rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    rawNodes.forEach { it.safeRecycle() }
 
-                        val combined = nodes.joinToString("|")
+                    if (reconstructedText.isEmpty()) continue
 
-                        // Only care about known ride apps
-                        val isRideApp = windowPkg in SUPPORTED_PACKAGES
-                        val hasUberSignal = combined.contains("Uber Driver", ignoreCase = true) ||
-                                            combined.contains("Uber Request", ignoreCase = true) ||
-                                            combined.contains("See all requests", ignoreCase = true)
-                        val isUberPkg = windowPkg.contains("ubercab", ignoreCase = true) ||
-                                        windowPkg.contains("uber", ignoreCase = true)
-                        if (!isRideApp && !hasUberSignal && !isUberPkg) continue
+                    val combined = reconstructedText.joinToString("|")
 
-                        // Score this window: higher score = more likely to be a ride popup
-                        var score = 0
-                        if (FARE_SIGNAL_REGEX.containsMatchIn(combined)) score += 10
-                        if (combined.contains("km", ignoreCase = true)) score += 5
-                        if (combined.contains("min", ignoreCase = true)) score += 3
-                        if (combined.contains("accept", ignoreCase = true) ||
-                            combined.contains("match", ignoreCase = true) ||
-                            combined.contains("confirm", ignoreCase = true)) score += 8
+                    val isRideApp = ParserFactory.isRideApp(windowPkg)
+                    val hasUberSignal = combined.contains("Uber Driver", ignoreCase = true) ||
+                                        combined.contains("Uber Request", ignoreCase = true) ||
+                                        combined.contains("See all requests", ignoreCase = true)
+                    val isUberPkg = windowPkg.contains("ubercab", ignoreCase = true) ||
+                                    windowPkg.contains("uber", ignoreCase = true)
+                    if (!isRideApp && !hasUberSignal && !isUberPkg) continue
 
-                        // For Uber packages, boost score even with minimal data
-                        // since nodes may be partially obfuscated
-                        if (isUberPkg && nodes.isNotEmpty()) score += 2
+                    var score = 0
+                    if (FARE_SIGNAL_REGEX.containsMatchIn(combined)) score += 10
+                    if (combined.contains("km", ignoreCase = true)) score += 5
+                    if (combined.contains("min", ignoreCase = true)) score += 3
+                    if (combined.contains("accept", ignoreCase = true) ||
+                        combined.contains("match", ignoreCase = true) ||
+                        combined.contains("confirm", ignoreCase = true)) score += 8
 
-                        if (score > 0) {
-                            candidates.add(WindowCandidate(windowPkg, nodes, score))
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing window: ${e.message}")
-                    } finally {
-                        @Suppress("DEPRECATION")
-                        root.recycle()
+                    if (isUberPkg && reconstructedText.isNotEmpty()) score += 2
+
+                    if (score > 0) {
+                        candidates.add(WindowCandidate(windowPkg, reconstructedText, score))
                     }
-                }
-            } catch (e: Exception) {
-                Log.d(TAG, "Window scan error: ${e.message}")
-            }
-
-            // Pick best scoring window
-            val best = candidates.maxByOrNull { it.score }
-            if (best != null) {
-                allNodes.addAll(best.nodes)
-                detectedPackage = if (best.pkg.contains("ubercab", ignoreCase = true))
-                                    "com.ubercab.driver" else best.pkg
-            }
-
-            // Fallback: Check active window if primary check found nothing
-            if (allNodes.isEmpty()) {
-                val fallbackRoot = rootInActiveWindow
-                if (fallbackRoot != null) {
-                    try {
-                        val fallbackNodes = collectAllText(fallbackRoot)
-                        if (fallbackNodes.isNotEmpty()) {
-                            allNodes.addAll(fallbackNodes)
-                            detectedPackage = fallbackRoot.packageName?.toString() ?: pkg
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing fallback root: ${e.message}")
-                    } finally {
-                        @Suppress("DEPRECATION")
-                        fallbackRoot.recycle()
-                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing window: ${e.message}")
+                } finally {
+                    root.safeRecycle()
                 }
             }
+        } catch (e: Exception) {
+            Log.d(TAG, "Window scan error: ${e.message}")
+        }
 
-            if (allNodes.isEmpty()) {
-                // For Uber: even with 0 text nodes, a window change likely
-                // means an offer appeared with fully obfuscated content.
-                // Trigger OCR screenshot as immediate fallback.
-                if (uberAppInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastScreenshotMs > screenshotCooldownMs) {
-                        Log.d(TAG, "🔍 UBER: empty accessibility tree — triggering OCR fallback")
-                        withContext(Dispatchers.Main) {
-                            triggerUberScreenshot()
-                        }
+        val best = candidates.maxByOrNull { it.score }
+        if (best != null) {
+            allNodes.addAll(best.nodes)
+            detectedPackage = if (best.pkg.contains("ubercab", ignoreCase = true))
+                                "com.ubercab.driver" else best.pkg
+        }
+
+        if (allNodes.isEmpty()) {
+            val fallbackRoot = rootInActiveWindow
+            if (fallbackRoot != null) {
+                try {
+                    val rawNodes = mutableListOf<AccessibilityNodeInfo>()
+                    collectRawNodes(fallbackRoot, rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    rawNodes.forEach { it.safeRecycle() }
+
+                    if (reconstructedText.isNotEmpty()) {
+                        allNodes.addAll(reconstructedText)
+                        detectedPackage = fallbackRoot.packageName?.toString() ?: pkg
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing fallback root: ${e.message}")
+                } finally {
+                    fallbackRoot.safeRecycle()
                 }
-                return@launch
             }
-            
-            val combined = allNodes.joinToString("|")
-            if (combined.contains("See all requests", ignoreCase = true)) {
-                val now = System.currentTimeMillis()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                    now - lastScreenshotMs > screenshotCooldownMs) {
-                    withContext(Dispatchers.Main) {
-                        triggerUberScreenshot()
-                    }
-                }
-                return@launch
+        }
+
+        if (allNodes.isEmpty()) {
+            if (uberAppInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Log.d(TAG, "🔍 UBER: empty accessibility tree — triggering OCR fallback")
+                triggerUberScreenshot()
             }
-
-            activeForegroundPlatform = if (detectedPackage.contains("uber", ignoreCase = true)) {
-                "uber"
-            } else {
-                normalizePlatform(detectedPackage)
+            return
+        }
+        
+        val combined = allNodes.joinToString("|")
+        if (combined.contains("See all requests", ignoreCase = true)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                triggerUberScreenshot()
             }
+            return
+        }
 
-            val fingerprint = allNodes.joinToString("|")
-            val state = stateFor(detectedPackage)
-            if (fingerprint == state.lastProcessedText) return@launch
-            state.lastProcessedText = fingerprint
+        activeForegroundPlatform = if (detectedPackage.contains("uber", ignoreCase = true)) {
+            "uber"
+        } else {
+            normalizePlatform(detectedPackage)
+        }
 
-            // Route to fast path for non-Uber platforms, debounced path for Uber.
-            // Non-Uber platforms (Rapido, Ola, NammaYatri, Shadowfax) use accessibility
-            // tree text directly — no OCR involved, so no debounce is needed. Fingerprint
-            // dedup above already prevents redundant processing.
+        val fingerprint = allNodes.joinToString("|")
+        val state = stateFor(detectedPackage)
+        if (fingerprint == state.lastProcessedText) return
+        state.lastProcessedText = fingerprint
+
+        // Dispatch heavy processing to pipelineContext (Dispatchers.Default)
+        serviceScope.launch(pipelineContext) {
             if (ParserFactory.isUber(detectedPackage)) {
                 eventFlow.emit(Pair(detectedPackage, allNodes))
             } else {
@@ -473,12 +481,8 @@ class RideSmartService : AccessibilityService() {
     private fun wakeScreen() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         if (!pm.isInteractive) {
-            @Suppress("DEPRECATION")
-            val screenWake = pm.newWakeLock(
-                PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-                "RideSmart::ScreenWake"
-            )
-            screenWake.acquire(10_000L)
+            if (screenWakeLock.isHeld) screenWakeLock.release()
+            screenWakeLock.acquire(10_000L)
             Log.d(TAG, "🔆 Screen woken")
         }
     }
@@ -499,14 +503,34 @@ class RideSmartService : AccessibilityService() {
         val profile = repository.profileFlow.first()
         val result = calculator.calculate(parsedRide, profile)
         
-        if (Settings.canDrawOverlays(this)) {
-            overlayManager.showResult(RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks))
-            
-            // Update suppression state
-            val currentScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
-            state.lastShownSmartScore = currentScore
-            state.lastFare = parsedRide.baseFare.toFloat()
-            state.lastRideTime = System.currentTimeMillis()
+        Log.d(TAG, "✅ Notification result for $pkg: fare=${parsedRide.baseFare} profit=${result.netProfit}")
+
+        // Integrate with session cache for "best so far" comparison
+        if (parsedRide.rideDistanceKm > 0.0) {
+            if (state.sessionCache.isExpired()) state.sessionCache.reset()
+            val smartScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
+            state.sessionCache.addResult(parsedRide, result.netProfit, smartScore)
+        }
+
+        val bestSeen = state.sessionCache.getBestSeen()
+        val totalCardsSeen = state.sessionCache.getTotalCardsSeen()
+        val currentScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
+        val isBestSoFar = bestSeen == null || currentScore >= (bestSeen.smartScore - 0.01)
+
+        withContext(Dispatchers.Main) {
+            if (Settings.canDrawOverlays(this@RideSmartService)) {
+                overlayManager.showResult(
+                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    totalRidesConsidered = totalCardsSeen,
+                    isBestSoFar          = isBestSoFar,
+                    bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
+                    bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
+                )
+                
+                state.lastShownSmartScore = currentScore
+                state.lastFare = parsedRide.baseFare.toFloat()
+                state.lastRideTime = System.currentTimeMillis()
+            }
         }
         saveRideToHistory(parsedRide, result, pkg)
     }
@@ -533,26 +557,15 @@ class RideSmartService : AccessibilityService() {
 
         var allRides = parser.parseAll(textNodes, packageName)
 
-        // ── HYBRID FALLBACK FOR UBER ────────────────────────────────────
-        // When accessibility parsing returns no rides but we detect offer
-        // signals in the (possibly obfuscated) nodes, trigger an immediate
-        // OCR screenshot. Also try the generic RideDataParser as a secondary
-        // fallback since it may extract data the UberOcrEngine missed.
         if (allRides.isEmpty() && isUber) {
-            // Secondary parser fallback: try the generic parser on same nodes
             val fallbackRides = ParserFactory.getFallbackParser().parseAll(textNodes, packageName)
             if (fallbackRides.isNotEmpty()) {
                 allRides = fallbackRides
             } else if (uberOcrEngine.hasOfferSignals(textNodes)) {
-                // Nodes suggest an offer exists but data is obfuscated → OCR
                 Log.d(TAG, "🔍 UBER HYBRID: offer signals detected but parsing failed — triggering OCR")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastScreenshotMs > screenshotCooldownMs) {
-                        lastScreenshotMs = now
-                        withContext(Dispatchers.Main) {
-                            triggerUberScreenshot()
-                        }
+                    withContext(Dispatchers.Main) {
+                        triggerUberScreenshot()
                     }
                 }
                 return
@@ -562,12 +575,8 @@ class RideSmartService : AccessibilityService() {
         if (allRides.isEmpty()) {
             if (isUber) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastScreenshotMs > screenshotCooldownMs) {
-                        lastScreenshotMs = now
-                        withContext(Dispatchers.Main) {
-                            triggerUberScreenshot()
-                        }
+                    withContext(Dispatchers.Main) {
+                        triggerUberScreenshot()
                     }
                 }
             }
@@ -576,8 +585,11 @@ class RideSmartService : AccessibilityService() {
 
         val profile = repository.profileFlow.first()
         
+        val idleMinutes = if (state.sessionCache.isEmpty()) 0.0
+                          else ((System.currentTimeMillis() - state.lastRideTime) / 60_000.0).coerceAtLeast(0.0)
+
         val scoredRides = allRides.map { ride ->
-            val result = calculator.calculate(ride, profile)
+            val result = calculator.calculate(ride, profile, java.time.LocalTime.now().hour, idleMinutes)
             val score = result.netProfit - (ride.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(ride.pickupDistanceKm))
             Triple(ride, result, score)
         }
@@ -596,29 +608,40 @@ class RideSmartService : AccessibilityService() {
 
         val now = System.currentTimeMillis()
 
-        // Suppress same fare re-firing
         val sameFareTooSoon = bestRide.baseFare.toFloat() == state.lastFare &&
                               now - state.lastRideTime < SAME_FARE_COOLDOWN_MS
-        if (sameFareTooSoon) return
+        if (sameFareTooSoon) {
+            Log.d(TAG, "Duplicate fare suppressed for $packageName")
+            return
+        }
 
         val hasShownThisSession = state.lastShownSmartScore > Double.MIN_VALUE
         if (hasShownThisSession) {
-            if (currentScore < state.lastShownSmartScore + MIN_SCORE_IMPROVEMENT) return
+            if (currentScore < state.lastShownSmartScore + MIN_SCORE_IMPROVEMENT) {
+                Log.d(TAG, "Low score improvement for $packageName: $currentScore vs ${state.lastShownSmartScore}")
+                return
+            }
         }
 
-        // All guards passed — show this card
+        Log.d(TAG, "✅ Showing overlay for $packageName: " +
+            "fare=${bestRide.baseFare} profit=${bestResult.netProfit} " +
+            "rideKm=${bestRide.rideDistanceKm} epk=${bestResult.earningPerKm} " +
+            "signal=${bestResult.signal}")
+
         state.lastFare = bestRide.baseFare.toFloat()
         state.lastRideTime = now
         state.lastShownSmartScore = currentScore
 
-        if (Settings.canDrawOverlays(this)) {
-            overlayManager.showResult(
-                RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
-                totalRidesConsidered = totalCardsSeen,
-                isBestSoFar          = isBestSoFar,
-                bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
-                bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
-            )
+        withContext(Dispatchers.Main) {
+            if (Settings.canDrawOverlays(this@RideSmartService)) {
+                overlayManager.showResult(
+                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    totalRidesConsidered = totalCardsSeen,
+                    isBestSoFar          = isBestSoFar,
+                    bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
+                    bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
+                )
+            }
         }
         saveRideToHistory(bestRide, bestResult, packageName)
     }
@@ -662,11 +685,14 @@ class RideSmartService : AccessibilityService() {
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     private fun triggerUberScreenshot() {
         if (activeForegroundPlatform.isNotBlank() && activeForegroundPlatform != "uber") return
-        if (isScreenshotProcessing) return
+        if (!isScreenshotProcessing.compareAndSet(false, true)) return
         val now = System.currentTimeMillis()
-        if (now - lastScreenshotMs < screenshotCooldownMs) return
-        isScreenshotProcessing = true
-        lastScreenshotMs = now
+        val last = lastScreenshotMs.get()
+        if (now - last < screenshotCooldownMs) {
+            isScreenshotProcessing.set(false)
+            return
+        }
+        lastScreenshotMs.set(now)
 
         try {
             takeScreenshot(
@@ -683,7 +709,7 @@ class RideSmartService : AccessibilityService() {
                             null
                         }
                         if (bitmap == null) {
-                            isScreenshotProcessing = false
+                            isScreenshotProcessing.set(false)
                             increaseUberPollingBackoff()
                             return
                         }
@@ -691,6 +717,10 @@ class RideSmartService : AccessibilityService() {
                             try {
                                 val parsed = uberOcrEngine.parse(bitmap)
                                 if (parsed != null && parsed.baseFare > 0) {
+                                    Log.d(TAG, "📸 Uber OCR SUCCESS: fare=${parsed.baseFare} " +
+                                        "rideKm=${parsed.rideDistanceKm} pickupKm=${parsed.pickupDistanceKm} " +
+                                        "pickupMin=${parsed.pickupTimeMin} rideMin=${parsed.estimatedDurationMin} " +
+                                        "premium=${parsed.premiumAmount}")
                                     resetUberPollingBackoff()
                                     val fakeNodes = mutableListOf<String>().apply {
                                         add("₹${"%.2f".format(parsed.baseFare)}")
@@ -708,6 +738,7 @@ class RideSmartService : AccessibilityService() {
                                         add("Match")
                                         if (parsed.pickupAddress.isNotBlank()) add(parsed.pickupAddress)
                                         if (parsed.dropAddress.isNotBlank()) add(parsed.dropAddress)
+                                        if (parsed.premiumAmount > 0) add("+₹${"%.2f".format(parsed.premiumAmount)} Premium")
                                     }
                                     processScreen(fakeNodes, "com.ubercab.driver")
                                 } else {
@@ -718,90 +749,66 @@ class RideSmartService : AccessibilityService() {
                                 increaseUberPollingBackoff()
                             } finally {
                                 bitmap.recycle()
-                                isScreenshotProcessing = false
+                                isScreenshotProcessing.set(false)
                             }
                         }
                     }
                     override fun onFailure(errorCode: Int) {
-                        isScreenshotProcessing = false
+                        Log.e(TAG, "Screenshot failed: $errorCode")
+                        isScreenshotProcessing.set(false)
                         increaseUberPollingBackoff()
                     }
                 }
             )
         } catch (e: Exception) {
-            isScreenshotProcessing = false
+            Log.e(TAG, "Error triggering screenshot: ${e.message}")
+            isScreenshotProcessing.set(false)
             increaseUberPollingBackoff()
         }
     }
 
-    @Volatile private var lastScreenshotMs = 0L
+    private val lastScreenshotMs = AtomicLong(0L)
 
-    /**
-     * Recursively extracts all text from the accessibility node tree.
-     *
-     * Enhanced for Uber obfuscation: in addition to node.text and
-     * contentDescription, also extracts tooltipText (API 28+) and
-     * hintText. Uber marks many views as not-important-for-accessibility,
-     * but the FLAG_INCLUDE_NOT_IMPORTANT_VIEWS flag (set in onServiceConnected)
-     * forces their inclusion. This method then extracts whatever text
-     * properties those nodes still expose.
-     *
-     * Also extracts meaningful viewIdResourceNames — Uber's view IDs
-     * sometimes contain keywords like "fare", "distance", "pickup" that
-     * help signal an offer is present even when text content is empty.
-     */
-    private fun collectAllText(node: AccessibilityNodeInfo?, depth: Int = 0): List<String> {
-        if (node == null || depth > MAX_TREE_DEPTH) return emptyList()
-        val texts = mutableListOf<String>()
-        val nodeText = node.text?.toString()?.trim()
-        if (!nodeText.isNullOrBlank()) texts.add(nodeText)
-        val contentDesc = node.contentDescription?.toString()?.trim()
-        if (!contentDesc.isNullOrBlank() && contentDesc != nodeText) texts.add(contentDesc)
+    private fun collectRawNodes(node: AccessibilityNodeInfo?, nodes: MutableList<AccessibilityNodeInfo>, depth: Int = 0) {
+        if (node == null || depth > MAX_TREE_DEPTH) return
+        
+        // Spec v2.0 Section 8.2: Skip invisible nodes to eliminate ~30% of nodes
+        if (!node.isVisibleToUser) return
 
-        // API 28+: tooltipText can carry ride data on some Uber UI elements
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val tooltip = node.tooltipText?.toString()?.trim()
-            if (!tooltip.isNullOrBlank() && tooltip != nodeText && tooltip != contentDesc) {
-                texts.add(tooltip)
-            }
-        }
-        // API 26+: hintText may carry placeholder values with ride info
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val hint = node.hintText?.toString()?.trim()
-            if (!hint.isNullOrBlank() && hint !in texts) {
-                texts.add(hint)
-            }
-        }
-
-        // Extract viewIdResourceName — useful for Uber where text is blocked
-        // but view IDs like "fare_text", "distance_value" hint at offer presence
-        val viewId = node.viewIdResourceName?.toString()?.trim()
-        if (!viewId.isNullOrBlank()) {
-            val idPart = viewId.substringAfterLast("/").lowercase()
-            val offerIdKeywords = listOf("fare", "price", "amount", "distance", "pickup",
-                "drop", "trip", "ride", "accept", "match", "confirm", "offer", "request")
-            if (offerIdKeywords.any { idPart.contains(it) }) {
-                texts.add("[id:$idPart]")
-            }
+        if (!node.text.isNullOrBlank() || !node.contentDescription.isNullOrBlank()) {
+            nodes.add(node.copyNode())
         }
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
-                try {
-                    texts.addAll(collectAllText(child, depth + 1))
-                } finally {
-                    @Suppress("DEPRECATION")
-                    child.recycle()
-                }
+                collectRawNodes(child, nodes, depth + 1)
+                // Spec v2.0 Section 8.4: ALWAYS recycle() immediately
+                child.safeRecycle()
             }
         }
-        return texts
+    }
+
+    private fun AccessibilityNodeInfo.safeRecycle() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            @Suppress("DEPRECATION")
+            this.recycle()
+        }
+    }
+
+    private fun AccessibilityNodeInfo.copyNode(): AccessibilityNodeInfo {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            AccessibilityNodeInfo(this)
+        } else {
+            @Suppress("DEPRECATION")
+            AccessibilityNodeInfo.obtain(this)
+        }
     }
 
     override fun onInterrupt() {}
 
     override fun onDestroy() {
+        if (screenWakeLock.isHeld) screenWakeLock.release()
         stopUberPolling()
         screenshotExecutor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)

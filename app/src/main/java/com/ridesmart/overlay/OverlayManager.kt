@@ -34,7 +34,7 @@ class OverlayManager(private val context: Context) {
     private val AUTO_DISMISS_MS = 12_000L
     private val TAG = "RideSmart"
 
-    var onAutoDismiss: ((String) -> Unit)? = null
+    var onDismiss: ((String) -> Unit)? = null
 
     fun showResult(
         result: RideResult,
@@ -104,7 +104,7 @@ class OverlayManager(private val context: Context) {
                 }
                 dismissTimers.remove(platform)
                 Log.d(TAG, "⏱ Auto-dismissed: platform=$platform remaining=${activeCards.keys}")
-                onAutoDismiss?.invoke(platform)
+                onDismiss?.invoke(platform)
             }
             dismissTimers[platform] = runnable
             handler.postDelayed(runnable, AUTO_DISMISS_MS)
@@ -164,10 +164,14 @@ class OverlayManager(private val context: Context) {
         } else ""
 
         val signalText = when (result.signal) {
-            Signal.GREEN -> if (isBestSoFar) "✅ ACCEPT — BEST SO FAR$cardContext"
-                            else "⚠️  SKIP — BETTER CARD SEEN$cardContext"
-            Signal.YELLOW -> if (isBestSoFar) "🟡 BORDERLINE — BEST SO FAR$cardContext"
-                             else "⚠️  SKIP — BETTER CARD SEEN$cardContext"
+            Signal.GREEN -> if (isBestSoFar)
+                "✅ ACCEPT — BEST SO FAR$cardContext"
+            else
+                "✅ ACCEPT — (better offer seen earlier)$cardContext"
+            Signal.YELLOW -> if (isBestSoFar)
+                "🟡 BORDERLINE — BEST SO FAR$cardContext"
+            else
+                "🟡 BORDERLINE — better offer seen earlier$cardContext"
             Signal.RED -> "❌ SKIP$cardContext"
         }
         tvSignal.text = signalText
@@ -247,6 +251,7 @@ class OverlayManager(private val context: Context) {
             }
             activeCards.remove(platform)
             Log.d(TAG, "👆 Dismissed by tap: platform=$platform remaining=${activeCards.keys}")
+            onDismiss?.invoke(platform)
         }
     }
 

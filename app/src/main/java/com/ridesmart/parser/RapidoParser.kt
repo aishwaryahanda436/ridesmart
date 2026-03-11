@@ -4,6 +4,7 @@ import android.util.Log
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.model.PlatformConfig
 
 class RapidoParser : IPlatformParser {
 
@@ -11,7 +12,7 @@ class RapidoParser : IPlatformParser {
         private const val TAG = "RideSmart"
 
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
-        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
+        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*k?m""", RegexOption.IGNORE_CASE)
         private val MIN_REGEX  = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BOOST_REGEX = Regex("""\+\s*₹\s*(\d+(?:\.\d{1,2})?)""")
 
@@ -71,7 +72,6 @@ class RapidoParser : IPlatformParser {
         val vehicleType = detectVehicleType(activeNodes)
 
         // ── SINGLE-PASS EXTRACTION ────────────────────────────────────────
-        // All fields are captured in one iteration to minimise processing time.
         var baseFare = 0.0
         var fareIndex = -1
         var premiumAmount = 0.0
@@ -85,14 +85,29 @@ class RapidoParser : IPlatformParser {
             val node = activeNodes[i]
             val trimmed = node.trim()
 
-            // Fare: skip boost lines (+₹...) and distance lines
+            // Handle combined fare + boost format: "₹42 + ₹12"
+            if (trimmed.contains("+") && trimmed.contains("₹")) {
+                val parts = trimmed.split("+")
+                if (parts.size >= 2) {
+                    val part1 = FARE_REGEX.find(parts[0])?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                    val part2 = FARE_REGEX.find(parts[1])?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                    if (part1 > 0) {
+                        baseFare = part1
+                        fareIndex = i
+                        premiumAmount += part2
+                        continue // Skip normal regex processing for this node
+                    }
+                }
+            }
+
+            // Normal Fare extraction: skip boost lines (+₹...) and distance lines
             if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
                 FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let { v ->
                     if (v > baseFare) { baseFare = v; fareIndex = i }
                 }
             }
 
-            // Boost / premium
+            // Boost / premium (standalone node format)
             BOOST_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
                 premiumAmount += it
             }
@@ -102,17 +117,17 @@ class RapidoParser : IPlatformParser {
                 FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { tipAmount = it }
             }
 
-            // Distance — record index so we can filter by fareIndex later
+            // Distance
             KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
                 allKmValues.add(Pair(i, it))
             }
 
-            // Duration (first match wins)
+            // Duration
             if (durationMin == 0) {
                 MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()?.let { durationMin = it }
             }
 
-            // Payment type (first match wins)
+            // Payment type
             if (paymentType.isEmpty() && PAYMENT_KEYWORDS.any { node.contains(it, ignoreCase = true) }) {
                 paymentType = node
             }
@@ -132,39 +147,30 @@ class RapidoParser : IPlatformParser {
         if (baseFare == 0.0) return null
 
         // ── DISTANCE RESOLUTION ───────────────────────────────────────────
-        // Only consider km values at or after the fare node (same as original logic).
         val kmValues = allKmValues
-            .filter { (idx, _) -> idx >= (if (fareIndex > 0) fareIndex else 0) }
+            .filter { (idx, _) -> idx >= (if (fareIndex > 0) fareIndex else 0) || idx == 0 } // km might be at top
             .map { (_, v) -> v }
 
         var pickupDistanceKm = 0.0
         var rideDistanceKm   = 0.0
 
         when (kmValues.size) {
-            0    -> { /* loading state */ }
+            0    -> { /* loading */ }
             1    -> { rideDistanceKm = kmValues[0] }
             else -> { pickupDistanceKm = kmValues[0]; rideDistanceKm = kmValues[1] }
         }
 
-        if (pickupDistanceKm > 5.0 && pickupDistanceKm > rideDistanceKm) {
+        if (pickupDistanceKm > 5.0 && pickupDistanceKm > rideDistanceKm && rideDistanceKm > 0) {
             val tmp = pickupDistanceKm
             pickupDistanceKm = rideDistanceKm
             rideDistanceKm = tmp
-            Log.d(TAG, "🔄 Swapped pickup/ride: pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km")
-        }
-
-        if (rideDistanceKm > 0.0 && baseFare / rideDistanceKm > 80.0) {
-            Log.d(TAG, "⚠️ Sanity check failed: ₹$baseFare for ${rideDistanceKm}km " +
-                "(₹${"%.0f".format(baseFare / rideDistanceKm)}/km) — skipping misparse")
-            return null
         }
 
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
         val dropAddress   = addressCandidates.getOrElse(1) { "" }
 
         Log.d(TAG, "🔍 Rapido parsed: vehicle=$vehicleType fare=₹$baseFare " +
-            "boost=₹$premiumAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +
-            "state=$screenState")
+            "boost=₹$premiumAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km")
 
         return ParsedRide(
             baseFare             = baseFare,
@@ -173,14 +179,16 @@ class RapidoParser : IPlatformParser {
             rideDistanceKm       = rideDistanceKm,
             pickupDistanceKm     = pickupDistanceKm,
             estimatedDurationMin = durationMin,
-            platform             = packageName,
-            packageName          = packageName,
+            platform              = PlatformConfig.get(packageName).displayName,
+            packageName           = packageName,
             rawTextNodes         = activeNodes,
             pickupAddress        = pickupAddress,
             dropAddress          = dropAddress,
             paymentType          = paymentType,
             vehicleType          = vehicleType,
-            screenState          = screenState
+            screenState          = screenState,
+            bonus                = premiumAmount,
+            fare                 = baseFare + premiumAmount
         )
     }
 

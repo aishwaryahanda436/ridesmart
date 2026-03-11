@@ -4,6 +4,7 @@ import android.util.Log
 import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.model.PlatformConfig
 
 class RideDataParser : IPlatformParser {
 
@@ -201,12 +202,26 @@ class RideDataParser : IPlatformParser {
         }
 
         if (isUber) {
-            val cityPatterns = listOf("New Delhi", "Gurugram", "Noida", "Delhi")
+            // Comprehensive Indian city list for address detection
+            val cityPatterns = listOf(
+                // Delhi NCR
+                "New Delhi", "Delhi", "Gurugram", "Gurgaon", "Noida", "Faridabad", "Ghaziabad",
+                // Major metros
+                "Mumbai", "Pune", "Bengaluru", "Bangalore", "Hyderabad", "Chennai", "Kolkata",
+                "Ahmedabad", "Surat", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore",
+                "Bhopal", "Patna", "Visakhapatnam", "Vadodara", "Chandigarh", "Coimbatore",
+                "Kochi", "Thiruvananthapuram", "Bhubaneswar", "Agra", "Varanasi",
+                // Common address keywords that appear in Indian addresses
+                "Nagar", "Colony", "Road", "Street", "Layout", "Extension", "Sector", "Phase",
+                "Block", "Area", "Cross", "Main", "Circle", "Junction", "Chowk", "Marg"
+            )
+
             val longNodes = activeNodes.filter { node ->
-                node.length > 20 && 
+                node.length > 15 &&
                 (cityPatterns.any { node.contains(it, ignoreCase = true) } || 
                  node.contains("|") || 
-                 Regex("\\d{6}").containsMatchIn(node))
+                 Regex("\\d{6}").containsMatchIn(node) || // 6-digit PIN code
+                 Regex("\\d+[,\\s]+\\w").containsMatchIn(node)) // starts with house number
             }
             if (longNodes.size >= 2) {
                 dropAddress = longNodes.last()
@@ -240,7 +255,7 @@ class RideDataParser : IPlatformParser {
         val durationMinutes = if (isUber) rideTimeMin else {
             activeNodes.mapNotNull { node ->
                 MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-            }.sum()
+            }.maxOrNull() ?: 0
         }
 
         // ── EXTRACT SECONDARY FARES (Tips/Premiums) ──────────────────────
@@ -273,7 +288,7 @@ class RideDataParser : IPlatformParser {
             rideDistanceKm        = rideDistanceKm,
             pickupDistanceKm      = pickupDistanceKm,
             estimatedDurationMin  = durationMinutes,
-            platform              = packageName,
+            platform              = PlatformConfig.get(packageName).displayName,
             packageName           = packageName,
             rawTextNodes          = activeNodes,
             pickupAddress         = pickupAddress,
