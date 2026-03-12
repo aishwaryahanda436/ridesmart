@@ -54,7 +54,7 @@ fun ProfileSetupScreen(
                 Text("← Back", color = RideGreen, fontSize = 15.sp)
             }
             Spacer(Modifier.weight(1f))
-            Text("Earning Targets", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Profile Setup", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Box(Modifier.width(60.dp)) // Symmetry
         }
