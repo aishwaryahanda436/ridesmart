@@ -302,7 +302,7 @@ class ProfitCalculator {
         }
         // V3.1: Removed fixed EPK < ₹1.50 hard override — replaced by adaptive scoring.
         // Low EPK is handled by S2 (EPK Score) which evaluates relative to operationalCPK.
-        // Added informational warning when EPK is below vehicle running cost.
+        // Informational warning only (does NOT set overrideActive) — lets scoring model decide signal.
         if (epk < operationalCPK && ride.rideDistanceKm > 0.0) {
             failedChecks.add("₹/km ₹${"%.1f".format(epk)} below ₹${"%.1f".format(operationalCPK)} running cost — low per-km profitability")
         }

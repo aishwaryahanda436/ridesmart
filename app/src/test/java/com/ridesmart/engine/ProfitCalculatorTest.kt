@@ -785,7 +785,7 @@ class ProfitCalculatorTest {
 
         // Long pickup increases TRT → increases targetNetProfit → reduces S1 → reduces rideScore
         assertTrue("long pickup TRT > short pickup TRT", rLong.trt > rShort.trt)
-        assertTrue("same net profit for both", rLong.netProfit < rShort.netProfit) // more fuel cost
+        assertTrue("long pickup has lower net profit due to fuel cost", rLong.netProfit < rShort.netProfit) // more fuel cost
         if (!rLong.overrideActive && !rShort.overrideActive) {
             assertTrue("long pickup reduces rideScore via time-based evaluation",
                 rLong.rideScore < rShort.rideScore)
