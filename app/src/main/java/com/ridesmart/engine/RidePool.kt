@@ -3,14 +3,14 @@ package com.ridesmart.engine
 import com.ridesmart.model.RideOffer
 
 /**
- * Thread-safe pool of active ride offers awaiting evaluation.
+ * Pool of active ride offers awaiting evaluation.
  *
  * Rides are added as they are detected and automatically pruned
  * when they expire.  The pool is the input to [MultiRideComparisonEngine].
  *
  * Design constraints:
- *  - Operates on the main thread or a single-threaded dispatcher.
- *  - No heavy synchronization; callers should access from one thread.
+ *  - **Not thread-safe** — designed for single-threaded access
+ *    (main thread or a single-threaded coroutine dispatcher).
  *  - Maximum pool size capped to avoid unbounded growth.
  */
 class RidePool(

@@ -351,8 +351,8 @@ class MultiRideComparisonEngineTest {
         val result = engine.compareOffers(offers, profile, 12)
 
         assertEquals(20, result.rankedRides.size)
-        // Allow generous margin; CI can be slow
-        assertTrue("evaluation under 50ms: ${result.evaluationTimeMs}ms",
+        // Allow generous margin for CI; real devices target < 50ms
+        assertTrue("evaluation under 200ms (CI margin): ${result.evaluationTimeMs}ms",
             result.evaluationTimeMs < 200)
     }
 
