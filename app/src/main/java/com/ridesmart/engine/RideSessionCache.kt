@@ -37,6 +37,11 @@ class RideSessionCache {
         sessionStartMs = System.currentTimeMillis()
     }
 
+    fun resetBest() {
+        results.clear()
+        nextCardIndex = 1
+    }
+
     fun isExpired(): Boolean {
         if (sessionStartMs == 0L) return false
         return System.currentTimeMillis() - sessionStartMs > SESSION_TIMEOUT_MS
@@ -45,7 +50,16 @@ class RideSessionCache {
     // ── ADD / QUERY ──────────────────────────────────────────────────
 
     fun addResult(ride: ParsedRide, netProfit: Double, smartScore: Double) {
+        // Hard cap for Indian platforms: reject fares > 2000.0 (phantom OCR reads)
+        if (ride.baseFare > 2000.0) return
+
         if (sessionStartMs == 0L) sessionStartMs = System.currentTimeMillis()
+
+        // Outlier rejection: if smartScore is > 5x the average of existing results, reject it
+        if (results.size >= 2) {
+            val avg = results.values.map { it.smartScore }.average()
+            if (smartScore > avg * 5) return
+        }
 
         // Fingerprint = MurmurHash3(fare + pickup + rideType) as per Spec v2.0
         // Fix: Use 2 decimal places for distances and round baseFare to avoid collisions.

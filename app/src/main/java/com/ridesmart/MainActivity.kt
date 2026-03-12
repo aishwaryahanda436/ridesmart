@@ -270,7 +270,7 @@ fun OemWizardSection() {
                     fontSize = 15.sp
                 )
                 Text(
-                    "$manufacturer kills background services to save battery. Complete these steps to ensure RideSmart stays active.",
+                    "To prevent $manufacturer from killing RideSmart in the background, you must manually disable battery optimization.",
                     color = TextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
@@ -281,18 +281,21 @@ fun OemWizardSection() {
 
                 Button(
                     onClick = {
-                        try {
-                            context.startActivity(OemPermissionHelper.getBatteryOptimizationIntent(context))
-                        } catch (e: Exception) {
-                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                        }
+                        context.startActivity(OemPermissionHelper.getBatteryOptimizationIntent(context))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = RideGreen.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("1. Disable Battery Restrictions", color = RideGreen, fontSize = 13.sp)
+                    Text("1. Open Battery Settings", color = RideGreen, fontSize = 13.sp)
                 }
+                
+                Text(
+                    "Once settings open, find RideSmart and set to 'Don't Optimize' or 'Unrestricted'.",
+                    color = SignalYellow,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
 
                 if (autoStartIntent != null) {
                     Spacer(modifier = Modifier.height(8.dp))

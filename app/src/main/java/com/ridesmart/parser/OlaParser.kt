@@ -185,8 +185,7 @@ class OlaParser : IPlatformParser {
         val dropAddress   = addressCandidates.getOrElse(1) { "" }
 
         Log.d(TAG, "🔍 Ola parsed: vehicle=$vehicleType fare=₹$baseFare " +
-            "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +
-            "state=$screenState")
+            "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km")
 
         return ParsedRide(
             baseFare = baseFare,

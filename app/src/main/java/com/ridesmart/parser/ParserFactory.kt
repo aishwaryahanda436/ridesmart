@@ -54,7 +54,6 @@ object ParserFactory {
         else                      -> fallback
     }
 
-    fun getRapidoParser(): RapidoParser     = rapido
     fun getUberParser(): UberOcrEngine      = uber
     fun getOlaParser(): OlaParser           = ola
     fun getShadowfaxParser(): ShadowfaxParser   = shadowfax

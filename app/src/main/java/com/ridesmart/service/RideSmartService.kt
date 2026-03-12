@@ -146,6 +146,11 @@ class RideSmartService : AccessibilityService() {
     private var uberAppInForeground = false
     private var uberPollingIntervalMs = UBER_POLL_BASE_MS
     private var consecutiveEmptyPolls = 0
+    @Volatile
+    private var uberOfferActiveMs = 0L
+    private var recentForegroundPackage: String = ""
+    private var uberOcrActive = false
+    private var uberScreenshotJob: Job? = null
 
     private val screenWakeLock: PowerManager.WakeLock by lazy {
         (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
@@ -175,8 +180,15 @@ class RideSmartService : AccessibilityService() {
         historyRepository = RideHistoryRepository(this)
         remoteConfig = RemoteConfigRepository(this)
         overlayManager = OverlayManager(this).apply {
-            onAutoDismiss = { platform ->
+            onDismiss = { platform ->
                 stateFor(platform).lastShownSmartScore = Double.MIN_VALUE
+                stateFor(platform).sessionCache.resetBest()
+                if (platform.equals("Uber", ignoreCase = true)) {
+                    uberOfferActiveMs = 0L
+                    uberOcrActive = false
+                    uberScreenshotJob?.cancel()
+                    uberScreenshotJob = null
+                }
             }
         }
 
@@ -197,7 +209,7 @@ class RideSmartService : AccessibilityService() {
 
     private fun prewarmOcr() {
         serviceScope.launch(Dispatchers.Default) {
-            val dummy = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            val dummy = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
             uberOcrEngine.parse(dummy)
             dummy.recycle()
             Log.d(TAG, "🧠 ML Kit OCR pre-warmed")
@@ -263,6 +275,7 @@ class RideSmartService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val evtPkg = event.packageName?.toString() ?: ""
+        if (evtPkg.isNotEmpty()) recentForegroundPackage = evtPkg
         
         // Skip our own package — we don't need to analyse ourselves
         if (evtPkg == packageName) return
@@ -285,6 +298,10 @@ class RideSmartService : AccessibilityService() {
             
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 resetUberPollingBackoff()
+                uberOfferActiveMs = 0L
+                uberOcrActive = false
+                uberScreenshotJob?.cancel()
+                uberScreenshotJob = null
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     triggerUberScreenshot()
@@ -530,6 +547,10 @@ class RideSmartService : AccessibilityService() {
                 state.lastShownSmartScore = currentScore
                 state.lastFare = parsedRide.baseFare.toFloat()
                 state.lastRideTime = System.currentTimeMillis()
+
+                if (normalizePlatform(pkg) == "uber") {
+                    uberOfferActiveMs = System.currentTimeMillis()
+                }
             }
         }
         saveRideToHistory(parsedRide, result, pkg)
@@ -612,6 +633,7 @@ class RideSmartService : AccessibilityService() {
                               now - state.lastRideTime < SAME_FARE_COOLDOWN_MS
         if (sameFareTooSoon) {
             Log.d(TAG, "Duplicate fare suppressed for $packageName")
+            if (isUber) uberOfferActiveMs = now
             return
         }
 
@@ -619,6 +641,7 @@ class RideSmartService : AccessibilityService() {
         if (hasShownThisSession) {
             if (currentScore < state.lastShownSmartScore + MIN_SCORE_IMPROVEMENT) {
                 Log.d(TAG, "Low score improvement for $packageName: $currentScore vs ${state.lastShownSmartScore}")
+                if (isUber) uberOfferActiveMs = now
                 return
             }
         }
@@ -641,6 +664,9 @@ class RideSmartService : AccessibilityService() {
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
                 )
+                if (isUber) {
+                    uberOfferActiveMs = System.currentTimeMillis()
+                }
             }
         }
         saveRideToHistory(bestRide, bestResult, packageName)
@@ -686,7 +712,25 @@ class RideSmartService : AccessibilityService() {
     private fun triggerUberScreenshot() {
         if (activeForegroundPlatform.isNotBlank() && activeForegroundPlatform != "uber") return
         if (!isScreenshotProcessing.compareAndSet(false, true)) return
+        
+        if (!uberOcrActive) {
+            uberOcrActive = true
+        }
+
         val now = System.currentTimeMillis()
+        
+        if (uberOfferActiveMs > 0 && now - uberOfferActiveMs < 30_000L) {
+            isScreenshotProcessing.set(false)
+            return
+        }
+
+        val currentPkg = recentForegroundPackage
+        if (currentPkg != "com.ubercab.driver") {
+            isScreenshotProcessing.set(false)
+            Log.d(TAG, "⏭ Skipping Uber OCR — foreground is $currentPkg")
+            return
+        }
+
         val last = lastScreenshotMs.get()
         if (now - last < screenshotCooldownMs) {
             isScreenshotProcessing.set(false)
@@ -694,76 +738,99 @@ class RideSmartService : AccessibilityService() {
         }
         lastScreenshotMs.set(now)
 
-        try {
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                screenshotExecutor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(result: ScreenshotResult) {
-                        val bitmap = try {
-                            Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
-                                ?.copy(Bitmap.Config.ARGB_8888, false)
-                                .also { result.hardwareBuffer.close() }
-                        } catch (e: Exception) {
-                            result.hardwareBuffer.close()
-                            null
-                        }
-                        if (bitmap == null) {
-                            isScreenshotProcessing.set(false)
-                            increaseUberPollingBackoff()
-                            return
-                        }
-                        serviceScope.launch {
-                            try {
-                                val parsed = uberOcrEngine.parse(bitmap)
-                                if (parsed != null && parsed.baseFare > 0) {
-                                    Log.d(TAG, "📸 Uber OCR SUCCESS: fare=${parsed.baseFare} " +
-                                        "rideKm=${parsed.rideDistanceKm} pickupKm=${parsed.pickupDistanceKm} " +
-                                        "pickupMin=${parsed.pickupTimeMin} rideMin=${parsed.estimatedDurationMin} " +
-                                        "premium=${parsed.premiumAmount}")
-                                    resetUberPollingBackoff()
-                                    val fakeNodes = mutableListOf<String>().apply {
-                                        add("₹${"%.2f".format(parsed.baseFare)}")
-
-                                        if (parsed.estimatedDurationMin > 0 && parsed.rideDistanceKm > 0)
-                                            add("${parsed.estimatedDurationMin} mins (${parsed.rideDistanceKm} km)")
-                                        else if (parsed.rideDistanceKm > 0)
-                                            add("${parsed.rideDistanceKm} km")
-                                        if (parsed.pickupDistanceKm > 0) {
-                                            if (parsed.pickupTimeMin > 0)
-                                                add("${parsed.pickupTimeMin} min (${parsed.pickupDistanceKm} km)")
-                                            else
-                                                add("${parsed.pickupDistanceKm} km away")
-                                        }
-                                        add("Match")
-                                        if (parsed.pickupAddress.isNotBlank()) add(parsed.pickupAddress)
-                                        if (parsed.dropAddress.isNotBlank()) add(parsed.dropAddress)
-                                        if (parsed.premiumAmount > 0) add("+₹${"%.2f".format(parsed.premiumAmount)} Premium")
-                                    }
-                                    processScreen(fakeNodes, "com.ubercab.driver")
-                                } else {
-                                    increaseUberPollingBackoff()
+        uberScreenshotJob = serviceScope.launch {
+            if (overlayManager.hasActiveOverlays()) {
+                overlayManager.hideAllTemporarily()
+                delay(150)
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    takeScreenshot(
+                        Display.DEFAULT_DISPLAY,
+                        screenshotExecutor,
+                        object : TakeScreenshotCallback {
+                            override fun onSuccess(result: ScreenshotResult) {
+                                val bitmap = try {
+                                    Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                                        ?.copy(Bitmap.Config.ARGB_8888, false)
+                                        .also { result.hardwareBuffer.close() }
+                                } catch (e: Exception) {
+                                    result.hardwareBuffer.close()
+                                    null
                                 }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error processing screenshot bitmap: ${e.message}")
-                                increaseUberPollingBackoff()
-                            } finally {
-                                bitmap.recycle()
+                                if (bitmap == null) {
+                                    isScreenshotProcessing.set(false)
+                                    increaseUberPollingBackoff()
+                                    overlayManager.restoreAll()
+                                    return
+                                }
+                                serviceScope.launch {
+                                    try {
+                                        if (!uberOcrActive) {
+                                            bitmap.recycle()
+                                            isScreenshotProcessing.set(false)
+                                            overlayManager.restoreAll()
+                                            return@launch
+                                        }
+                                        
+                                        val parsed = uberOcrEngine.parse(bitmap)
+                                        if (parsed != null && parsed.baseFare > 0) {
+                                            Log.d(TAG, "📸 Uber OCR SUCCESS: fare=${parsed.baseFare} " +
+                                                "rideKm=${parsed.rideDistanceKm} pickupKm=${parsed.pickupDistanceKm} " +
+                                                "pickupMin=${parsed.pickupTimeMin} rideMin=${parsed.estimatedDurationMin} " +
+                                                "premium=${parsed.premiumAmount}")
+                                            resetUberPollingBackoff()
+                                            val fakeNodes = mutableListOf<String>().apply {
+                                                add("₹${"%.2f".format(parsed.baseFare)}")
+
+                                                if (parsed.estimatedDurationMin > 0 && parsed.rideDistanceKm > 0)
+                                                    add("${parsed.estimatedDurationMin} mins (${parsed.rideDistanceKm} km)")
+                                                else if (parsed.rideDistanceKm > 0)
+                                                    add("${parsed.rideDistanceKm} km")
+                                                if (parsed.pickupDistanceKm > 0) {
+                                                    if (parsed.pickupTimeMin > 0)
+                                                        add("${parsed.pickupTimeMin} min (${parsed.pickupDistanceKm} km)")
+                                                    else
+                                                        add("${parsed.pickupDistanceKm} km away")
+                                                }
+                                                add("Match")
+                                                if (parsed.pickupAddress.isNotBlank()) add(parsed.pickupAddress)
+                                                if (parsed.dropAddress.isNotBlank()) add(parsed.dropAddress)
+                                                if (parsed.premiumAmount > 0) add("+₹${"%.2f".format(parsed.premiumAmount)} Premium")
+                                            }
+                                            processScreen(fakeNodes, "com.ubercab.driver")
+                                        } else {
+                                            increaseUberPollingBackoff()
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error processing screenshot bitmap: ${e.message}")
+                                        increaseUberPollingBackoff()
+                                    } finally {
+                                        bitmap.recycle()
+                                        isScreenshotProcessing.set(false)
+                                        overlayManager.restoreAll()
+                                    }
+                                }
+                            }
+                            override fun onFailure(errorCode: Int) {
+                                Log.e(TAG, "Screenshot failed: $errorCode")
                                 isScreenshotProcessing.set(false)
+                                increaseUberPollingBackoff()
+                                overlayManager.restoreAll()
                             }
                         }
-                    }
-                    override fun onFailure(errorCode: Int) {
-                        Log.e(TAG, "Screenshot failed: $errorCode")
-                        isScreenshotProcessing.set(false)
-                        increaseUberPollingBackoff()
-                    }
+                    )
+                } else {
+                    // TODO: Implement MediaProjection fallback for API 26-29
+                    isScreenshotProcessing.set(false)
+                    overlayManager.restoreAll()
                 }
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error triggering screenshot: ${e.message}")
-            isScreenshotProcessing.set(false)
-            increaseUberPollingBackoff()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error triggering screenshot: ${e.message}")
+                isScreenshotProcessing.set(false)
+                increaseUberPollingBackoff()
+                overlayManager.restoreAll()
+            }
         }
     }
 

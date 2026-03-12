@@ -23,7 +23,6 @@ val DarkSurface = Color(0xFF121216)     // Deep Slate
 val DarkCard = Color(0xFF121216)        // Standard card surface
 val DarkSurfaceVariant = Color(0xFF1C1C24) // Lighter Slate for depth
 val DarkBorder = Color(0xFF2A2A32)      // Subtle separators
-val GlassEffect = Color(0xCC121216)     // Translucent for overlays
 
 // ── TEXT SYSTEM ─────────────────────────────────────────────────────
 val TextPrimary = Color(0xFFF2F2F7)     // High-intensity white

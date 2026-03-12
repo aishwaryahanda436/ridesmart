@@ -57,7 +57,7 @@ class OverlayManager(private val context: Context) {
 
             // Remove existing card for THIS platform only — other platforms unaffected
             activeCards[platform]?.let {
-                try { windowManager.removeView(it) } catch (e: Exception) { }
+                try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
 
@@ -96,7 +96,7 @@ class OverlayManager(private val context: Context) {
             activeAnimators[platform] = animator
 
             val runnable = Runnable {
-                try { windowManager.removeView(cardToRemove) } catch (e: Exception) { }
+                try { windowManager.removeView(cardToRemove) } catch (_: Exception) { }
                 if (activeCards[platform] === cardToRemove) {
                     activeCards.remove(platform)
                     activeAnimators[platform]?.cancel()
@@ -145,7 +145,7 @@ class OverlayManager(private val context: Context) {
     ) {
         val parsedRide = result.parsedRide
 
-        val (baseSignalText, accentColor, bodyBgColor) = when (result.signal) {
+        val (_, accentColor, bodyBgColor) = when (result.signal) {
             Signal.GREEN  -> Triple("ACCEPT",    0xFF16A34A.toInt(), 0xFF060F08.toInt())
             Signal.YELLOW -> Triple("BORDERLINE", 0xFFCA8A04.toInt(), 0xFF100C00.toInt())
             Signal.RED    -> Triple("SKIP",       0xFFDC2626.toInt(), 0xFF0F0303.toInt())
@@ -247,7 +247,7 @@ class OverlayManager(private val context: Context) {
             activeAnimators[platform]?.cancel()
             activeAnimators.remove(platform)
             activeCards[platform]?.let {
-                try { windowManager.removeView(it) } catch (e: Exception) { }
+                try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
             Log.d(TAG, "👆 Dismissed by tap: platform=$platform remaining=${activeCards.keys}")
@@ -263,11 +263,23 @@ class OverlayManager(private val context: Context) {
             activeAnimators.values.forEach { it.cancel() }
             activeAnimators.clear()
             activeCards.values.forEach {
-                try { windowManager.removeView(it) } catch (e: Exception) { }
+                try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.clear()
         }
     }
 
-    fun isShowing(): Boolean = activeCards.isNotEmpty()
+    fun hasActiveOverlays(): Boolean = activeCards.isNotEmpty()
+
+    fun hideAllTemporarily() {
+        handler.post {
+            activeCards.values.forEach { it.visibility = View.INVISIBLE }
+        }
+    }
+
+    fun restoreAll() {
+        handler.post {
+            activeCards.values.forEach { it.visibility = View.VISIBLE }
+        }
+    }
 }

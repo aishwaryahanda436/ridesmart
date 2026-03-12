@@ -23,5 +23,9 @@ data class ParsedRide(
     val screenState: ScreenState = ScreenState.OFFER_LOADED,
     // RideScore fields — surge multiplier and wait/idle time
     val surgeMultiplier: Double = 1.0,
-    val waitTimeMin: Int = 0
+    val waitTimeMin: Int = 0,
+    // V3: Additional fields for improved profit calculation
+    val isDelivery: Boolean = false,      // delivery vs passenger ride
+    val numberOfStops: Int = 1,           // multi-stop deliveries (Shadowfax)
+    val trafficLevel: Int = 0             // 0=unknown, 1=light, 2=moderate, 3=heavy
 )

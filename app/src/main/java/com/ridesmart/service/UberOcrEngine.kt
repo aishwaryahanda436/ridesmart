@@ -60,7 +60,7 @@ class UberOcrEngine : IPlatformParser {
             "pl", "place", "sq", "square", "pkwy", "parkway", "ter", "terrace",
             "hwy", "highway", "expy", "expressway", "fwy", "freeway",
             "route", "trail", "loop", "mall", "crescent", "crossing",
-            "hospital", "school", "college", "university", "church", "temple",
+            "hospital", "school", "college", "university", "church", "tempel",
             "mosque", "synagogue", "park", "garden", "zoo", "museum",
             "library", "theater", "cinema", "stadium", "arena", "gym",
             "beach", "lake", "river", "airport", "hotel", "metro", "train",
@@ -115,7 +115,7 @@ class UberOcrEngine : IPlatformParser {
         val effectiveFare = fare + bonus
         val (rideDistKm, pickupDistKm, durationMin) = extractTimeAndDistance(lines)
         val (pickupAddr, dropAddr) = extractAddresses(lines)
-        val rating = extractRating(lines)
+        val rating = extractRating(ratingLines = lines)
         val vehicleType = extractVehicleType(combinedRaw)
 
         return ParsedRide(
@@ -138,16 +138,82 @@ class UberOcrEngine : IPlatformParser {
     }
 
     suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        val cropped = cropOfferRegion(bitmap)
-        val target = cropped ?: bitmap
-        val rawText = extractText(target) ?: run {
-            cropped?.recycle()
+        // CROP 1: Fare Row (always top)
+        val fareBitmap = crop(bitmap, 0.00, 0.05, 0.90, 0.25)
+        val fareText = extractText(fareBitmap) ?: ""
+        val fare = extractFare(fareText.lines()) ?: return null
+        
+        // Validation: reject implausible fares from phantom OCR reads
+        if (fare > 2000.0) {
+            Log.d(TAG, "🚫 UberOCR rejected implausible fare: $fare")
             return null
         }
-        cropped?.recycle()
-        if (rawText.isBlank()) return null
-        val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }
-        return parseFromNodes(lines)
+        
+        // CROP 2: Distance/Time Rows
+        val distanceBitmap = crop(bitmap, 0.00, 0.25, 0.80, 0.60)
+        val distanceOcrText = extractText(distanceBitmap) ?: ""
+        Log.d(TAG, "🔍 UberOCR raw distance text: $distanceOcrText")
+        
+        val distTimeRegex = Regex("""(\d+)\s*min\s*(?:\(([\d.]+)\s*km\))?""", RegexOption.IGNORE_CASE)
+        val matches = distTimeRegex.findAll(distanceOcrText).toList()
+        
+        var rideDistanceKm = 0.0
+        var pickupDistanceKm = 0.0
+        var estimatedDurationMin = 0
+        var pickupTimeMin = 0
+
+        if (matches.size >= 2) {
+            // First row is pickup, second is ride
+            pickupDistanceKm = matches[0].groupValues[2].toDoubleOrNull() ?: 0.0
+            pickupTimeMin    = matches[0].groupValues[1].toIntOrNull()    ?: 0
+            
+            rideDistanceKm       = matches[1].groupValues[2].toDoubleOrNull() ?: 0.0
+            estimatedDurationMin = matches[1].groupValues[1].toIntOrNull() ?: 0
+        } else if (matches.size == 1) {
+            rideDistanceKm       = matches[0].groupValues[2].toDoubleOrNull() ?: 0.0
+            estimatedDurationMin = matches[0].groupValues[1].toIntOrNull() ?: 0
+        }
+
+        // CROP 3: Addresses & Rating
+        val detailsBitmap = crop(bitmap, 0.00, 0.50, 1.00, 0.90)
+        val detailsText = extractText(detailsBitmap) ?: ""
+        val lines = detailsText.lines()
+        
+        val rating = extractRating(ratingLines = lines)
+        val (pickupAddr, dropAddr) = extractAddresses(lines)
+        val bonus = extractBonus(lines)
+        val premium = extractPremium(lines)
+        
+        fareBitmap.recycle()
+        distanceBitmap.recycle()
+        detailsBitmap.recycle()
+
+        return ParsedRide(
+            baseFare             = fare + bonus,
+            rideDistanceKm       = rideDistanceKm,
+            pickupDistanceKm     = pickupDistanceKm,
+            estimatedDurationMin = estimatedDurationMin,
+            pickupTimeMin        = pickupTimeMin,
+            platform             = "Uber",
+            packageName          = "com.ubercab.driver",
+            rawTextNodes          = detailsText.lines(),
+            pickupAddress        = pickupAddr,
+            dropAddress          = dropAddr,
+            riderRating          = rating ?: 0.0,
+            paymentType          = if (detailsText.lowercase().contains("cash")) "cash" else "digital",
+            premiumAmount        = premium,
+            bonus                = bonus,
+            fare                 = fare + bonus,
+            vehicleType          = extractVehicleType(detailsText.lowercase())
+        )
+    }
+
+    private fun crop(bitmap: Bitmap, left: Double, top: Double, right: Double, bottom: Double): Bitmap {
+        val x = (bitmap.width * left).toInt()
+        val y = (bitmap.height * top).toInt()
+        val w = (bitmap.width * (right - left)).toInt()
+        val h = (bitmap.height * (bottom - top)).toInt()
+        return Bitmap.createBitmap(bitmap, x, y, w, h)
     }
 
     fun hasOfferSignals(nodes: List<String>): Boolean {
@@ -162,23 +228,12 @@ class UberOcrEngine : IPlatformParser {
             "upfront", "incentive", "premium", "cash payment",
             "pickup", "drop", "ride", "destination", "see all requests"
         )
-        var matchCount = signals.count { combined.contains(it) }
+        val matchCount = signals.count { combined.contains(it) }
 
         val idSignals = nodes.count { it.startsWith("[id:") }
-        matchCount += idSignals
+        val totalSignals = matchCount + idSignals
 
-        return matchCount >= MIN_OFFER_SIGNALS
-    }
-
-    fun cropOfferRegion(bitmap: Bitmap): Bitmap? {
-        return try {
-            val offerHeight = (bitmap.height * OFFER_CROP_RATIO).toInt()
-            if (offerHeight <= 0 || bitmap.width <= 0) return null
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, offerHeight)
-        } catch (e: Exception) {
-            Log.d(TAG, "📸 Bitmap crop failed: ${e.message}")
-            null
-        }
+        return totalSignals >= MIN_OFFER_SIGNALS
     }
 
     private fun extractVehicleType(combinedLower: String): VehicleType = when {
@@ -203,9 +258,9 @@ class UberOcrEngine : IPlatformParser {
 
             if ((line.lowercase().contains("min") || line.lowercase().contains("km") || line.lowercase().contains("away")) && !line.contains("₹")) continue
 
-            val fareRegex = Regex("""(?:₹|Rs\.?)\s*(\d{1,5}(?:\.\d{1,2})?)""")
+            val fareRegex = Regex("""(?:₹|Rs\.?)\s*(\d{1,4}(?:\.\d{1,2})?)""")
             val value = fareRegex.find(line)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
-            if (value in 25.0..9999.0) return value
+            if (value in 25.0..2000.0) return value
         }
         return null
     }
@@ -237,27 +292,61 @@ class UberOcrEngine : IPlatformParser {
     }
 
     private fun extractTimeAndDistance(lines: List<String>): Triple<Double, Double, Int> {
-        var rideDist = 0.0
-        var pickupDist = 0.0
-        var duration = 0
-        
-        val distRegex = Regex("""(\d+(?:\.\d{1,2})?)\s*km""")
-        val timeRegex = Regex("""(\d+)\s*min""")
-        
+        var rideKm = 0.0
+        var pickupKm = 0.0
+        var rideMin = 0
+        var pickupMin = 0
+
+        val pickupPattern = Regex("""(\d+\.?\d*)\s*km.*pickup""", RegexOption.IGNORE_CASE)
+        val kmPattern = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
+        val minPattern = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
+
+        val allKms = mutableListOf<Double>()
+        val allMins = mutableListOf<Int>()
+
         for (line in lines) {
             val lower = line.lowercase()
-            if (lower.contains("away")) {
-                pickupDist = distRegex.find(lower)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            } else if (distRegex.containsMatchIn(lower)) {
-                rideDist = distRegex.find(lower)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+
+            // 1. Broaden pickup search via explicit markers
+            if (pickupKm == 0.0) {
+                val pm = pickupPattern.find(lower)
+                if (pm != null) {
+                    pickupKm = pm.groupValues[1].toDoubleOrNull() ?: 0.0
+                } else if (lower.contains("away")) {
+                    pickupKm = kmPattern.find(lower)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                }
             }
-            
-            if (timeRegex.containsMatchIn(lower)) {
-                val mins = timeRegex.find(lower)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                if (mins > duration) duration = mins
-            }
+
+            // 3. Search full text for distances and times
+            kmPattern.findAll(lower).forEach { allKms.add(it.groupValues[1].toDoubleOrNull() ?: 0.0) }
+            minPattern.findAll(lower).forEach { allMins.add(it.groupValues[1].toIntOrNull() ?: 0) }
         }
-        return Triple(rideDist, pickupDist, duration)
+
+        // 2. Ride distance: store only FIRST match, and handle UI order (pickup is first)
+        if (allKms.size >= 2) {
+            if (pickupKm == 0.0) {
+                pickupKm = allKms[0]
+                rideKm = allKms[1]
+            } else {
+                rideKm = allKms.find { it != pickupKm } ?: 0.0
+            }
+        } else if (allKms.isNotEmpty()) {
+            if (pickupKm == 0.0) rideKm = allKms[0]
+            else if (allKms[0] != pickupKm) rideKm = allKms[0]
+        }
+
+        // 3. Ride time (rideMin): search full text, handle UI order
+        if (allMins.size >= 2) {
+            pickupMin = allMins[0]
+            rideMin = allMins[1]
+        } else if (allMins.isNotEmpty()) {
+            rideMin = allMins[0]
+        }
+
+        // 4. Log fix verification
+        Log.d("RideSmart", "OCR distances: pickup=${pickupKm}km ride=${rideKm}km pickupMin=${pickupMin} rideMin=${rideMin}")
+
+        return Triple(rideKm, pickupKm, rideMin)
     }
 
     private fun extractAddresses(lines: List<String>): Pair<String, String> {
@@ -273,9 +362,9 @@ class UberOcrEngine : IPlatformParser {
         return Pair(pickup, drop)
     }
 
-    private fun extractRating(lines: List<String>): Double? {
+    private fun extractRating(ratingLines: List<String>): Double? {
         val ratingRegex = Regex("""([45]\.\d{1,2})""")
-        for (line in lines) {
+        for (line in ratingLines) {
             val match = ratingRegex.find(line)
             if (match != null) return match.groupValues[1].toDoubleOrNull()
         }
@@ -283,6 +372,10 @@ class UberOcrEngine : IPlatformParser {
     }
 
     private suspend fun extractText(bitmap: Bitmap): String? = suspendCancellableCoroutine { cont ->
+        if (bitmap.width < 32 || bitmap.height < 32) {
+            cont.resume("")
+            return@suspendCancellableCoroutine
+        }
         val image = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
