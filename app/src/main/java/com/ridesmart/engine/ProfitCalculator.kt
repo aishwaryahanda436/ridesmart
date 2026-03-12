@@ -60,7 +60,15 @@ import java.time.LocalTime
  *   S6 — Opportunity Cost Score (5%)
  *
  * Hard Override → RED if: NetProfit < 0, MinViableFare fail, PPR > 0.80,
- *                         TES < 25%, EPK < ₹1.50
+ *                         TES < 25%
+ *
+ * V3.1 Adaptive Improvements:
+ *   - Replaced fixed EPK < ₹1.50 hard override with adaptive scoring
+ *   - S1 now uses total ride cycle time (TRT) instead of trip-only time,
+ *     automatically penalizing long pickups without hard-coded distance rules
+ *   - Added earningsPerMinute, efficiencyScore, driverBaselineRatePerMin metrics
+ *   - Efficiency score = earningsPerMinute / driverBaselineRate enables
+ *     relative evaluation personalized to each driver's target earning rate
  */
 class ProfitCalculator {
 
@@ -249,6 +257,15 @@ class ProfitCalculator {
         // V3: Effective hourly rate over entire ride cycle
         val effectiveHourlyRate = hrr  // same as HRR but named explicitly
 
+        // V3.1: Core adaptive metrics — earnings per minute and efficiency score
+        val driverBaselineRatePerMin = if (profile.targetEarningPerHour > 0.0) {
+            profile.targetEarningPerHour / 60.0
+        } else 0.0
+        val earningsPerMinute = if (trt > 0.0) netProfit / trt else 0.0
+        val efficiencyScore = if (driverBaselineRatePerMin > 0.0 && trt > 0.0) {
+            earningsPerMinute / driverBaselineRatePerMin
+        } else 0.0
+
         // ── STEP 10: EARNING METRICS ────────────────────────────────────
         val epk = if (ride.rideDistanceKm > 0.0) netProfit / ride.rideDistanceKm else 0.0
         val earningPerHour = if (tripTimeMin > 0.0) {
@@ -283,9 +300,11 @@ class ProfitCalculator {
             failedChecks.add("Time efficiency ${tes.toInt()}% — over 75% of ride-cycle earns nothing")
             overrideActive = true
         }
-        if (epk < 1.5 && ride.rideDistanceKm > 0.0) {
-            failedChecks.add("₹/km ₹${"%.1f".format(epk)} below ₹1.50 minimum — deeply unprofitable")
-            overrideActive = true
+        // V3.1: Removed fixed EPK < ₹1.50 hard override — replaced by adaptive scoring.
+        // Low EPK is handled by S2 (EPK Score) which evaluates relative to operationalCPK.
+        // Informational warning only (does NOT set overrideActive) — lets scoring model decide signal.
+        if (epk < operationalCPK && ride.rideDistanceKm > 0.0) {
+            failedChecks.add("₹/km ₹${"%.1f".format(epk)} below ₹${"%.1f".format(operationalCPK)} running cost — low per-km profitability")
         }
 
         // V3: Fake surge trap detection
@@ -316,6 +335,12 @@ class ProfitCalculator {
                 "Pickup ${ride.pickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — too far"
             )
         }
+        // V3.1: Efficiency score warning — adaptive, driver-personalized
+        if (trt > 0.0 && driverBaselineRatePerMin > 0.0 && efficiencyScore < 0.5) {
+            failedChecks.add(
+                "Earning ₹${"%.1f".format(earningsPerMinute)}/min — ${(efficiencyScore * 100).toInt()}% of your ₹${"%.1f".format(driverBaselineRatePerMin)}/min target"
+            )
+        }
 
         // Hard override → instant RED with complete failure list
         if (overrideActive) {
@@ -332,6 +357,9 @@ class ProfitCalculator {
                 earningPerKm        = epk,
                 earningPerHour      = earningPerHour,
                 effectiveHourlyRate = effectiveHourlyRate,
+                earningsPerMinute   = earningsPerMinute,
+                efficiencyScore     = efficiencyScore,
+                driverBaselineRatePerMin = driverBaselineRatePerMin,
                 pickupRatio         = ppr,
                 rideScore           = OVERRIDE_SCORE,
                 tes                 = tes,
@@ -345,11 +373,14 @@ class ProfitCalculator {
         }
 
         // ── STEP 13: 6 SUB-SCORES ──────────────────────────────────────
-        // S1 — Net Profit Score (target = hourly target × trip time proportion)
+        // S1 — Net Profit Score (target = hourly target × ride cycle time proportion)
+        // V3.1: Uses TRT (total ride time including pickup + wait) instead of trip-only time.
+        // This automatically penalizes long pickups and waiting without hard-coded distance rules,
+        // because a longer pickup increases TRT, which increases targetNetProfit, which lowers S1.
         // V3: Long trip diminishing returns — trips > 25km get progressively penalized
         //     because of return deadheading and fatigue
-        val targetNetProfit = if (tripTimeMin > 0.0) {
-            profile.targetEarningPerHour * (tripTimeMin / 60.0)
+        val targetNetProfit = if (trt > 0.0) {
+            profile.targetEarningPerHour * (trt / 60.0)
         } else {
             profile.minAcceptableNetProfit
         }
@@ -429,6 +460,9 @@ class ProfitCalculator {
             earningPerKm        = epk,
             earningPerHour      = earningPerHour,
             effectiveHourlyRate = effectiveHourlyRate,
+            earningsPerMinute   = earningsPerMinute,
+            efficiencyScore     = efficiencyScore,
+            driverBaselineRatePerMin = driverBaselineRatePerMin,
             pickupRatio         = ppr,
             rideScore           = rideScore,
             tes                 = tes,
