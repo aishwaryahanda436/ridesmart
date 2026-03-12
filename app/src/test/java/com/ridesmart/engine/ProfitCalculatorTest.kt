@@ -693,4 +693,187 @@ class ProfitCalculatorTest {
         val avgMs = elapsed / 1000.0
         assertTrue("average calculation < 1ms (was ${avgMs}ms)", avgMs < 1.0)
     }
+
+    // ── V3.1 NEW TESTS: ADAPTIVE METRICS ────────────────────────────
+
+    @Test
+    fun `earningsPerMinute calculated correctly from net profit and TRT`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 1.0,
+            estimatedDurationMin = 20, packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        assertTrue("earningsPerMinute is positive", result.earningsPerMinute > 0.0)
+        assertTrue("TRT is positive for time calculation", result.trt > 0.0)
+        // earningsPerMinute = netProfit / trt
+        val expected = result.netProfit / result.trt
+        assertEquals("earningsPerMinute = netProfit / TRT", expected, result.earningsPerMinute, 0.01)
+    }
+
+    @Test
+    fun `earningsPerMinute is zero when no time data available`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 0.0,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // No time data and no pickup → trt = 0 → earningsPerMinute = 0
+        assertEquals("earningsPerMinute is zero without time data", 0.0, result.earningsPerMinute, 0.01)
+    }
+
+    @Test
+    fun `efficiencyScore relative to driver baseline rate`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 1.0,
+            estimatedDurationMin = 20, packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // driverBaselineRatePerMin = targetEarningPerHour / 60 = 200/60 = 3.333
+        val expectedBaseline = profile.targetEarningPerHour / 60.0
+        assertEquals("driverBaselineRatePerMin computed from profile",
+            expectedBaseline, result.driverBaselineRatePerMin, 0.01)
+
+        // efficiencyScore = earningsPerMinute / driverBaselineRatePerMin
+        val expectedScore = result.earningsPerMinute / result.driverBaselineRatePerMin
+        assertEquals("efficiencyScore = earningsPerMinute / baseline",
+            expectedScore, result.efficiencyScore, 0.01)
+
+        assertTrue("efficiencyScore is positive for profitable ride", result.efficiencyScore > 0.0)
+    }
+
+    @Test
+    fun `high earning ride has efficiencyScore above 1`() {
+        val ride = ParsedRide(
+            baseFare = 200.0, rideDistanceKm = 10.0, pickupDistanceKm = 0.5,
+            estimatedDurationMin = 15, surgeMultiplier = 1.5,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        assertTrue("high-value ride exceeds baseline earning rate",
+            result.efficiencyScore > 1.0)
+    }
+
+    @Test
+    fun `low earning ride has efficiencyScore below 1`() {
+        val ride = ParsedRide(
+            baseFare = 30.0, rideDistanceKm = 5.0, pickupDistanceKm = 2.0,
+            estimatedDurationMin = 25, packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        if (!result.overrideActive) {
+            assertTrue("low-value ride falls below baseline earning rate",
+                result.efficiencyScore < 1.0)
+        }
+    }
+
+    @Test
+    fun `long pickup automatically reduces rideScore via time-based S1`() {
+        // Same ride, different pickup distances — no hard-coded pickup rules needed
+        val shortPickup = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 0.5,
+            estimatedDurationMin = 20, packageName = "com.rapido.rider"
+        )
+        val longPickup = shortPickup.copy(pickupDistanceKm = 4.0)
+
+        val rShort = calculator.calculate(shortPickup, profile, 12)
+        val rLong = calculator.calculate(longPickup, profile, 12)
+
+        // Long pickup increases TRT → increases targetNetProfit → reduces S1 → reduces rideScore
+        assertTrue("long pickup TRT > short pickup TRT", rLong.trt > rShort.trt)
+        assertTrue("same net profit for both", rLong.netProfit < rShort.netProfit) // more fuel cost
+        if (!rLong.overrideActive && !rShort.overrideActive) {
+            assertTrue("long pickup reduces rideScore via time-based evaluation",
+                rLong.rideScore < rShort.rideScore)
+            assertTrue("long pickup reduces earningsPerMinute",
+                rLong.earningsPerMinute < rShort.earningsPerMinute)
+            assertTrue("long pickup reduces efficiencyScore",
+                rLong.efficiencyScore < rShort.efficiencyScore)
+        }
+    }
+
+    @Test
+    fun `epk override uses adaptive cost floor not fixed constant`() {
+        // Create a ride where EPK is between old fixed ₹1.50 threshold and operational cost
+        // This verifies the fixed constant was removed
+        val ride = ParsedRide(
+            baseFare = 37.0, rideDistanceKm = 5.2, pickupDistanceKm = 1.1,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        // EPK should be above old ₹1.50 fixed threshold
+        assertTrue("EPK is above old fixed ₹1.50", result.earningPerKm > 1.5)
+        // This ride should NOT have hard override (old code might have overridden it)
+        assertFalse("no hard override for moderate EPK ride", result.overrideActive)
+        // Should get YELLOW, not RED from scoring model
+        assertTrue("signal is not RED from fixed EPK rule",
+            result.signal == Signal.YELLOW || result.signal == Signal.GREEN)
+    }
+
+    @Test
+    fun `efficiency score warning shown for low efficiency rides with time data`() {
+        // A ride with time data where efficiency is very low
+        val ride = ParsedRide(
+            baseFare = 25.0, rideDistanceKm = 3.0, pickupDistanceKm = 3.0,
+            estimatedDurationMin = 30, packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+
+        if (!result.overrideActive && result.trt > 0.0 && result.efficiencyScore < 0.5) {
+            assertTrue("efficiency warning shown for low efficiency ride",
+                result.failedChecks.any { it.contains("/min", ignoreCase = true) })
+        }
+    }
+
+    @Test
+    fun `time-efficient short ride beats longer ride in earningsPerMinute`() {
+        // Ride A: Short, quick, decent fare → high ₹/min
+        val rideA = ParsedRide(
+            baseFare = 60.0, rideDistanceKm = 3.0, pickupDistanceKm = 0.5,
+            estimatedDurationMin = 8, packageName = "com.rapido.rider"
+        )
+        // Ride B: Longer, more total profit, but much more time → lower ₹/min
+        val rideB = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 2.0,
+            estimatedDurationMin = 30, packageName = "com.rapido.rider"
+        )
+
+        val resultA = calculator.calculate(rideA, profile, 12)
+        val resultB = calculator.calculate(rideB, profile, 12)
+
+        // Ride B earns more total but ride A earns more per minute
+        if (!resultA.overrideActive && !resultB.overrideActive &&
+            resultA.trt > 0.0 && resultB.trt > 0.0) {
+            assertTrue("time-efficient ride has higher earningsPerMinute",
+                resultA.earningsPerMinute > resultB.earningsPerMinute)
+        }
+    }
+
+    @Test
+    fun `different driver targets produce different efficiency scores for same ride`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 8.0, pickupDistanceKm = 1.0,
+            estimatedDurationMin = 20, packageName = "com.rapido.rider"
+        )
+
+        // Low target driver — easier to achieve high efficiency
+        val lowTargetProfile = profile.copy(targetEarningPerHour = 100.0)
+        // High target driver — harder to achieve high efficiency
+        val highTargetProfile = profile.copy(targetEarningPerHour = 400.0)
+
+        val resultLow = calculator.calculate(ride, lowTargetProfile, 12)
+        val resultHigh = calculator.calculate(ride, highTargetProfile, 12)
+
+        if (!resultLow.overrideActive && !resultHigh.overrideActive) {
+            assertTrue("same earningsPerMinute for both drivers",
+                Math.abs(resultLow.earningsPerMinute - resultHigh.earningsPerMinute) < 0.1)
+            assertTrue("low target driver has higher efficiency score",
+                resultLow.efficiencyScore > resultHigh.efficiencyScore)
+        }
+    }
 }

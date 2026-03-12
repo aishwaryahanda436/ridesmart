@@ -62,6 +62,20 @@ data class ProfitResult(
     // netProfit / (TRT / 60) — more accurate than earningPerHour
     // This is the HRR metric, aliased for clarity
 
+    // V3.1: Earnings per minute of engaged time (core adaptive metric)
+    val earningsPerMinute: Double = 0.0,
+    // netProfit / TRT — the real metric drivers optimize for
+    // Automatically penalizes long pickups and waiting without hard rules
+
+    // V3.1: Efficiency score relative to driver's target earning rate
+    val efficiencyScore: Double = 0.0,
+    // earningsPerMinute / driverBaselineRatePerMin
+    // 1.0 = meeting target, >1.0 = exceeding target, <1.0 = below target
+
+    // V3.1: Driver's target earning rate per minute (from profile)
+    val driverBaselineRatePerMin: Double = 0.0,
+    // targetEarningPerHour / 60 — personalized baseline for relative evaluation
+
     // ── QUALITY METRICS ──
     val pickupRatio: Double,
     // pickupDistanceKm / rideDistanceKm
@@ -90,7 +104,7 @@ data class ProfitResult(
 
     val overrideActive: Boolean = false,
     // True if a hard override rule forced the signal to RED
-    // (NetProfit < 0, PPR > 0.80, TES < 25%, EPK < 1.50, MinViableFare fail)
+    // (NetProfit < 0, PPR > 0.80, TES < 25%, MinViableFare fail)
 
     // V3: Sub-scores for debugging and display
     val subScores: SubScores = SubScores(),
