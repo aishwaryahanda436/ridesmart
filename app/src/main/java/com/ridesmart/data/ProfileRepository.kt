@@ -80,6 +80,8 @@ class ProfileRepository(private val context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[KEY_PAYMENT_MODEL] ?: "commission" }
 
+    // Individual cost flows for PlatformPaymentScreen initialization
+    // (separate from subscriptionDailyCost which is the derived active model cost)
     val dailyPassCostFlow: Flow<Double> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[KEY_DAILY_PASS_COST] ?: 0.0 }
