@@ -126,7 +126,11 @@ class ProfileRepository(private val context: Context) {
             preferences[KEY_COMMISSION] = commission
             preferences[KEY_DAILY_PASS_COST] = dailyPassCost
             preferences[KEY_RENTAL_COST] = rentalCost
-            preferences[KEY_SUBSCRIPTION] = if (model == "daily_pass") dailyPassCost else if (model == "rental") rentalCost else 0.0
+            preferences[KEY_SUBSCRIPTION] = when (model) {
+                "daily_pass" -> dailyPassCost
+                "rental" -> rentalCost
+                else -> 0.0
+            }
         }
     }
 

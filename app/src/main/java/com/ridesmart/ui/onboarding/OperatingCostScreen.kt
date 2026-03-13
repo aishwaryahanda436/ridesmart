@@ -27,7 +27,7 @@ fun OperatingCostScreen(
 
     var fuelPrice by remember(savedProfile) { mutableStateOf(savedProfile.fuelPricePerLitre.toString()) }
     var maintenance by remember(savedProfile) { mutableStateOf(savedProfile.maintenancePerKm.toString()) }
-    var serviceCharge by remember { mutableStateOf("0.0") }
+    var serviceCharge by remember(savedProfile) { mutableStateOf("0.0") }
     var errorMessage by remember { mutableStateOf("") }
 
     Column(

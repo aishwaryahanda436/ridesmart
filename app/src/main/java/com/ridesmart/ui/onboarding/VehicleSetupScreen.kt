@@ -191,8 +191,8 @@ fun VehicleSetupScreen(
             Button(
                 onClick = {
                     val mileageVal = mileage.toDoubleOrNull()
-                    if (mileageVal == null || mileageVal <= 0) {
-                        errorMessage = "Please enter a valid mileage"
+                    if (mileageVal == null || mileageVal <= 0 || mileageVal > 200) {
+                        errorMessage = "Please enter a valid mileage (1–200 km/l)"
                     } else {
                         errorMessage = ""
                         viewModel.saveVehicleSetup(selectedType, mileageVal)

@@ -71,7 +71,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Legacy full profile save
+    // Full profile save (used by SettingsScreen for advanced configuration)
     fun saveProfile(profile: RiderProfile) {
         viewModelScope.launch {
             repository.saveProfile(profile)

@@ -139,7 +139,7 @@ fun ProfileSetupScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = RideGreen),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Save & Apply Settings", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Save & Apply Settings", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
 
             Spacer(Modifier.height(40.dp))

@@ -37,7 +37,9 @@ fun PlatformPaymentScreen(
     var dailyPassCost by remember(savedProfile) {
         mutableStateOf(savedProfile.subscriptionDailyCost.toString())
     }
-    var rentalCost by remember { mutableStateOf("0.0") }
+    var rentalCost by remember(savedProfile) {
+        mutableStateOf(savedProfile.subscriptionDailyCost.toString())
+    }
     var errorMessage by remember { mutableStateOf("") }
 
     val paymentModels = listOf(
