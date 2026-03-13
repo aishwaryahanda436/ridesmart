@@ -34,9 +34,16 @@ class NammaYatriParser : IPlatformParser {
         private val MIN_REGEX   = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BONUS_REGEX = Regex("""\+₹\s*(\d+(?:\.\d{1,2})?)""")
 
+        private val NY_FARE_LABELS     = listOf("Base Fare", "Offer Price", "Ride Fare", "₹")
+        private val NY_PICKUP_LABELS   = listOf("Pickup", "From", "Pick Up Point")
+        private val NY_DROP_LABELS     = listOf("Drop", "To", "Destination", "Drop Point")
+        private val NY_DISTANCE_LABELS = listOf("Distance", "Trip Distance", "km away")
+        private val NY_ACCEPT_LABELS   = listOf("Accept", "Accept Offer", "Confirm Ride")
+
         private val ACTIVE_RIDE_KEYWORDS = listOf(
             "start ride", "end ride", "trip started", "arrived at pickup",
-            "reached pickup", "drop otp", "you are on a trip", "trip ongoing"
+            "reached pickup", "drop otp", "you are on a trip", "trip ongoing",
+            "you are on a ride", "ride started"
         )
 
         private val IDLE_KEYWORDS = listOf(
@@ -99,8 +106,42 @@ class NammaYatriParser : IPlatformParser {
         val screenState = detectScreenState(activeNodes)
         if (screenState == ScreenState.ACTIVE_RIDE || screenState == ScreenState.IDLE) return null
 
-        // ── SINGLE-PASS EXTRACTION ────────────────────────────────────────
-        // All fields are collected in one iteration to minimise processing time.
+        // ── PASS 1: LABEL-GUIDED EXTRACTION ──────────────────────────────────
+        // NammaYatri uses Jetpack Compose with explicit semantic labels.
+        // Each value node is preceded by a label node in the accessibility tree.
+        var labelFare: Double? = null
+        var labelPickup: String? = null
+        var labelDrop: String? = null
+
+        for (i in 1 until activeNodes.size) {
+            val prev = activeNodes[i - 1].trim()
+            val curr = activeNodes[i].trim()
+
+            when {
+                NY_FARE_LABELS.any { prev.equals(it, ignoreCase = true) } &&
+                    FARE_REGEX.containsMatchIn(curr) -> {
+                    if (labelFare == null) {
+                        FARE_REGEX.find(curr)?.groupValues?.get(1)?.toDoubleOrNull()
+                            ?.takeIf { it >= 10.0 }?.let { labelFare = it }
+                    }
+                }
+                NY_PICKUP_LABELS.any { prev.equals(it, ignoreCase = true) } &&
+                    curr.length > 3 -> {
+                    if (labelPickup == null) labelPickup = curr
+                }
+                NY_DROP_LABELS.any { prev.equals(it, ignoreCase = true) } &&
+                    curr.length > 3 -> {
+                    if (labelDrop == null) labelDrop = curr
+                }
+            }
+        }
+
+        if (labelFare != null || labelPickup != null || labelDrop != null) {
+            Log.d(TAG, "NammaYatri label-guided: fare=$labelFare pickup=$labelPickup drop=$labelDrop")
+        }
+
+        // ── PASS 2: REGEX FALLBACK ────────────────────────────────────────────
+        // Only extracts fields that label-guided pass missed.
         // NammaYatri shows driver payout directly (subscription model, no per-ride commission).
         // Use the minimum fare to avoid surge/display price confusion.
         var bonusAmount = 0.0
@@ -119,8 +160,8 @@ class NammaYatriParser : IPlatformParser {
         for (node in activeNodes) {
             val trimmed = node.trim()
 
-            // Fare: skip distance lines and boost lines
-            if (!trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
+            // Fare: only needed if label-guided pass missed it; skip distance/boost lines
+            if (labelFare == null && !trimmed.startsWith("+") && !KM_REGEX.containsMatchIn(trimmed)) {
                 FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
                     if (it >= 10.0) fareCandidates.add(it)
                 }
@@ -160,22 +201,24 @@ class NammaYatriParser : IPlatformParser {
                 tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
             }
 
-            // Address candidates
-            if (node.length > 12 &&
-                !KM_REGEX.containsMatchIn(node) &&
-                !MIN_REGEX.containsMatchIn(node) &&
-                !FARE_REGEX.containsMatchIn(node) &&
-                !node.equals("Accept", ignoreCase = true) &&
-                !node.equals("Decline", ignoreCase = true) &&
-                !node.equals("Confirm", ignoreCase = true) &&
-                !node.startsWith("+") &&
-                !node.contains("New Ride Request", ignoreCase = true) &&
-                !node.contains("New Request", ignoreCase = true)) {
-                addressCandidates.add(node)
+            // Address candidates (only if label-guided pass missed pickup or drop)
+            if (labelPickup == null || labelDrop == null) {
+                if (node.length > 12 &&
+                    !KM_REGEX.containsMatchIn(node) &&
+                    !MIN_REGEX.containsMatchIn(node) &&
+                    !FARE_REGEX.containsMatchIn(node) &&
+                    !node.equals("Accept", ignoreCase = true) &&
+                    !node.equals("Decline", ignoreCase = true) &&
+                    !node.equals("Confirm", ignoreCase = true) &&
+                    !node.startsWith("+") &&
+                    !node.contains("New Ride Request", ignoreCase = true) &&
+                    !node.contains("New Request", ignoreCase = true)) {
+                    addressCandidates.add(node)
+                }
             }
         }
 
-        val baseFare = fareCandidates.minOrNull() ?: return null
+        val baseFare = labelFare ?: fareCandidates.minOrNull() ?: return null
 
         // NammaYatri is primarily an auto-rickshaw platform; default to AUTO.
         val vehicleType = when {
@@ -197,8 +240,8 @@ class NammaYatriParser : IPlatformParser {
             }
         }
 
-        val pickupAddress = addressCandidates.getOrElse(0) { "" }
-        val dropAddress   = addressCandidates.getOrElse(1) { "" }
+        val pickupAddress = labelPickup ?: addressCandidates.getOrElse(0) { "" }
+        val dropAddress   = labelDrop   ?: addressCandidates.getOrElse(1) { "" }
 
         Log.d(TAG, "🔍 NammaYatri parsed: vehicle=$vehicleType fare=₹$baseFare " +
             "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +
