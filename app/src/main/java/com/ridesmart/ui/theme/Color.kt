@@ -27,5 +27,5 @@ val DarkBorder = Color(0xFF2A2A32)      // Subtle separators
 // ── TEXT SYSTEM ─────────────────────────────────────────────────────
 val TextPrimary = Color(0xFFF2F2F7)     // High-intensity white
 val TextSecondary = Color(0xFFA1A1B2)   // Soft silver (Metadata)
-val TextMuted = Color(0xFF636370)        // Dimmed slate (Hints)
+val TextMuted = Color(0xFF636370)       // Dimmed slate (Hints)
 val TextOnGreen = Color(0xFF000000)     // Black on primary for contrast

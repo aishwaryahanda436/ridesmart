@@ -19,7 +19,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = true // Default to true to avoid flicker if already set
+            initialValue = false // Default to false so new users always see profile setup
         )
 
     // Current saved profile — exposed as StateFlow for Compose to observe
