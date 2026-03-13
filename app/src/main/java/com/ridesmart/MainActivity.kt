@@ -1,9 +1,6 @@
 package com.ridesmart
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ridesmart.ui.*
+import com.ridesmart.ui.onboarding.*
 import com.ridesmart.ui.theme.*
 
 class MainActivity : ComponentActivity() {
@@ -30,24 +28,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-        requestOverlayPermissionIfNeeded()
-    }
-
-    private fun requestOverlayPermissionIfNeeded() {
-        if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
-        }
     }
 }
 
 /**
  * App navigation — state-based routing between screens.
- * Flow: Splash → Profile Setup (if first time) → Main
+ * Flow: Splash → Onboarding (Permissions → Profile → Vehicle → Payment → Costs) → Dashboard
  */
 @Composable
 fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
@@ -57,7 +43,7 @@ fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
     // Handle initial routing after splash
     val onSplashFinished = {
         currentScreen = if (!hasCompletedSetup) {
-            Screen.ProfileSetup
+            Screen.PermissionSetup
         } else {
             Screen.Main
         }
@@ -67,13 +53,43 @@ fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
         Screen.Splash -> SplashScreen(
             onFinished = onSplashFinished
         )
-        Screen.Main -> PlaceholderScreen(
-            title = "Main Driver Screen",
-            onNavigateSettings = { currentScreen = Screen.ProfileSetup }
+
+        // ── ONBOARDING FLOW ──
+        Screen.PermissionSetup -> PermissionSetupScreen(
+            onContinue = { currentScreen = Screen.DriverProfile }
         )
-        Screen.ProfileSetup -> ProfileSetupScreen(
-            onSaved = { currentScreen = Screen.Main },
-            viewModel = profileViewModel
+        Screen.DriverProfile -> DriverProfileScreen(
+            viewModel = profileViewModel,
+            onContinue = { currentScreen = Screen.VehicleSetup }
+        )
+        Screen.VehicleSetup -> VehicleSetupScreen(
+            viewModel = profileViewModel,
+            onContinue = { currentScreen = Screen.PlatformPayment }
+        )
+        Screen.PlatformPayment -> PlatformPaymentScreen(
+            viewModel = profileViewModel,
+            onContinue = { currentScreen = Screen.OperatingCost }
+        )
+        Screen.OperatingCost -> OperatingCostScreen(
+            viewModel = profileViewModel,
+            onComplete = { currentScreen = Screen.Main }
+        )
+
+        // ── MAIN APP ──
+        Screen.Main -> MainDriverScreen(
+            onNavigateHistory = { currentScreen = Screen.RideHistory },
+            onNavigateDashboard = { currentScreen = Screen.Dashboard },
+            onNavigateSettings = { currentScreen = Screen.Settings },
+            onNavigatePermissions = { currentScreen = Screen.PermissionSetup }
+        )
+        Screen.RideHistory -> RideHistoryScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.Dashboard -> DashboardScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.Settings -> SettingsScreen(
+            onBack = { currentScreen = Screen.Main }
         )
     }
 }
@@ -81,31 +97,17 @@ fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
 /** Navigation destinations */
 sealed class Screen {
     data object Splash : Screen()
-    data object Main : Screen()
-    data object ProfileSetup : Screen()
-}
 
-/**
- * Placeholder for the main driver screen.
- * Other screens (History, Dashboard, Settings, Permissions) will be added later.
- */
-@Composable
-fun PlaceholderScreen(title: String, onNavigateSettings: () -> Unit) {
-    androidx.compose.foundation.layout.Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = title,
-            color = androidx.compose.ui.graphics.Color.White,
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Spacer(Modifier.height(16.dp))
-        TextButton(onClick = onNavigateSettings) {
-            Text("Edit Profile", color = RideGreen)
-        }
-    }
+    // Onboarding flow
+    data object PermissionSetup : Screen()
+    data object DriverProfile : Screen()
+    data object VehicleSetup : Screen()
+    data object PlatformPayment : Screen()
+    data object OperatingCost : Screen()
+
+    // Main app
+    data object Main : Screen()
+    data object RideHistory : Screen()
+    data object Dashboard : Screen()
+    data object Settings : Screen()
 }

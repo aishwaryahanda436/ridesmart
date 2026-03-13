@@ -3,29 +3,29 @@ package com.ridesmart.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * RideSmart Production Palette v2.0
- * Modern high-contrast theme designed for outdoor visibility and OLED efficiency.
+ * RideSmart Production Palette v3.0
+ * Clean modern theme with blue accent, designed for outdoor visibility and OLED efficiency.
  */
 
 // ── BRAND & ACTION ──────────────────────────────────────────────────
-val RideGreen = Color(0xFF00FF88)       // Vivid Neon Green (Primary CTA)
-val RideGreenDark = Color(0xFF00C868)   // Deep Forest (Press states)
-val RideBlue = Color(0xFF00D1FF)        // Electric Blue (Secondary/Info)
+val RideGreen = Color(0xFF3A86FF)       // Primary Blue Accent (CTA)
+val RideGreenDark = Color(0xFF2A6AD8)   // Pressed state
+val RideBlue = Color(0xFF3A86FF)        // Primary accent (same as brand)
 
-// ── SIGNAL VERDICTS ─────────────────────────────────────────────────
-val SignalGreen = Color(0xFF00FF88)     // Profit/Accept
-val SignalYellow = Color(0xFFFFB800)    // Borderline/Caution
-val SignalRed = Color(0xFFFF3B30)       // Risk/Skip
+// ── SIGNAL VERDICTS (used ONLY for profit indicators) ───────────────
+val SignalGreen = Color(0xFF4CAF50)     // High Profit / Accept
+val SignalYellow = Color(0xFFFF9800)    // Medium Profit / Borderline
+val SignalRed = Color(0xFFF44336)       // Low Profit / Skip
 
 // ── DARK SYSTEM SURFACES ───────────────────────────────────────────
-val DarkBackground = Color(0xFF08080A)  // True Black (OLED efficient)
-val DarkSurface = Color(0xFF121216)     // Deep Slate
-val DarkCard = Color(0xFF121216)        // Standard card surface
-val DarkSurfaceVariant = Color(0xFF1C1C24) // Lighter Slate for depth
-val DarkBorder = Color(0xFF2A2A32)      // Subtle separators
+val DarkBackground = Color(0xFF121212)  // Material Dark background
+val DarkSurface = Color(0xFF1E1E1E)     // Card / Surface
+val DarkCard = Color(0xFF1E1E1E)        // Standard card surface
+val DarkSurfaceVariant = Color(0xFF2C2C2C) // Lighter surface for depth
+val DarkBorder = Color(0xFF333333)      // Subtle separators
 
 // ── TEXT SYSTEM ─────────────────────────────────────────────────────
-val TextPrimary = Color(0xFFF2F2F7)     // High-intensity white
-val TextSecondary = Color(0xFFA1A1B2)   // Soft silver (Metadata)
-val TextMuted = Color(0xFF636370)       // Dimmed slate (Hints)
-val TextOnGreen = Color(0xFF000000)     // Black on primary for contrast
+val TextPrimary = Color(0xFFFFFFFF)     // Primary text
+val TextSecondary = Color(0xFFB0B0B0)   // Secondary text
+val TextMuted = Color(0xFF757575)       // Dimmed hints
+val TextOnGreen = Color(0xFFFFFFFF)     // White on primary for contrast

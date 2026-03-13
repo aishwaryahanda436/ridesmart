@@ -1,6 +1,7 @@
 package com.ridesmart.ui
 
 import android.content.Context
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +46,12 @@ fun MainDriverScreen(
     val repo = remember { RideHistoryRepository(context) }
     val history by repo.historyFlow.collectAsState(initial = emptyList())
     val isServiceActive = remember(Unit) { isAccessibilityServiceEnabled(context) }
+    val isOverlayGranted = remember(Unit) { Settings.canDrawOverlays(context) }
+
+    // Driver stats
+    val totalRides = history.size
+    val acceptedRides = history.count { it.signal == Signal.GREEN }
+    val rejectedRides = history.count { it.signal == Signal.RED }
 
     val todayRides = remember(history) {
         val todayCal = Calendar.getInstance()
@@ -104,6 +112,68 @@ fun MainDriverScreen(
 
             // ── ACTIVE MONITORING CARD ──
             ActiveServiceCard(isActive = isServiceActive, onSetup = onNavigatePermissions)
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── SYSTEM STATUS ──
+            Text(
+                "SYSTEM STATUS",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SystemStatusRow("Accessibility Service", isServiceActive)
+                    Spacer(Modifier.height(10.dp))
+                    SystemStatusRow("Overlay Permission", isOverlayGranted)
+                    Spacer(Modifier.height(10.dp))
+                    SystemStatusRow("OCR Engine", true) // OCR via ML Kit is always available
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── DRIVER STATS ──
+            Text(
+                "DRIVER STATS",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatBox(
+                    label = "Analyzed",
+                    value = "$totalRides",
+                    icon = Icons.Default.Analytics,
+                    color = RideBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = "Accepted",
+                    value = "$acceptedRides",
+                    icon = Icons.Default.ThumbUp,
+                    color = SignalGreen,
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = "Rejected",
+                    value = "$rejectedRides",
+                    icon = Icons.Default.ThumbDown,
+                    color = SignalRed,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(Modifier.height(32.dp))
 
@@ -401,5 +471,35 @@ fun NavIcon(icon: ImageVector, label: String, active: Boolean, onClick: () -> Un
             Spacer(Modifier.height(4.dp))
             Box(modifier = Modifier.size(4.dp).background(RideGreen, CircleShape))
         }
+    }
+}
+
+@Composable
+fun SystemStatusRow(label: String, isActive: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    if (isActive) SignalGreen else SignalRed,
+                    CircleShape
+                )
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            color = TextPrimary,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            if (isActive) "Active" else "Inactive",
+            color = if (isActive) SignalGreen else SignalRed,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

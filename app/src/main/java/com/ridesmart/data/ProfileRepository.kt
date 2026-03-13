@@ -18,6 +18,20 @@ class ProfileRepository(private val context: Context) {
     // ── DATASTORE KEYS ──────────────────────────────────────────────
     companion object {
         val KEY_HAS_COMPLETED_SETUP = booleanPreferencesKey("has_completed_setup")
+
+        // Driver Profile (Step 2)
+        val KEY_DRIVER_NAME     = stringPreferencesKey("driver_name")
+        val KEY_PLATFORMS_USED  = stringPreferencesKey("platforms_used") // comma-separated
+
+        // Vehicle Setup (Step 3)
+        val KEY_VEHICLE_TYPE    = stringPreferencesKey("vehicle_type") // Bike, Auto, Car
+
+        // Platform Payment (Step 4)
+        val KEY_PAYMENT_MODEL   = stringPreferencesKey("payment_model") // commission, daily_pass, rental
+        val KEY_DAILY_PASS_COST = doublePreferencesKey("daily_pass_cost")
+        val KEY_RENTAL_COST     = doublePreferencesKey("rental_cost")
+
+        // Existing keys
         val KEY_MILEAGE         = doublePreferencesKey("mileage_km_per_litre")
         val KEY_FUEL_PRICE      = doublePreferencesKey("fuel_price_per_litre")
         val KEY_CNG_PRICE       = doublePreferencesKey("cng_price_per_kg")
@@ -34,6 +48,9 @@ class ProfileRepository(private val context: Context) {
         val KEY_DIESEL_PRICE    = doublePreferencesKey("diesel_price_per_litre")
         val KEY_ELEC_RATE       = doublePreferencesKey("electricity_rate_per_kwh")
         val KEY_EV_CONS         = doublePreferencesKey("ev_consumption_kwh_per_km")
+
+        // Operating Cost (Step 5)
+        val KEY_SERVICE_CHARGE  = doublePreferencesKey("platform_service_charge")
     }
 
     val hasCompletedSetupFlow: Flow<Boolean> = context.dataStore.data
@@ -43,6 +60,25 @@ class ProfileRepository(private val context: Context) {
         .map { preferences ->
             preferences[KEY_HAS_COMPLETED_SETUP] ?: false
         }
+
+    // New onboarding data flows
+    val driverNameFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[KEY_DRIVER_NAME] ?: "" }
+
+    val platformsUsedFlow: Flow<Set<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            prefs[KEY_PLATFORMS_USED]?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        }
+
+    val vehicleTypeFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[KEY_VEHICLE_TYPE] ?: "Bike" }
+
+    val paymentModelFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[KEY_PAYMENT_MODEL] ?: "commission" }
 
     val profileFlow: Flow<RiderProfile> = context.dataStore.data
         .catch { exception ->
@@ -69,6 +105,43 @@ class ProfileRepository(private val context: Context) {
                 evConsumptionKWhPerKm     = preferences[KEY_EV_CONS]         ?: defaults.evConsumptionKWhPerKm
             )
         }
+
+    suspend fun saveDriverProfile(name: String, platforms: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_DRIVER_NAME] = name
+            preferences[KEY_PLATFORMS_USED] = platforms.joinToString(",")
+        }
+    }
+
+    suspend fun saveVehicleSetup(vehicleType: String, mileage: Double) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_VEHICLE_TYPE] = vehicleType
+            preferences[KEY_MILEAGE] = mileage
+        }
+    }
+
+    suspend fun savePlatformPayment(model: String, commission: Double, dailyPassCost: Double, rentalCost: Double) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_PAYMENT_MODEL] = model
+            preferences[KEY_COMMISSION] = commission
+            preferences[KEY_DAILY_PASS_COST] = dailyPassCost
+            preferences[KEY_RENTAL_COST] = rentalCost
+            preferences[KEY_SUBSCRIPTION] = when (model) {
+                "daily_pass" -> dailyPassCost
+                "rental" -> rentalCost
+                else -> 0.0
+            }
+        }
+    }
+
+    suspend fun saveOperatingCosts(fuelPrice: Double, maintenancePerKm: Double, serviceCharge: Double) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_FUEL_PRICE] = fuelPrice
+            preferences[KEY_MAINTENANCE] = maintenancePerKm
+            preferences[KEY_SERVICE_CHARGE] = serviceCharge
+            preferences[KEY_HAS_COMPLETED_SETUP] = true
+        }
+    }
 
     suspend fun saveProfile(profile: RiderProfile) {
         context.dataStore.edit { preferences ->

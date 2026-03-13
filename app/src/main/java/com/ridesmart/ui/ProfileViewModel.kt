@@ -19,11 +19,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false // Default to false so new users always see profile setup
+            initialValue = false
         )
 
-    // Current saved profile — exposed as StateFlow for Compose to observe
-    // Starts with RiderProfile defaults until DataStore loads
+    // Current saved profile
     val profile: StateFlow<RiderProfile> = repository.profileFlow
         .stateIn(
             scope          = viewModelScope,
@@ -31,8 +30,48 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             initialValue   = RiderProfile()
         )
 
-    // Called when driver taps Save button
-    // Launches coroutine so UI is never blocked
+    // Onboarding data flows
+    val driverName: StateFlow<String> = repository.driverNameFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val platformsUsed: StateFlow<Set<String>> = repository.platformsUsedFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val vehicleType: StateFlow<String> = repository.vehicleTypeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Bike")
+
+    val paymentModel: StateFlow<String> = repository.paymentModelFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "commission")
+
+    // Save driver profile (Step 2)
+    fun saveDriverProfile(name: String, platforms: Set<String>) {
+        viewModelScope.launch {
+            repository.saveDriverProfile(name, platforms)
+        }
+    }
+
+    // Save vehicle setup (Step 3)
+    fun saveVehicleSetup(vehicleType: String, mileage: Double) {
+        viewModelScope.launch {
+            repository.saveVehicleSetup(vehicleType, mileage)
+        }
+    }
+
+    // Save platform payment model (Step 4)
+    fun savePlatformPayment(model: String, commission: Double, dailyPassCost: Double, rentalCost: Double) {
+        viewModelScope.launch {
+            repository.savePlatformPayment(model, commission, dailyPassCost, rentalCost)
+        }
+    }
+
+    // Save operating costs (Step 5) — marks setup as complete
+    fun saveOperatingCosts(fuelPrice: Double, maintenancePerKm: Double, serviceCharge: Double) {
+        viewModelScope.launch {
+            repository.saveOperatingCosts(fuelPrice, maintenancePerKm, serviceCharge)
+        }
+    }
+
+    // Full profile save (used by SettingsScreen for advanced configuration)
     fun saveProfile(profile: RiderProfile) {
         viewModelScope.launch {
             repository.saveProfile(profile)
