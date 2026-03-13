@@ -115,9 +115,12 @@ class RideSmartService : AccessibilityService() {
         val sessionCache: RideSessionCache = RideSessionCache()
     )
     private val platformStates = java.util.concurrent.ConcurrentHashMap<String, PlatformState>()
+    // Sentinel state for packages with empty normalized platform key (launchers, systemui).
+    // Avoids creating a new disposable PlatformState on every call.
+    private val emptyPlatformState = PlatformState()
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
-        if (key.isEmpty()) return PlatformState()
+        if (key.isEmpty()) return emptyPlatformState
         return platformStates.getOrPut(key) {
             if (platformStates.size >= MAX_PLATFORM_STATES) {
                 val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
