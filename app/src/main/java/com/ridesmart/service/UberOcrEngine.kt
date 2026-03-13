@@ -28,7 +28,6 @@ class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val OFFER_CROP_RATIO = 0.60
         private const val MIN_OFFER_SIGNALS = 2
 
         // Screen-level rejection phrases (not an offer card)
@@ -85,16 +84,65 @@ class UberOcrEngine : IPlatformParser {
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
         if (SCREEN_REJECT.any { combined.contains(it) }) return ScreenState.IDLE
-        
+
         val hasFare = Regex("""(?:₹|Rs\.?)\s*(\d+)""").containsMatchIn(combined)
-        val hasButton = combined.contains("match") || combined.contains("confirm")
-        
+        val hasButton = combined.contains("match") || combined.contains("confirm") || combined.contains("accept")
+
+        // Detect Trip Radar / ride list screens
+        val isTripRadar = combined.contains("trip radar") ||
+                          combined.contains("see all requests") ||
+                          combined.contains("opportunity")
+
+        if (isTripRadar && hasFare) return ScreenState.TRIP_RADAR
+
+        // Detect multiple fare signals → ride list
+        val fareCount = Regex("""(?:₹|Rs\.?)\s*\d+""").findAll(combined).count()
+        if (fareCount >= 2 && !hasButton) return ScreenState.RIDE_LIST
+
         return if (hasFare && hasButton) ScreenState.OFFER_LOADED else ScreenState.IDLE
     }
 
     override fun parseAll(nodes: List<String>, packageName: String): List<ParsedRide> {
+        val screenState = detectScreenState(nodes)
+
+        // For ride lists and Trip Radar, attempt multi-card parsing
+        if (screenState == ScreenState.RIDE_LIST || screenState == ScreenState.TRIP_RADAR) {
+            val rides = parseMultipleCards(nodes)
+            if (rides.isNotEmpty()) return rides
+        }
+
         val ride = parseFromNodes(nodes) ?: return emptyList()
         return listOf(ride)
+    }
+
+    /**
+     * Parses multiple ride cards from a ride list / Trip Radar screen.
+     * Splits nodes into card groups based on fare signal boundaries.
+     */
+    fun parseMultipleCards(lines: List<String>): List<ParsedRide> {
+        if (lines.isEmpty()) return emptyList()
+
+        // Strategy: Split lines into card groups at each fare signal boundary
+        val fareRegex = Regex("""(?:₹|Rs\.?)\s*\d+""")
+        val cards = mutableListOf<MutableList<String>>()
+        var currentCard = mutableListOf<String>()
+
+        for (line in lines) {
+            if (fareRegex.containsMatchIn(line) && currentCard.isNotEmpty()) {
+                // Check if current card already has a fare — start new card
+                val currentHasFare = currentCard.any { fareRegex.containsMatchIn(it) }
+                if (currentHasFare) {
+                    cards.add(currentCard)
+                    currentCard = mutableListOf()
+                }
+            }
+            currentCard.add(line)
+        }
+        if (currentCard.isNotEmpty()) cards.add(currentCard)
+
+        return cards.mapNotNull { cardLines ->
+            parseFromNodes(cardLines)
+        }
     }
 
     fun parseFromNodes(lines: List<String>): ParsedRide? {
@@ -107,7 +155,8 @@ class UberOcrEngine : IPlatformParser {
         }
 
         val identifiers = listOf("uber", "requests", "match", "incentive", "premium", "upfront", "confirm", "cash payment")
-        if (identifiers.none { combinedRaw.contains(it) }) return null
+        val hasFareSignal = Regex("""(?:₹|Rs\.?)\s*\d+""").containsMatchIn(combinedRaw)
+        if (!hasFareSignal && identifiers.none { combinedRaw.contains(it) }) return null
 
         val fare = extractFare(lines) ?: return null
         val premium = extractPremium(lines)
@@ -132,15 +181,16 @@ class UberOcrEngine : IPlatformParser {
             paymentType          = if (combinedRaw.contains("cash")) "cash" else "digital",
             premiumAmount        = premium,
             bonus                = bonus,
-            fare                 = effectiveFare,
             vehicleType          = vehicleType
         )
     }
 
     suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        // CROP 1: Fare Row (always top)
-        val fareBitmap = crop(bitmap, 0.00, 0.05, 0.90, 0.25)
+        // CROP 1: Fare Row — Uber popup is a bottom sheet occupying ~bottom 45% of screen.
+        // Target the top area of the bottom sheet where fare is displayed.
+        val fareBitmap = crop(bitmap, 0.00, 0.55, 1.00, 0.72)
         val fareText = extractText(fareBitmap) ?: ""
+        Log.d(TAG, "UberOCR_FARE: $fareText")
         val fare = extractFare(fareText.lines()) ?: return null
         
         // Validation: reject implausible fares from phantom OCR reads
@@ -149,10 +199,10 @@ class UberOcrEngine : IPlatformParser {
             return null
         }
         
-        // CROP 2: Distance/Time Rows
-        val distanceBitmap = crop(bitmap, 0.00, 0.25, 0.80, 0.60)
+        // CROP 2: Distance/Time Rows — mid section of the bottom sheet
+        val distanceBitmap = crop(bitmap, 0.00, 0.68, 1.00, 0.82)
         val distanceOcrText = extractText(distanceBitmap) ?: ""
-        Log.d(TAG, "🔍 UberOCR raw distance text: $distanceOcrText")
+        Log.d(TAG, "UberOCR_DIST: $distanceOcrText")
         
         val distTimeRegex = Regex("""(\d+)\s*min\s*(?:\(([\d.]+)\s*km\))?""", RegexOption.IGNORE_CASE)
         val matches = distTimeRegex.findAll(distanceOcrText).toList()
@@ -174,9 +224,10 @@ class UberOcrEngine : IPlatformParser {
             estimatedDurationMin = matches[0].groupValues[1].toIntOrNull() ?: 0
         }
 
-        // CROP 3: Addresses & Rating
-        val detailsBitmap = crop(bitmap, 0.00, 0.50, 1.00, 0.90)
+        // CROP 3: Addresses & Rating — lower area of the bottom sheet
+        val detailsBitmap = crop(bitmap, 0.00, 0.75, 1.00, 0.95)
         val detailsText = extractText(detailsBitmap) ?: ""
+        Log.d(TAG, "UberOCR_DETAILS: $detailsText")
         val lines = detailsText.lines()
         
         val rating = extractRating(ratingLines = lines)
@@ -203,16 +254,39 @@ class UberOcrEngine : IPlatformParser {
             paymentType          = if (detailsText.lowercase().contains("cash")) "cash" else "digital",
             premiumAmount        = premium,
             bonus                = bonus,
-            fare                 = fare + bonus,
             vehicleType          = extractVehicleType(detailsText.lowercase())
         )
     }
 
+    /**
+     * Parses a full screenshot for multiple ride cards (Trip Radar / ride list).
+     * Uses full-screen OCR and splits by fare signals to detect multiple offers.
+     */
+    suspend fun parseFullScreen(bitmap: Bitmap): List<ParsedRide> {
+        val fullText = extractText(bitmap) ?: return emptyList()
+        val lines = fullText.lines().filter { it.isNotBlank() }
+
+        if (lines.isEmpty()) return emptyList()
+
+        // Check if this looks like a multi-ride screen
+        val fareRegex = Regex("""(?:₹|Rs\.?)\s*\d+""")
+        val fareCount = lines.count { fareRegex.containsMatchIn(it) }
+
+        if (fareCount <= 1) {
+            // Single ride — delegate to normal parse
+            val ride = parse(bitmap) ?: return emptyList()
+            return listOf(ride)
+        }
+
+        // Multiple fares detected — split into card groups and parse each
+        return parseMultipleCards(lines)
+    }
+
     private fun crop(bitmap: Bitmap, left: Double, top: Double, right: Double, bottom: Double): Bitmap {
-        val x = (bitmap.width * left).toInt()
-        val y = (bitmap.height * top).toInt()
-        val w = (bitmap.width * (right - left)).toInt()
-        val h = (bitmap.height * (bottom - top)).toInt()
+        val x = (bitmap.width * left).toInt().coerceIn(0, bitmap.width - 1)
+        val y = (bitmap.height * top).toInt().coerceIn(0, bitmap.height - 1)
+        val w = (bitmap.width * (right - left)).toInt().coerceIn(1, bitmap.width - x)
+        val h = (bitmap.height * (bottom - top)).toInt().coerceIn(1, bitmap.height - y)
         return Bitmap.createBitmap(bitmap, x, y, w, h)
     }
 
@@ -226,7 +300,8 @@ class UberOcrEngine : IPlatformParser {
             "₹", "rs.", "match", "confirm", "accept",
             "min", "km", "away", "trip", "request",
             "upfront", "incentive", "premium", "cash payment",
-            "pickup", "drop", "ride", "destination", "see all requests"
+            "pickup", "drop", "ride", "destination", "see all requests",
+            "trip radar", "opportunity", "stacked"
         )
         val matchCount = signals.count { combined.contains(it) }
 
@@ -253,7 +328,7 @@ class UberOcrEngine : IPlatformParser {
 
             line = line.replace(Regex("""(?<![A-Za-z])[TtFf](?=\d)"""), "₹")
                        .replace(Regex("""(?<![A-Za-z])[TtFf]\s+(?=\d)"""), "₹")
-                       .replace(",", ".")
+                       .replace(",", "")
                        .replace(Regex("""(?<=\d)[lI]$"""), "")
 
             if ((line.lowercase().contains("min") || line.lowercase().contains("km") || line.lowercase().contains("away")) && !line.contains("₹")) continue
@@ -268,7 +343,7 @@ class UberOcrEngine : IPlatformParser {
     private fun extractBonus(lines: List<String>): Double {
         val bonusRegex = Regex("""(?:\s|^)\+\s*[₹TtFf]?\s*(\d+(?:\.\d{1,2})?)""")
         for (line in lines) {
-            val fixedLine = line.replace(",", ".")
+            val fixedLine = line.replace(",", "")
             val m = bonusRegex.find(fixedLine) ?: continue
             val v = m.groupValues[1].toDoubleOrNull() ?: continue
             if (v > 0) return v
@@ -278,7 +353,7 @@ class UberOcrEngine : IPlatformParser {
 
     private fun extractPremium(lines: List<String>): Double {
         for (line in lines) {
-            val fixedLine = line.replace(",", ".")
+            val fixedLine = line.replace(",", "")
             val match = PREMIUM_REGEX.find(fixedLine)
             if (match != null) {
                 val premium = match.groupValues[1].toDoubleOrNull() ?: 0.0
@@ -365,6 +440,8 @@ class UberOcrEngine : IPlatformParser {
     private fun extractRating(ratingLines: List<String>): Double? {
         val ratingRegex = Regex("""([45]\.\d{1,2})""")
         for (line in ratingLines) {
+            val lower = line.lowercase()
+            if (lower.contains("km") || lower.contains("min") || lower.contains("away")) continue
             val match = ratingRegex.find(line)
             if (match != null) return match.groupValues[1].toDoubleOrNull()
         }

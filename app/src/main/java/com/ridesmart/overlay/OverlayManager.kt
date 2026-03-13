@@ -4,35 +4,39 @@ import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.ridesmart.R
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.RideResult
 import com.ridesmart.model.Signal
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class OverlayManager(private val context: Context) {
 
     private val windowManager =
         context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val powerManager =
-        context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val handler = Handler(Looper.getMainLooper())
 
     // One slot per platform — keyed by platform name e.g. "Rapido", "Uber"
     private val activeCards   = mutableMapOf<String, View>()
+    private val activeParams  = mutableMapOf<String, WindowManager.LayoutParams>()
     private val dismissTimers = mutableMapOf<String, Runnable>()
     private val activeAnimators = mutableMapOf<String, android.animation.ObjectAnimator>()
 
+    private val screenHeight = context.resources.displayMetrics.heightPixels
+
     private val AUTO_DISMISS_MS = 12_000L
     private val TAG = "RideSmart"
+    private val DRAG_THRESHOLD_PX = 10
 
     var onDismiss: ((String) -> Unit)? = null
 
@@ -60,9 +64,9 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
+            activeParams.remove(platform)
 
-            // Wake screen
-            wakeScreen()
+            // Wake screen — handled by RideSmartService.wakeScreen()
 
             // Inflate card
             val view = LayoutInflater.from(context)
@@ -72,15 +76,16 @@ class OverlayManager(private val context: Context) {
             // Position depends on platform
             val params = buildParams(packageName)
 
-            // Tap to dismiss THIS card only
-            view.setOnClickListener { dismissPlatform(platform) }
+            // Draggable + tap-to-dismiss touch handler
+            makeDraggable(view, params, platform)
 
             windowManager.addView(view, params)
 
             activeCards[platform] = view
+            activeParams[platform] = params
 
             Log.d(TAG, "📐 Overlay added: platform=$platform " +
-                "gravity=${if (PlatformConfig.get(packageName).displayName.equals("Uber", ignoreCase = true)) "TOP" else "BOTTOM"} " +
+                "gravity=BOTTOM " +
                 "active=${activeCards.keys}")
 
             // Auto-dismiss after 12 seconds — only this platform's card
@@ -99,6 +104,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(cardToRemove) } catch (_: Exception) { }
                 if (activeCards[platform] === cardToRemove) {
                     activeCards.remove(platform)
+                    activeParams.remove(platform)
                     activeAnimators[platform]?.cancel()
                     activeAnimators.remove(platform)
                 }
@@ -111,13 +117,59 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    private fun buildParams(packageName: String): WindowManager.LayoutParams {
-        val gravity = if (PlatformConfig.get(packageName).displayName
-                .equals("Uber", ignoreCase = true)) {
-            Gravity.TOP
-        } else {
-            Gravity.BOTTOM
+    /**
+     * Attach a touch listener that allows dragging the overlay card,
+     * with tap-to-dismiss when the finger lifts without significant movement.
+     */
+    @Suppress("ClickableViewAccessibility")
+    private fun makeDraggable(view: View, params: WindowManager.LayoutParams, platform: String) {
+        var initialX = 0
+        var initialY = 0
+        var initialTouchX = 0f
+        var initialTouchY = 0f
+        var isDragging = false
+
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params.x
+                    initialY = params.y
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    isDragging = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isDragging) {
+                        val dx = event.rawX - initialTouchX
+                        val dy = event.rawY - initialTouchY
+                        if (abs(dx) > DRAG_THRESHOLD_PX || abs(dy) > DRAG_THRESHOLD_PX) {
+                            isDragging = true
+                        }
+                    }
+                    if (isDragging) {
+                        params.x = initialX + (event.rawX - initialTouchX).toInt()
+                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!isDragging) {
+                        dismissPlatform(platform)
+                    }
+                    true
+                }
+                else -> false
+            }
         }
+    }
+
+    private fun buildParams(packageName: String): WindowManager.LayoutParams {
+        // All platforms use BOTTOM gravity — Uber's ride offer is a bottom sheet,
+        // so the overlay sits just above it with a Y offset.
+        val isUber = PlatformConfig.get(packageName).displayName
+            .equals("Uber", ignoreCase = true)
 
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -130,8 +182,8 @@ class OverlayManager(private val context: Context) {
                     WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             PixelFormat.TRANSLUCENT
         ).apply {
-            this.gravity = gravity
-            y = 0
+            gravity = Gravity.BOTTOM
+            y = if (isUber) (screenHeight * 0.42).toInt() else 0
         }
     }
 
@@ -146,9 +198,9 @@ class OverlayManager(private val context: Context) {
         val parsedRide = result.parsedRide
 
         val (_, accentColor, bodyBgColor) = when (result.signal) {
-            Signal.GREEN  -> Triple("ACCEPT",    0xFF16A34A.toInt(), 0xFF060F08.toInt())
-            Signal.YELLOW -> Triple("BORDERLINE", 0xFFCA8A04.toInt(), 0xFF100C00.toInt())
-            Signal.RED    -> Triple("SKIP",       0xFFDC2626.toInt(), 0xFF0F0303.toInt())
+            Signal.GREEN  -> Triple("ACCEPT",    ContextCompat.getColor(context, R.color.signal_green), 0xFF060F08.toInt())
+            Signal.YELLOW -> Triple("BORDERLINE", ContextCompat.getColor(context, R.color.signal_yellow), 0xFF100C00.toInt())
+            Signal.RED    -> Triple("SKIP",       ContextCompat.getColor(context, R.color.signal_red), 0xFF0F0303.toInt())
         }
 
         // Background and accent bar
@@ -156,6 +208,10 @@ class OverlayManager(private val context: Context) {
             .setBackgroundColor(bodyBgColor)
         view.findViewById<View>(R.id.accent_bar)
             .setBackgroundColor(accentColor)
+
+        // Platform name
+        view.findViewById<TextView>(R.id.tv_platform_name).text =
+            PlatformConfig.get(parsedRide.packageName).displayName.uppercase()
 
         // Signal text logic
         val tvSignal = view.findViewById<TextView>(R.id.tv_signal)
@@ -207,9 +263,9 @@ class OverlayManager(private val context: Context) {
         // Pickup — color based on distance
         val pickupRatioPct = (result.pickupRatio * 100).roundToInt()
         val pickupColor = when {
-            pickupRatioPct <= 8  -> 0xFF3DDC84.toInt()
-            pickupRatioPct <= 18 -> 0xFFF9AB00.toInt()
-            else                 -> 0xFFDC2626.toInt()
+            pickupRatioPct <= 8  -> ContextCompat.getColor(context, R.color.signal_green)
+            pickupRatioPct <= 18 -> ContextCompat.getColor(context, R.color.signal_yellow)
+            else                 -> ContextCompat.getColor(context, R.color.signal_red)
         }
         view.findViewById<TextView>(R.id.tv_pickup_ratio).apply {
             text = "${"%.1f".format(parsedRide.pickupDistanceKm)}km ($pickupRatioPct%)"
@@ -227,19 +283,6 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    private fun wakeScreen() {
-        if (!powerManager.isInteractive) {
-            @Suppress("DEPRECATION")
-            val wl = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-                PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                PowerManager.ON_AFTER_RELEASE,
-                "RideSmart::OverlayWake"
-            )
-            wl.acquire(15_000L)
-        }
-    }
-
     private fun dismissPlatform(platform: String) {
         handler.post {
             dismissTimers[platform]?.let { handler.removeCallbacks(it) }
@@ -250,6 +293,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
+            activeParams.remove(platform)
             Log.d(TAG, "👆 Dismissed by tap: platform=$platform remaining=${activeCards.keys}")
             onDismiss?.invoke(platform)
         }
@@ -266,6 +310,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.clear()
+            activeParams.clear()
         }
     }
 

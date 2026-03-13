@@ -241,4 +241,83 @@ class RapidoParserTest {
         assertTrue("Should return multiple rides for multiple cards", results.size >= 1)
     }
 
+    // ── Edge case: KM_REGEX should not match "min" as distance ──────
+
+    @Test
+    fun `node with min only does not register as km distance`() {
+        // This test validates the fix for KM_REGEX matching "5 min" as "5 km"
+        val nodes = listOf("₹80", "Accept", "12 min")
+        // "12 min" should be detected as time, not as distance
+        val state = parser.detectScreenState(nodes)
+        // Without km data, should be OFFER_LOADING not OFFER_LOADED
+        assertEquals(ScreenState.OFFER_LOADING, state)
+    }
+
+    @Test
+    fun `ride with min-only nodes does not parse incorrect km values`() {
+        val nodes = listOf("₹80", "Accept", "15 min", "Sector 18 to Connaught Place")
+        val ride = parser.parseExpandedCard(nodes, "com.rapido.rider")
+        // Should parse fare but distance should be 0 since only "min" was present
+        assertNotNull(ride)
+        assertEquals(80.0, ride!!.baseFare, 0.01)
+        assertEquals(0.0, ride.rideDistanceKm, 0.01)
+    }
+
+    // ── METRES_REGEX: metre values converted to km ──────────────────
+
+    @Test
+    fun `500m node is parsed as half km`() {
+        val nodes = listOf("₹65", "500m", "4.5 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull("Should parse offer with metres", result)
+        assertEquals("Pickup in metres → km", 0.5, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride distance in km", 4.5, result.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `300 m with space is parsed as 0 point 3 km`() {
+        val nodes = listOf("₹55", "300 m", "3.0 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("Pickup distance from metres", 0.3, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride distance in km", 3.0, result.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `metre-only ride has correct ride distance`() {
+        // Only metre value, no km → treated as ride distance
+        val nodes = listOf("₹30", "800m", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("800m → 0.8km ride distance", 0.8, result!!.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `min node is not matched as metres`() {
+        // "15 min" should NOT be matched as metres — word boundary \b and (?!in) prevent it
+        val nodes = listOf("₹80", "Accept", "15 min", "4.0 km")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("Duration in minutes", 15, result!!.estimatedDurationMin)
+        assertEquals("Only km distance, not min as metres", 4.0, result.rideDistanceKm, 0.01)
+        assertEquals("No pickup distance from min", 0.0, result.pickupDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `km-native values preferred when multiple km values present alongside metres`() {
+        // 500m metres-derived + 1.5 km + 4.5 km → two km-native values, metres-derived should be ignored
+        val nodes = listOf("₹80", "500m", "1.5 km", "4.5 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        // Should use only km-native values (≥2 km-native): pickup=1.5, ride=4.5
+        assertEquals("Pickup from km-native", 1.5, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride from km-native", 4.5, result.rideDistanceKm, 0.01)
+    }
+
 }
+

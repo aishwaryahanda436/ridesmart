@@ -6,7 +6,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.os.Build
@@ -17,6 +20,7 @@ import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.ridesmart.MainActivity
 import com.ridesmart.R
 import com.ridesmart.data.ProfileRepository
@@ -29,6 +33,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.ProfitResult
 import com.ridesmart.model.RideResult
+import com.ridesmart.overlay.HudOverlayManager
 import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.ParserFactory
 import com.ridesmart.parser.UberNotificationParser
@@ -46,7 +51,10 @@ class RideSmartService : AccessibilityService() {
     companion object {
         const val TAG = "RideSmart"
         const val NOTIF_CHANNEL_ID = "ridesmart_service"
+        const val RIDE_RESULT_CHANNEL_ID = "ridesmart_ride_result"
         const val NOTIF_ID = 1
+        const val RIDE_RESULT_NOTIF_ID = 2
+        const val RIDE_RESULT_TIMEOUT_MS = 12_000L
 
         val SUPPORTED_PACKAGES = setOf(
             "com.rapido.rider",
@@ -72,10 +80,24 @@ class RideSmartService : AccessibilityService() {
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
         
-        // Spec v2.0 Section 8.2: BFS depth cap 8
-        private const val MAX_TREE_DEPTH         = 8
+        // Increased from 8 → 16 to handle Jetpack Compose trees (typically 12-18 nodes deep)
+        // and RecyclerView/LazyColumn list containers.
+        private const val MAX_TREE_DEPTH         = 16
 
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
+
+        // Throttle interval for Uber TYPE_WINDOW_CONTENT_CHANGED events
+        // to prevent event storms from triggering excessive node collection.
+        private const val UBER_CONTENT_CHANGED_THROTTLE_MS = 300L
+
+        // Cooldown for OCR fallback trigger when accessibility tree is empty.
+        // Prevents rapid-fire OCR attempts on consecutive empty-node events.
+        private const val OCR_FALLBACK_COOLDOWN_MS = 2000L
+
+        // Per-package cooldown for the early notification trigger channel.
+        // Prevents duplicate processing when both the notification and the
+        // accessibility event fire for the same offer.
+        private const val NOTIFICATION_TRIGGER_COOLDOWN_MS = 2000L
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -84,6 +106,7 @@ class RideSmartService : AccessibilityService() {
     private lateinit var historyRepository: RideHistoryRepository
     private lateinit var remoteConfig: RemoteConfigRepository
     private lateinit var overlayManager: OverlayManager
+    private lateinit var hudOverlayManager: HudOverlayManager
     private val uberOcrEngine by lazy { UberOcrEngine() }
 
     // Stage 1 & 2 Isolation: Dedicated Pipeline Context (Spec v2.0 Section 8.3)
@@ -101,14 +124,19 @@ class RideSmartService : AccessibilityService() {
 
     private data class PlatformState(
         var lastFare: Float = 0f,
+        var lastRideDistance: Double = 0.0,
         var lastRideTime: Long = 0L,
         var lastProcessedText: String = "",
         var lastShownSmartScore: Double = Double.MIN_VALUE,
         val sessionCache: RideSessionCache = RideSessionCache()
     )
-    private val platformStates = mutableMapOf<String, PlatformState>()
+    private val platformStates = java.util.concurrent.ConcurrentHashMap<String, PlatformState>()
+    // Sentinel state for packages with empty normalized platform key (launchers, systemui).
+    // Avoids creating a new disposable PlatformState on every call.
+    private val emptyPlatformState = PlatformState()
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
+        if (key.isEmpty()) return emptyPlatformState
         return platformStates.getOrPut(key) {
             if (platformStates.size >= MAX_PLATFORM_STATES) {
                 val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
@@ -151,10 +179,12 @@ class RideSmartService : AccessibilityService() {
     private var recentForegroundPackage: String = ""
     private var uberOcrActive = false
     private var uberScreenshotJob: Job? = null
+    private val lastUberContentChangedMs = AtomicLong(0L)
+    private val lastOcrFallbackMs = AtomicLong(0L)
 
     private val screenWakeLock: PowerManager.WakeLock by lazy {
         (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+            PowerManager.PARTIAL_WAKE_LOCK or
             PowerManager.ACQUIRE_CAUSES_WAKEUP or
             PowerManager.ON_AFTER_RELEASE,
             "RideSmart::ScreenWake"
@@ -173,6 +203,7 @@ class RideSmartService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+            info.eventTypes = info.eventTypes or AccessibilityEvent.TYPE_WINDOWS_CHANGED
         }
 
         calculator = ProfitCalculator()
@@ -191,6 +222,11 @@ class RideSmartService : AccessibilityService() {
                 }
             }
         }
+        hudOverlayManager = HudOverlayManager(this).apply {
+            onDismiss = {
+                Log.d(TAG, "HUD dismissed — resetting best tracker")
+            }
+        }
 
         serviceScope.launch(pipelineContext) {
             fastEventFlow.collect { (pkg, nodes) -> processScreen(nodes, pkg) }
@@ -204,6 +240,11 @@ class RideSmartService : AccessibilityService() {
 
         startUberPolling()
         prewarmOcr()
+
+        val filter = IntentFilter(RideNotificationListener.ACTION_RIDE_NOTIFICATION)
+        ContextCompat.registerReceiver(this, notificationReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        notificationReceiverRegistered = true
+
         Log.d(TAG, "✅ RideSmartService connected — pipeline ready")
     }
 
@@ -252,9 +293,21 @@ class RideSmartService : AccessibilityService() {
     }
 
     private fun startForegroundService() {
-        val channel = NotificationChannel(NOTIF_CHANNEL_ID, "RideSmart Service", NotificationManager.IMPORTANCE_LOW)
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+        val channel = NotificationChannel(NOTIF_CHANNEL_ID, "RideSmart Service", NotificationManager.IMPORTANCE_LOW)
         nm.createNotificationChannel(channel)
+
+        // Separate high-importance channel for ride result notifications
+        // (fallback when overlay may be hidden by HIDE_OVERLAY_WINDOWS on Android 12+)
+        val resultChannel = NotificationChannel(
+            RIDE_RESULT_CHANNEL_ID,
+            "Ride Analysis Results",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Shows ride profitability analysis when the overlay cannot be displayed"
+        }
+        nm.createNotificationChannel(resultChannel)
 
         val openApp = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
@@ -280,8 +333,28 @@ class RideSmartService : AccessibilityService() {
         // Skip our own package — we don't need to analyse ourselves
         if (evtPkg == packageName) return
 
+        // ── BUG 4: Detect when Uber app leaves foreground via window changes ──
+        // TYPE_WINDOWS_CHANGED fires for any window change (including the launcher
+        // coming to foreground). If no visible window belongs to Uber, clear the flag
+        // so the 1-second polling loop stops taking home-screen screenshots.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            val hasUberWindow = windows.any { win ->
+                normalizePlatform(win.root?.packageName?.toString() ?: "") == "uber"
+            }
+            if (!hasUberWindow) {
+                uberAppInForeground = false
+            }
+            return
+        }
+
         // ── Spec v2.0 Section 3.3: Rapido Animation Debounce ──
-        if (evtPkg == "com.rapido.rider") {
+        // normalizePlatform is used instead of ParserFactory.isRapido so that all
+        // packages whose name contains "rapido" receive the debounce, not only the
+        // three exact package names currently in the set.
+        // TYPE_NOTIFICATION_STATE_CHANGED is excluded from the early return so that
+        // Rapido notifications fall through to the shared notification handler below.
+        if (normalizePlatform(evtPkg) == "rapido" &&
+            event.eventType != AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             // Note: Debounce still needed, but extraction must be on main thread.
             // We can delay and then capture on main thread.
             serviceScope.launch(Dispatchers.Main) {
@@ -302,16 +375,33 @@ class RideSmartService : AccessibilityService() {
                 uberOcrActive = false
                 uberScreenshotJob?.cancel()
                 uberScreenshotJob = null
-                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    triggerUberScreenshot()
+                // Reset throttle/cooldown on window state change (new context)
+                lastUberContentChangedMs.set(0L)
+                lastOcrFallbackMs.set(0L)
+                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot after settle delay")
+                // Delay to let bottom sheet animation settle before screenshot/node collection.
+                // Without this, isVisibleToUser may report false for nodes still animating in.
+                // 120ms covers Uber's standard bottom sheet entrance animation (~100ms)
+                // while staying under 150ms to avoid missing short-lived offers.
+                serviceScope.launch(Dispatchers.Main) {
+                    delay(120L)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        triggerUberScreenshot()
+                    }
                 }
                 return
             }
 
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-                event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+                event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
                 resetUberPollingBackoff()
+                // Throttle Uber content-changed events to prevent event storms
+                // from triggering excessive node collection and OCR fallback.
+                val now = System.currentTimeMillis()
+                val last = lastUberContentChangedMs.get()
+                if (now - last < UBER_CONTENT_CHANGED_THROTTLE_MS) return
+                lastUberContentChangedMs.set(now)
             }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
             val platform = normalizePlatform(evtPkg)
@@ -348,10 +438,8 @@ class RideSmartService : AccessibilityService() {
                 }
                 return
             }
-        }
 
-        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            val pkg = event.packageName?.toString() ?: ""
+            // Non-Uber ride app notifications
             val notification = event.parcelableData as? Notification
             val extras = notification?.extras
             val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
@@ -359,7 +447,7 @@ class RideSmartService : AccessibilityService() {
 
             val isRideApp = pkg in SUPPORTED_PACKAGES
             val isRideNotification = (title.contains("Ride", ignoreCase = true) || text.contains("₹")) &&
-                                     (pkg.contains("rapido", ignoreCase = true) || pkg.contains("uber", ignoreCase = true))
+                                     normalizePlatform(pkg) == "rapido"
             
             if (isRideApp || isRideNotification) {
                 Log.d(TAG, "🔔 NOTIFICATION: pkg=$pkg title=\"$title\" text=\"$text\"")
@@ -376,11 +464,13 @@ class RideSmartService : AccessibilityService() {
         // Extraction happens on Main thread (this function is called from Main thread)
         val allNodes = mutableListOf<String>()
         var detectedPackage = pkg
+        val density = resources.displayMetrics.density
 
         data class WindowCandidate(
             val pkg: String,
             val nodes: List<String>,
-            val score: Int
+            val score: Int,
+            val hasRideList: Boolean = false
         )
         val candidates = mutableListOf<WindowCandidate>()
 
@@ -392,7 +482,12 @@ class RideSmartService : AccessibilityService() {
                     
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(root, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
+
+                    // Try card-level reconstruction for ride lists
+                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes, density)
+                    val hasMultipleCards = cardGroups.size > 1
+
                     rawNodes.forEach { it.safeRecycle() }
 
                     if (reconstructedText.isEmpty()) continue
@@ -402,7 +497,9 @@ class RideSmartService : AccessibilityService() {
                     val isRideApp = ParserFactory.isRideApp(windowPkg)
                     val hasUberSignal = combined.contains("Uber Driver", ignoreCase = true) ||
                                         combined.contains("Uber Request", ignoreCase = true) ||
-                                        combined.contains("See all requests", ignoreCase = true)
+                                        combined.contains("See all requests", ignoreCase = true) ||
+                                        combined.contains("Trip Radar", ignoreCase = true) ||
+                                        combined.contains("Opportunity", ignoreCase = true)
                     val isUberPkg = windowPkg.contains("ubercab", ignoreCase = true) ||
                                     windowPkg.contains("uber", ignoreCase = true)
                     if (!isRideApp && !hasUberSignal && !isUberPkg) continue
@@ -415,10 +512,16 @@ class RideSmartService : AccessibilityService() {
                         combined.contains("match", ignoreCase = true) ||
                         combined.contains("confirm", ignoreCase = true)) score += 8
 
+                    // Boost score for ride list screens
+                    if (combined.contains("trip radar", ignoreCase = true) ||
+                        combined.contains("see all requests", ignoreCase = true) ||
+                        combined.contains("opportunity", ignoreCase = true)) score += 6
+
                     if (isUberPkg && reconstructedText.isNotEmpty()) score += 2
+                    if (hasMultipleCards) score += 4
 
                     if (score > 0) {
-                        candidates.add(WindowCandidate(windowPkg, reconstructedText, score))
+                        candidates.add(WindowCandidate(windowPkg, reconstructedText, score, hasMultipleCards))
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing window: ${e.message}")
@@ -435,6 +538,9 @@ class RideSmartService : AccessibilityService() {
             allNodes.addAll(best.nodes)
             detectedPackage = if (best.pkg.contains("ubercab", ignoreCase = true))
                                 "com.ubercab.driver" else best.pkg
+            if (best.hasRideList) {
+                Log.d(TAG, "📋 Detected ride list with multiple cards for $detectedPackage")
+            }
         }
 
         if (allNodes.isEmpty()) {
@@ -443,7 +549,7 @@ class RideSmartService : AccessibilityService() {
                 try {
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(fallbackRoot, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
                     rawNodes.forEach { it.safeRecycle() }
 
                     if (reconstructedText.isNotEmpty()) {
@@ -460,6 +566,12 @@ class RideSmartService : AccessibilityService() {
 
         if (allNodes.isEmpty()) {
             if (uberAppInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Rate-limit OCR fallback to prevent rapid-fire triggers
+                // when Uber's accessibility tree is consistently empty.
+                val now = System.currentTimeMillis()
+                val lastOcr = lastOcrFallbackMs.get()
+                if (now - lastOcr < OCR_FALLBACK_COOLDOWN_MS) return
+                lastOcrFallbackMs.set(now)
                 Log.d(TAG, "🔍 UBER: empty accessibility tree — triggering OCR fallback")
                 triggerUberScreenshot()
             }
@@ -467,11 +579,20 @@ class RideSmartService : AccessibilityService() {
         }
         
         val combined = allNodes.joinToString("|")
-        if (combined.contains("See all requests", ignoreCase = true)) {
+
+        // Trip Radar / ride list screens: trigger OCR for better extraction
+        // but also pass the accessibility data through for hybrid parsing
+        val isTripRadar = combined.contains("Trip Radar", ignoreCase = true) ||
+                          combined.contains("See all requests", ignoreCase = true) ||
+                          combined.contains("Opportunity", ignoreCase = true)
+
+        if (isTripRadar && detectedPackage.contains("uber", ignoreCase = true)) {
+            Log.d(TAG, "📋 UBER Trip Radar / ride list detected — hybrid parsing")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 triggerUberScreenshot()
             }
-            return
+            // Continue processing accessibility data — don't return early.
+            // Both accessibility and OCR paths may yield different data.
         }
 
         activeForegroundPlatform = if (detectedPackage.contains("uber", ignoreCase = true)) {
@@ -504,6 +625,44 @@ class RideSmartService : AccessibilityService() {
         }
     }
 
+    /**
+     * Posts a ride result as a heads-up notification — fallback display channel
+     * for when the overlay may be hidden by HIDE_OVERLAY_WINDOWS (Android 12+).
+     * Uber can call setHideOverlayWindows(true) to silently suppress TYPE_APPLICATION_OVERLAY
+     * windows without generating any error. This notification always appears.
+     */
+    private fun postResultNotification(result: RideResult) {
+        val ride = result.parsedRide
+        val signalEmoji = when (result.signal) {
+            Signal.GREEN  -> "✅"
+            Signal.YELLOW -> "🟡"
+            Signal.RED    -> "❌"
+        }
+        val signalText = when (result.signal) {
+            Signal.GREEN  -> "ACCEPT"
+            Signal.YELLOW -> "BORDERLINE"
+            Signal.RED    -> "SKIP"
+        }
+        val title = "$signalEmoji ${ride.platform} — $signalText"
+        val text = "₹${ride.baseFare.toInt()} · ${"%.1f".format(ride.rideDistanceKm)}km · Net ₹${"%.0f".format(result.netProfit)} · ₹${"%.1f".format(result.earningPerKm)}/km"
+
+        val openApp = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, RIDE_RESULT_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(openApp)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setTimeoutAfter(RIDE_RESULT_TIMEOUT_MS)
+            .build()
+
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(RIDE_RESULT_NOTIF_ID, notification)
+    }
+
     private suspend fun processNotificationData(pkg: String, title: String, text: String) {
         val parser = ParserFactory.getParser(pkg)
         val allRides = parser.parseAll(listOf(title, text), pkg)
@@ -512,9 +671,12 @@ class RideSmartService : AccessibilityService() {
 
         val state = stateFor(pkg)
         val now = System.currentTimeMillis()
-        if (parsedRide.baseFare.toFloat() == state.lastFare && now - state.lastRideTime < 3000L) return
+        if (parsedRide.baseFare.toFloat() == state.lastFare &&
+            kotlin.math.abs(parsedRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
+            now - state.lastRideTime < 3000L) return
 
         state.lastFare = parsedRide.baseFare.toFloat()
+        state.lastRideDistance = parsedRide.rideDistanceKm
         state.lastRideTime = now
 
         val profile = repository.profileFlow.first()
@@ -536,20 +698,31 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
                 overlayManager.showResult(
-                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
                 )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
+                )
                 
                 state.lastShownSmartScore = currentScore
                 state.lastFare = parsedRide.baseFare.toFloat()
+                state.lastRideDistance = parsedRide.rideDistanceKm
                 state.lastRideTime = System.currentTimeMillis()
 
                 if (normalizePlatform(pkg) == "uber") {
                     uberOfferActiveMs = System.currentTimeMillis()
+                    // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
+                    // may silently suppress our overlay without any error
+                    postResultNotification(
+                        RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
+                    )
                 }
             }
         }
@@ -630,6 +803,7 @@ class RideSmartService : AccessibilityService() {
         val now = System.currentTimeMillis()
 
         val sameFareTooSoon = bestRide.baseFare.toFloat() == state.lastFare &&
+                              kotlin.math.abs(bestRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
                               now - state.lastRideTime < SAME_FARE_COOLDOWN_MS
         if (sameFareTooSoon) {
             Log.d(TAG, "Duplicate fare suppressed for $packageName")
@@ -652,20 +826,31 @@ class RideSmartService : AccessibilityService() {
             "signal=${bestResult.signal}")
 
         state.lastFare = bestRide.baseFare.toFloat()
+        state.lastRideDistance = bestRide.rideDistanceKm
         state.lastRideTime = now
         state.lastShownSmartScore = currentScore
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
                 overlayManager.showResult(
-                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
                 )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
+                )
                 if (isUber) {
                     uberOfferActiveMs = System.currentTimeMillis()
+                    // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
+                    // may silently suppress our overlay without any error
+                    postResultNotification(
+                        RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
+                    )
                 }
             }
         }
@@ -725,7 +910,7 @@ class RideSmartService : AccessibilityService() {
         }
 
         val currentPkg = recentForegroundPackage
-        if (currentPkg != "com.ubercab.driver") {
+        if (currentPkg != "com.ubercab.driver" && currentPkg != "com.ubercab") {
             isScreenshotProcessing.set(false)
             Log.d(TAG, "⏭ Skipping Uber OCR — foreground is $currentPkg")
             return
@@ -836,6 +1021,40 @@ class RideSmartService : AccessibilityService() {
 
     private val lastScreenshotMs = AtomicLong(0L)
 
+    // Tracks the last early-trigger timestamp per package to enforce the
+    // NOTIFICATION_TRIGGER_COOLDOWN_MS de-duplication window.
+    private val notificationTriggerTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    @Volatile private var notificationReceiverRegistered = false
+
+    private val notificationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.getStringExtra(RideNotificationListener.EXTRA_PACKAGE) ?: return
+
+            val now = System.currentTimeMillis()
+            val lastTrigger = notificationTriggerTimestamps[pkg] ?: 0L
+            if (now - lastTrigger < NOTIFICATION_TRIGGER_COOLDOWN_MS) {
+                Log.d(TAG, "🔔 Notification trigger cooldown for $pkg — skipping")
+                return
+            }
+            notificationTriggerTimestamps[pkg] = now
+
+            Log.d(TAG, "🔔 Early notification trigger for $pkg")
+            wakeScreen()
+
+            if (pkg.contains("uber", ignoreCase = true)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    triggerUberScreenshot()
+                } else {
+                    // Pre-R: screenshot API unavailable — fall back to accessibility tree collection
+                    triggerNodeCollection(pkg)
+                }
+            } else {
+                triggerNodeCollection(pkg)
+            }
+        }
+    }
+
     private fun collectRawNodes(node: AccessibilityNodeInfo?, nodes: MutableList<AccessibilityNodeInfo>, depth: Int = 0) {
         if (node == null || depth > MAX_TREE_DEPTH) return
         
@@ -876,10 +1095,15 @@ class RideSmartService : AccessibilityService() {
 
     override fun onDestroy() {
         if (screenWakeLock.isHeld) screenWakeLock.release()
+        if (notificationReceiverRegistered) {
+            unregisterReceiver(notificationReceiver)
+            notificationReceiverRegistered = false
+        }
         stopUberPolling()
         screenshotExecutor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         overlayManager.dismiss()
+        hudOverlayManager.dismiss()
         serviceScope.cancel()
         super.onDestroy()
     }

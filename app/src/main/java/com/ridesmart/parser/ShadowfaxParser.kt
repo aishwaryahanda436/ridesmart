@@ -182,6 +182,8 @@ class ShadowfaxParser : IPlatformParser {
             "bonus=₹$bonusAmount pickup=${pickupDistanceKm}km ride=${rideDistanceKm}km " +
             "state=$screenState")
 
+        val numberOfStops = if (kmMatches.size > 2) kmMatches.size - 1 else 1
+
         return ParsedRide(
             baseFare = baseFare,
             premiumAmount = bonusAmount,
@@ -197,7 +199,8 @@ class ShadowfaxParser : IPlatformParser {
             vehicleType = vehicleType,
             screenState = screenState,
             bonus = bonusAmount,
-            fare = baseFare + bonusAmount
+            isDelivery = true,
+            numberOfStops = numberOfStops
         )
     }
 
@@ -253,7 +256,8 @@ class ShadowfaxParser : IPlatformParser {
             vehicleType = VehicleType.BIKE,
             screenState = screenState,
             bonus = surgeBonus,
-            fare = fareValue + surgeBonus
+            isDelivery = true,
+            numberOfStops = if (distances.size > 1) distances.size else 1
         )
     }
 }

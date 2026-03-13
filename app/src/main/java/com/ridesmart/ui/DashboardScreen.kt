@@ -150,7 +150,7 @@ fun LifetimeStatsCards(rides: List<RideEntry>) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 DashStat("TOTAL KM", "${"%.0f".format(totalKm)}", Modifier.weight(1f))
                 DashStat("AVG ₹/KM", "₹${"%.1f".format(avgPerKm)}", Modifier.weight(1f))
-                DashStat("GREEN %", "${if (totalRides > 0) rides.count { it.signal == Signal.GREEN } * 100 / totalRides else 0}%", Modifier.weight(1f))
+                DashStat("GREEN %", "${if (totalRides > 0) (rides.count { it.signal == Signal.GREEN } * 100.0 / totalRides).toInt() else 0}%", Modifier.weight(1f))
             }
         }
     }

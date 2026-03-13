@@ -137,9 +137,17 @@ class ProfitCalculator {
         idleMinutes: Double = 0.0
     ): ProfitResult {
 
+        // ── INPUT VALIDATION: Clamp negative values from OCR/parsing errors ──
+        val safeBaseFare = ride.baseFare.coerceAtLeast(0.0)
+        val safeRideDistanceKm = ride.rideDistanceKm.coerceAtLeast(0.0)
+        val safePickupDistanceKm = ride.pickupDistanceKm.coerceAtLeast(0.0)
+        val safeTipAmount = ride.tipAmount.coerceAtLeast(0.0)
+        val safePremiumAmount = ride.premiumAmount.coerceAtLeast(0.0)
+        val safeBonus = ride.bonus.coerceAtLeast(0.0)
+
         // ── STEP 1: GROSS FARE WITH SURGE/BONUS/COMMISSION/SUBSCRIPTION ─
-        val surgedBase = ride.baseFare * ride.surgeMultiplier
-        val grossBeforeDeductions = surgedBase + ride.bonus + ride.tipAmount + ride.premiumAmount
+        val surgedBase = safeBaseFare * ride.surgeMultiplier
+        val grossBeforeDeductions = surgedBase + safeBonus + safeTipAmount + safePremiumAmount
 
         val subscriptionAmortised = if (profile.subscriptionDailyCost > 0.0 && profile.avgTripsPerDay > 0.0) {
             profile.subscriptionDailyCost / profile.avgTripsPerDay
@@ -153,15 +161,15 @@ class ProfitCalculator {
         } else {
             // Subscription model or zero-commission: deduct amortised subscription
             val payoutFromPlatformConfig = PlatformConfig.effectivePayout(
-                surgedBase + ride.bonus, ride.packageName
-            ) + ride.tipAmount + ride.premiumAmount
+                surgedBase + safeBonus, ride.packageName
+            ) + safeTipAmount + safePremiumAmount
             payoutFromPlatformConfig - subscriptionAmortised
         }
 
-        val totalFare = ride.baseFare + ride.tipAmount + ride.premiumAmount + ride.bonus
+        val totalFare = safeBaseFare + safeTipAmount + safePremiumAmount + safeBonus
 
         // ── STEP 2: TOTAL DISTANCE ──────────────────────────────────────
-        val totalDistanceKm = ride.pickupDistanceKm + ride.rideDistanceKm
+        val totalDistanceKm = safePickupDistanceKm + safeRideDistanceKm
 
         // ── STEP 3: FUEL COST (V3: Fixed EV cost calculation) ───────────
         val profileIsDefault = profile.mileageKmPerLitre == 45.0  // driver never customised mileage
@@ -205,7 +213,7 @@ class ProfitCalculator {
         val wearCost = totalDistanceKm * maintenanceCPK
 
         // ── STEP 4B (V3): EXPLICIT PICKUP COST ─────────────────────────
-        val pickupCost = ride.pickupDistanceKm * (fuelCPK + maintenanceCPK)
+        val pickupCost = safePickupDistanceKm * (fuelCPK + maintenanceCPK)
 
         // ── STEP 5: CPK WITH CONGESTION ─────────────────────────────────
         val timeCostPerKm = if (profile.cityAvgSpeedKmH > 0.0) {
@@ -226,8 +234,8 @@ class ProfitCalculator {
         val profitMargin = if (actualPayout > 0.0) (netProfit / actualPayout) * 100.0 else 0.0
 
         // ── STEP 8: PICKUP PENALTY RATIO (PPR) ─────────────────────────
-        val ppr = if (ride.rideDistanceKm > 0.0) {
-            ride.pickupDistanceKm / ride.rideDistanceKm
+        val ppr = if (safeRideDistanceKm > 0.0) {
+            safePickupDistanceKm / safeRideDistanceKm
         } else 0.0
 
         // ── STEP 9: TIME METRICS — TRT, TES, HRR ──────────────────────
@@ -240,8 +248,8 @@ class ProfitCalculator {
 
         val pickupTimeMin = if (ride.pickupTimeMin > 0) {
             ride.pickupTimeMin.toDouble()
-        } else if (ride.pickupDistanceKm > 0.0 && profile.cityAvgSpeedKmH > 0.0) {
-            (ride.pickupDistanceKm / profile.cityAvgSpeedKmH) * 60.0 * trafficMultiplier
+        } else if (safePickupDistanceKm > 0.0 && profile.cityAvgSpeedKmH > 0.0) {
+            (safePickupDistanceKm / profile.cityAvgSpeedKmH) * 60.0 * trafficMultiplier
         } else 0.0
 
         val tripTimeMin = when {
@@ -267,7 +275,7 @@ class ProfitCalculator {
         } else 0.0
 
         // ── STEP 10: EARNING METRICS ────────────────────────────────────
-        val epk = if (ride.rideDistanceKm > 0.0) netProfit / ride.rideDistanceKm else 0.0
+        val epk = if (safeRideDistanceKm > 0.0) netProfit / safeRideDistanceKm else 0.0
         val earningPerHour = if (tripTimeMin > 0.0) {
             netProfit / (tripTimeMin / 60.0)
         } else if (ride.estimatedDurationMin > 0) {
@@ -293,7 +301,7 @@ class ProfitCalculator {
             overrideActive = true
         }
         if (ppr > 0.80) {
-            failedChecks.add("Pickup ${ride.pickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — extreme deadhead")
+            failedChecks.add("Pickup ${safePickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — extreme deadhead")
             overrideActive = true
         }
         if (tes > 0.0 && tes < 25.0) {
@@ -303,15 +311,15 @@ class ProfitCalculator {
         // V3.1: Removed fixed EPK < ₹1.50 hard override — replaced by adaptive scoring.
         // Low EPK is handled by S2 (EPK Score) which evaluates relative to operationalCPK.
         // Informational warning only (does NOT set overrideActive) — lets scoring model decide signal.
-        if (epk < operationalCPK && ride.rideDistanceKm > 0.0) {
+        if (epk < operationalCPK && safeRideDistanceKm > 0.0) {
             failedChecks.add("₹/km ₹${"%.1f".format(epk)} below ₹${"%.1f".format(operationalCPK)} running cost — low per-km profitability")
         }
 
         // V3: Fake surge trap detection
         if (ride.surgeMultiplier >= SURGE_TRAP_MIN_MULTIPLIER &&
-            ride.rideDistanceKm < SURGE_TRAP_MAX_DISTANCE_KM &&
-            ride.baseFare < SURGE_TRAP_MAX_BASE_FARE) {
-            failedChecks.add("⚠ Surge trap: ${ride.surgeMultiplier}× surge on ${ride.rideDistanceKm}km/${ride.baseFare.toInt()}₹ ride — low actual gain")
+            safeRideDistanceKm < SURGE_TRAP_MAX_DISTANCE_KM &&
+            safeBaseFare < SURGE_TRAP_MAX_BASE_FARE) {
+            failedChecks.add("⚠ Surge trap: ${ride.surgeMultiplier}× surge on ${safeRideDistanceKm}km/${safeBaseFare.toInt()}₹ ride — low actual gain")
         }
 
         // INFORMATIONAL WARNINGS
@@ -332,7 +340,7 @@ class ProfitCalculator {
         }
         if (ppr > 0.40) {
             failedChecks.add(
-                "Pickup ${ride.pickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — too far"
+                "Pickup ${safePickupDistanceKm}km is ${(ppr * 100).toInt()}% of ride — too far"
             )
         }
         // V3.1: Efficiency score warning — adaptive, driver-personalized
@@ -385,9 +393,9 @@ class ProfitCalculator {
             profile.minAcceptableNetProfit
         }
         val rawS1 = if (targetNetProfit > 0.0) (netProfit / targetNetProfit) * 100.0 else 0.0
-        val longTripFactor = if (ride.rideDistanceKm > LONG_TRIP_THRESHOLD_KM) {
+        val longTripFactor = if (safeRideDistanceKm > LONG_TRIP_THRESHOLD_KM) {
             // Linear decay: 1.0 at 25km, 0.85 at 50km
-            val excessKm = (ride.rideDistanceKm - LONG_TRIP_THRESHOLD_KM)
+            val excessKm = (safeRideDistanceKm - LONG_TRIP_THRESHOLD_KM)
                 .coerceAtMost(LONG_TRIP_MAX_KM - LONG_TRIP_THRESHOLD_KM)
             1.0 - (excessKm / (LONG_TRIP_MAX_KM - LONG_TRIP_THRESHOLD_KM)) * 0.15
         } else 1.0
@@ -399,9 +407,9 @@ class ProfitCalculator {
         // Using full cpk makes the EPK target unrealistically high (₹27+/km).
         val targetEPK = if (operationalCPK > 0.0) operationalCPK * 2.0 else profile.minAcceptablePerKm * 2.0
         val rawS2 = if (targetEPK > 0.0) (epk / targetEPK) * 100.0 else 0.0
-        val shortTripFactor = if (ride.rideDistanceKm < SHORT_TRIP_THRESHOLD_KM && ride.rideDistanceKm > 0.0) {
+        val shortTripFactor = if (safeRideDistanceKm < SHORT_TRIP_THRESHOLD_KM && safeRideDistanceKm > 0.0) {
             // Penalize: scale from 0.7 at 0km to 1.0 at 2km
-            0.7 + (ride.rideDistanceKm / SHORT_TRIP_THRESHOLD_KM) * 0.3
+            0.7 + (safeRideDistanceKm / SHORT_TRIP_THRESHOLD_KM) * 0.3
         } else 1.0
         val s2 = clamp(rawS2 * shortTripFactor)
 
@@ -419,10 +427,10 @@ class ProfitCalculator {
             (1.0 - 1.0 / (1.0 + surgeExcess)) * 100.0
         } else 0.0
         // Bonus normalized relative to base fare (bonus = 50% of base → 50 points)
-        val bonusScore = if (ride.baseFare > 0.0) {
-            (ride.bonus / ride.baseFare) * 100.0
+        val bonusScore = if (safeBaseFare > 0.0) {
+            (safeBonus / safeBaseFare) * 100.0
         } else {
-            ride.bonus / 5.0  // fallback: legacy scaling
+            safeBonus / 5.0  // fallback: legacy scaling
         }
         val s5 = clamp(surgeScore * 0.6 + bonusScore * 0.4)
 

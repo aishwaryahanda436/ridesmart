@@ -54,6 +54,7 @@ class RideDataParser : IPlatformParser {
         if (isUberHomeScreen(nodes)) return ScreenState.IDLE
         
         val combined = nodes.joinToString(" ")
+        val combinedLower = combined.lowercase()
         val hasConfirm = nodes.any {
             it.equals("Confirm", ignoreCase = true) ||
             it.equals("Match", ignoreCase = true) ||
@@ -61,6 +62,16 @@ class RideDataParser : IPlatformParser {
         }
         val hasFare = FARE_REGEX.containsMatchIn(combined)
         val hasKm = KM_REGEX.containsMatchIn(combined)
+
+        // Detect Trip Radar / ride list screens
+        val isTripRadar = combinedLower.contains("trip radar") ||
+                          combinedLower.contains("see all requests") ||
+                          combinedLower.contains("opportunity")
+        if (isTripRadar && hasFare) return ScreenState.TRIP_RADAR
+
+        // Detect multiple fare signals → ride list
+        val fareCount = FARE_REGEX.findAll(combined).count()
+        if (fareCount >= 2 && !hasConfirm) return ScreenState.RIDE_LIST
 
         return when {
             hasFare && hasConfirm && hasKm -> ScreenState.OFFER_LOADED
@@ -298,7 +309,6 @@ class RideDataParser : IPlatformParser {
             pickupTimeMin         = pickupTimeMin,
             rideTimeMin           = rideTimeMin,
             bonus                 = bonusAmount,
-            fare                  = effectiveFare,
             vehicleType           = vehicleType
         )
     }

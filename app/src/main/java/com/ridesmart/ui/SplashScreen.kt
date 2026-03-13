@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridesmart.ui.theme.DarkBackground
 import com.ridesmart.ui.theme.RideGreen
+import com.ridesmart.ui.theme.TextPrimary
+import com.ridesmart.ui.theme.TextMuted
 import kotlinx.coroutines.delay
 
 /**
@@ -103,7 +105,7 @@ fun SplashScreen(onFinished: () -> Unit) {
 
             Text(
                 text = "RideSmart",
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 42.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-1.5).sp
@@ -119,7 +121,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "URPDE ENGINE v2.0",
+                    text = "SMART RIDE ENGINE v3.0",
                     color = RideGreen,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -131,7 +133,7 @@ fun SplashScreen(onFinished: () -> Unit) {
         // Version hint at bottom
         Text(
             text = "PRODUCTION READY",
-            color = Color.White.copy(alpha = 0.2f),
+            color = TextMuted,
             fontSize = 10.sp,
             modifier = Modifier
                 .align(Alignment.BottomCenter)

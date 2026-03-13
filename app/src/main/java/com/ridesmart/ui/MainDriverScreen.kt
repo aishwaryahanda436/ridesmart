@@ -1,6 +1,8 @@
 package com.ridesmart.ui
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridesmart.data.ProfileRepository
 import com.ridesmart.data.RideEntry
 import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.isAccessibilityServiceEnabled
@@ -42,8 +46,16 @@ fun MainDriverScreen(
 ) {
     val context = LocalContext.current
     val repo = remember { RideHistoryRepository(context) }
+    val profileRepo = remember { ProfileRepository(context) }
     val history by repo.historyFlow.collectAsState(initial = emptyList())
+    val driverName by profileRepo.driverNameFlow.collectAsState(initial = "")
     val isServiceActive = remember(Unit) { isAccessibilityServiceEnabled(context) }
+    val isOverlayGranted = remember(Unit) { Settings.canDrawOverlays(context) }
+
+    // Driver stats
+    val totalRides = history.size
+    val acceptedRides = history.count { it.signal == Signal.GREEN }
+    val rejectedRides = history.count { it.signal == Signal.RED }
 
     val todayRides = remember(history) {
         val todayCal = Calendar.getInstance()
@@ -62,7 +74,8 @@ fun MainDriverScreen(
             ModernBottomNav(
                 onHistory = onNavigateHistory,
                 onDashboard = onNavigateDashboard,
-                onSettings = onNavigateSettings
+                onSettings = onNavigateSettings,
+                onPermissions = onNavigatePermissions
             )
         }
     ) { padding ->
@@ -89,7 +102,7 @@ fun MainDriverScreen(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        "Captain",
+                        driverName.ifBlank { "Captain" },
                         color = Color.White,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
@@ -104,6 +117,86 @@ fun MainDriverScreen(
 
             // ── ACTIVE MONITORING CARD ──
             ActiveServiceCard(isActive = isServiceActive, onSetup = onNavigatePermissions)
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── SYSTEM STATUS ──
+            Text(
+                "SYSTEM STATUS",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SystemStatusRow("Accessibility Service", isServiceActive)
+                    Spacer(Modifier.height(10.dp))
+                    SystemStatusRow("Overlay Permission", isOverlayGranted)
+                    Spacer(Modifier.height(10.dp))
+                    SystemStatusRow("OCR Engine", true) // OCR via ML Kit is always available
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── MONITORING CONTROLS ──
+            Text(
+                "MONITORING",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            MonitoringButtons(
+                isServiceActive = isServiceActive,
+                context = context,
+                onNavigatePermissions = onNavigatePermissions
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── DRIVER STATS ──
+            Text(
+                "DRIVER STATS",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatBox(
+                    label = "Analyzed",
+                    value = "$totalRides",
+                    icon = Icons.Default.Analytics,
+                    color = RideBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = "Accepted",
+                    value = "$acceptedRides",
+                    icon = Icons.Default.ThumbUp,
+                    color = SignalGreen,
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = "Rejected",
+                    value = "$rejectedRides",
+                    icon = Icons.Default.ThumbDown,
+                    color = SignalRed,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(Modifier.height(32.dp))
 
@@ -177,6 +270,83 @@ fun StatusBadge(isActive: Boolean, onClick: () -> Unit) {
                 fontSize = 12.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun MonitoringButtons(
+    isServiceActive: Boolean,
+    context: Context,
+    onNavigatePermissions: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = {
+                if (!isServiceActive) {
+                    onNavigatePermissions()
+                }
+            },
+            enabled = !isServiceActive,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = RideGreen,
+                disabledContainerColor = RideGreen.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            val contentColor = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f)
+            Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = contentColor
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Start Monitoring",
+                color = contentColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        OutlinedButton(
+            onClick = {
+                if (isServiceActive) {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+            },
+            enabled = isServiceActive,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = SignalRed,
+                disabledContentColor = TextMuted
+            ),
+            border = BorderStroke(
+                1.dp,
+                if (isServiceActive) SignalRed.copy(alpha = 0.5f) else DarkBorder
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Stop,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Stop Monitoring",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
         }
     }
@@ -360,7 +530,8 @@ fun MetricItem(label: String, value: String, icon: ImageVector) {
 fun ModernBottomNav(
     onHistory: () -> Unit,
     onDashboard: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onPermissions: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -379,9 +550,10 @@ fun ModernBottomNav(
             verticalAlignment = Alignment.CenterVertically
         ) {
             NavIcon(Icons.Default.Home, "Home", true, {})
-            NavIcon(Icons.Default.BarChart, "Stats", false, onDashboard)
+            NavIcon(Icons.Default.BarChart, "Dashboard", false, onDashboard)
             NavIcon(Icons.Default.History, "History", false, onHistory)
-            NavIcon(Icons.Default.Settings, "Config", false, onSettings)
+            NavIcon(Icons.Default.Shield, "Permissions", false, onPermissions)
+            NavIcon(Icons.Default.Settings, "Settings", false, onSettings)
         }
     }
 }
@@ -394,12 +566,42 @@ fun NavIcon(icon: ImageVector, label: String, active: Boolean, onClick: () -> Un
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(12.dp)
+            .padding(horizontal = 8.dp, vertical = 10.dp)
     ) {
         Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
         if (active) {
             Spacer(Modifier.height(4.dp))
             Box(modifier = Modifier.size(4.dp).background(RideGreen, CircleShape))
         }
+    }
+}
+
+@Composable
+fun SystemStatusRow(label: String, isActive: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    if (isActive) SignalGreen else SignalRed,
+                    CircleShape
+                )
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            color = TextPrimary,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            if (isActive) "Active" else "Inactive",
+            color = if (isActive) SignalGreen else SignalRed,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

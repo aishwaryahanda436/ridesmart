@@ -12,7 +12,8 @@ class RapidoParser : IPlatformParser {
         private const val TAG = "RideSmart"
 
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
-        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*k?m""", RegexOption.IGNORE_CASE)
+        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
+        private val METRES_REGEX = Regex("""(\d+)\s*m\b(?!in)""", RegexOption.IGNORE_CASE)
         private val MIN_REGEX  = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BOOST_REGEX = Regex("""\+\s*₹\s*(\d+(?:\.\d{1,2})?)""")
 
@@ -79,7 +80,7 @@ class RapidoParser : IPlatformParser {
         var durationMin = 0
         var paymentType = ""
         val addressCandidates = mutableListOf<String>()
-        val allKmValues = mutableListOf<Pair<Int, Double>>() // (nodeIndex, value)
+        val allKmValues = mutableListOf<Triple<Int, Double, Boolean>>() // (nodeIndex, value, isMetresDerived)
 
         for (i in activeNodes.indices) {
             val node = activeNodes[i]
@@ -117,9 +118,17 @@ class RapidoParser : IPlatformParser {
                 FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { tipAmount = it }
             }
 
-            // Distance
-            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
-                allKmValues.add(Pair(i, it))
+            // Distance — km first, then metres (converted to km)
+            val kmMatch = KM_REGEX.find(node)
+            if (kmMatch != null) {
+                kmMatch.groupValues[1].toDoubleOrNull()?.let {
+                    allKmValues.add(Triple(i, it, false))
+                }
+            } else if (!MIN_REGEX.containsMatchIn(node)) {
+                // Only try metres if not already matched as km or min
+                METRES_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                    allKmValues.add(Triple(i, it / 1000.0, true))
+                }
             }
 
             // Duration
@@ -147,9 +156,17 @@ class RapidoParser : IPlatformParser {
         if (baseFare == 0.0) return null
 
         // ── DISTANCE RESOLUTION ───────────────────────────────────────────
-        val kmValues = allKmValues
-            .filter { (idx, _) -> idx >= (if (fareIndex > 0) fareIndex else 0) || idx == 0 } // km might be at top
-            .map { (_, v) -> v }
+        val relevantValues = allKmValues
+            .filter { (idx, _, _) -> idx >= (if (fareIndex > 0) fareIndex else 0) || idx == 0 }
+            .sortedBy { (idx, _, _) -> idx }
+
+        // Prefer km-native values over metres-derived; only mix when fewer than 2 km-native values
+        val kmNative = relevantValues.filter { !it.third }
+        val kmValues = if (kmNative.size >= 2) {
+            kmNative.map { it.second }
+        } else {
+            relevantValues.map { it.second }
+        }
 
         var pickupDistanceKm = 0.0
         var rideDistanceKm   = 0.0
@@ -164,6 +181,15 @@ class RapidoParser : IPlatformParser {
             val tmp = pickupDistanceKm
             pickupDistanceKm = rideDistanceKm
             rideDistanceKm = tmp
+        }
+
+        // ── SANITY CHECK: reject unrealistic fare-per-km ────────────────
+        if (rideDistanceKm > 0.0) {
+            val farePerKm = baseFare / rideDistanceKm
+            if (farePerKm > 80.0) {
+                Log.d(TAG, "🚫 Rapido: fare-per-km ₹${"%.1f".format(farePerKm)}/km exceeds ₹80 threshold — rejecting")
+                return null
+            }
         }
 
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
@@ -187,8 +213,7 @@ class RapidoParser : IPlatformParser {
             paymentType          = paymentType,
             vehicleType          = vehicleType,
             screenState          = screenState,
-            bonus                = premiumAmount,
-            fare                 = baseFare + premiumAmount
+            bonus                = premiumAmount
         )
     }
 

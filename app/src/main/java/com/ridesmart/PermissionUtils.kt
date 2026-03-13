@@ -7,7 +7,7 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 
 fun isAccessibilityServiceEnabled(context: Context): Boolean {
-    val expectedComponentName = "${context.packageName}/${context.packageName}.service.RideSmartAccessibilityService"
+    val expectedComponentName = "${context.packageName}/${context.packageName}.service.RideSmartService"
     val enabledServices = Settings.Secure.getString(
         context.contentResolver,
         Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
