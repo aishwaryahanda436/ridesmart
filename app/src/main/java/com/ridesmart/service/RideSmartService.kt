@@ -101,6 +101,7 @@ class RideSmartService : AccessibilityService() {
 
     private data class PlatformState(
         var lastFare: Float = 0f,
+        var lastRideDistance: Double = 0.0,
         var lastRideTime: Long = 0L,
         var lastProcessedText: String = "",
         var lastShownSmartScore: Double = Double.MIN_VALUE,
@@ -513,6 +514,7 @@ class RideSmartService : AccessibilityService() {
         if (parsedRide.baseFare.toFloat() == state.lastFare && now - state.lastRideTime < 3000L) return
 
         state.lastFare = parsedRide.baseFare.toFloat()
+        state.lastRideDistance = parsedRide.rideDistanceKm
         state.lastRideTime = now
 
         val profile = repository.profileFlow.first()
@@ -544,6 +546,7 @@ class RideSmartService : AccessibilityService() {
                 
                 state.lastShownSmartScore = currentScore
                 state.lastFare = parsedRide.baseFare.toFloat()
+                state.lastRideDistance = parsedRide.rideDistanceKm
                 state.lastRideTime = System.currentTimeMillis()
 
                 if (normalizePlatform(pkg) == "uber") {
@@ -628,6 +631,7 @@ class RideSmartService : AccessibilityService() {
         val now = System.currentTimeMillis()
 
         val sameFareTooSoon = bestRide.baseFare.toFloat() == state.lastFare &&
+                              bestRide.rideDistanceKm == state.lastRideDistance &&
                               now - state.lastRideTime < SAME_FARE_COOLDOWN_MS
         if (sameFareTooSoon) {
             Log.d(TAG, "Duplicate fare suppressed for $packageName")
@@ -650,6 +654,7 @@ class RideSmartService : AccessibilityService() {
             "signal=${bestResult.signal}")
 
         state.lastFare = bestRide.baseFare.toFloat()
+        state.lastRideDistance = bestRide.rideDistanceKm
         state.lastRideTime = now
         state.lastShownSmartScore = currentScore
 
@@ -723,7 +728,7 @@ class RideSmartService : AccessibilityService() {
         }
 
         val currentPkg = recentForegroundPackage
-        if (currentPkg != "com.ubercab.driver") {
+        if (currentPkg != "com.ubercab.driver" && currentPkg != "com.ubercab") {
             isScreenshotProcessing.set(false)
             Log.d(TAG, "⏭ Skipping Uber OCR — foreground is $currentPkg")
             return

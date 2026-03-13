@@ -166,6 +166,15 @@ class RapidoParser : IPlatformParser {
             rideDistanceKm = tmp
         }
 
+        // ── SANITY CHECK: reject unrealistic fare-per-km ────────────────
+        if (rideDistanceKm > 0.0) {
+            val farePerKm = baseFare / rideDistanceKm
+            if (farePerKm > 80.0) {
+                Log.d(TAG, "🚫 Rapido: fare-per-km ₹${"%.1f".format(farePerKm)}/km exceeds ₹80 threshold — rejecting")
+                return null
+            }
+        }
+
         val pickupAddress = addressCandidates.getOrElse(0) { "" }
         val dropAddress   = addressCandidates.getOrElse(1) { "" }
 

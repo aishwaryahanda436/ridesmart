@@ -46,7 +46,7 @@ class RideDataParserTest {
         val result = parser.parse(nodes, "com.ubercab.driver")
 
         assertNotNull("Should detect Uber ride popup", result)
-        assertEquals("com.ubercab.driver", result!!.platform)
+        assertEquals("Uber", result!!.platform)
         assertEquals("Base fare", 74.0, result.baseFare, 0.01)
         assertEquals("Ride distance", 7.4, result.rideDistanceKm, 0.01)
         assertEquals("Pickup distance", 1.4, result.pickupDistanceKm, 0.01)
@@ -89,7 +89,7 @@ class RideDataParserTest {
         val result = parser.parse(nodes, "com.rapido.rider")
 
         assertNotNull("Should detect Rapido ride popup", result)
-        assertEquals("com.rapido.rider", result!!.platform)
+        assertEquals("Rapido", result!!.platform)
         assertEquals("Base fare", 37.0, result.baseFare, 0.01)
         assertEquals("Ride distance = larger km", 5.2, result.rideDistanceKm, 0.01)
         assertEquals("Pickup distance = smaller km", 1.1, result.pickupDistanceKm, 0.01)
