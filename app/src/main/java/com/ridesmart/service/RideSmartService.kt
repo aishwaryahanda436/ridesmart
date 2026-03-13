@@ -76,9 +76,9 @@ class RideSmartService : AccessibilityService() {
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
         
-        // Increased from 8 → 12 to handle Jetpack Compose trees (deeper nesting)
+        // Increased from 8 → 16 to handle Jetpack Compose trees (typically 12-18 nodes deep)
         // and RecyclerView/LazyColumn list containers.
-        private const val MAX_TREE_DEPTH         = 12
+        private const val MAX_TREE_DEPTH         = 16
 
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
 
@@ -412,7 +412,7 @@ class RideSmartService : AccessibilityService() {
 
             val isRideApp = pkg in SUPPORTED_PACKAGES
             val isRideNotification = (title.contains("Ride", ignoreCase = true) || text.contains("₹")) &&
-                                     pkg.contains("rapido", ignoreCase = true)
+                                     normalizePlatform(pkg) == "rapido"
             
             if (isRideApp || isRideNotification) {
                 Log.d(TAG, "🔔 NOTIFICATION: pkg=$pkg title=\"$title\" text=\"$text\"")
