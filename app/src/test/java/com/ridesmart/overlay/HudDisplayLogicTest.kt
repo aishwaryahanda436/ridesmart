@@ -114,10 +114,17 @@ class HudDisplayLogicTest {
     // ── SIGNAL RECOMMENDATION MAPPING ───────────────────────────────────
 
     @Test
-    fun `GREEN signal maps to TAKE IT recommendation`() {
-        val (emoji, label) = signalToRecommendation(Signal.GREEN)
+    fun `GREEN signal with high earningPerKm maps to TAKE IT`() {
+        val (emoji, label) = signalToRecommendation(Signal.GREEN, earningPerKm = 14.0)
         assertEquals("🟢", emoji)
         assertEquals("TAKE IT", label)
+    }
+
+    @Test
+    fun `GREEN signal with moderate earningPerKm maps to GOOD`() {
+        val (emoji, label) = signalToRecommendation(Signal.GREEN, earningPerKm = 7.0)
+        assertEquals("👍", emoji)
+        assertEquals("GOOD", label)
     }
 
     @Test
@@ -179,8 +186,8 @@ class HudDisplayLogicTest {
 
     // ── HELPER FUNCTIONS (mirror HudOverlayManager logic) ───────────────
 
-    private fun signalToRecommendation(signal: Signal): Pair<String, String> = when (signal) {
-        Signal.GREEN  -> "🟢" to "TAKE IT"
+    private fun signalToRecommendation(signal: Signal, earningPerKm: Double = 14.0): Pair<String, String> = when (signal) {
+        Signal.GREEN  -> if (earningPerKm >= 10.0) "🟢" to "TAKE IT" else "👍" to "GOOD"
         Signal.YELLOW -> "🟡" to "OK"
         Signal.RED    -> "🔴" to "SKIP"
     }

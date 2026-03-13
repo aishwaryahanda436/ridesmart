@@ -602,15 +602,16 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
                 overlayManager.showResult(
-                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
                 )
                 hudOverlayManager.showResult(
-                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen
                 )
                 
@@ -730,15 +731,16 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
                 overlayManager.showResult(
-                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
                 )
                 hudOverlayManager.showResult(
-                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen
                 )
                 if (isUber) {

@@ -73,7 +73,7 @@ class HudOverlayManager(private val context: Context) {
      *
      * If the HUD is already visible:
      * - If [result] has higher profit than the current best, the HUD updates in place.
-     * - The dismiss timer resets (the timer does NOT restart; it extends from last detection).
+     * - The dismiss timer resets (cancels the old timer and starts a fresh countdown).
      *
      * @param result              The evaluated ride to display.
      * @param totalRidesConsidered Number of rides seen in the current session.
@@ -114,8 +114,8 @@ class HudOverlayManager(private val context: Context) {
                 view.startAnimation(slideIn)
             }
 
-            // Vibrate briefly for highly profitable rides
-            if (result.signal == Signal.GREEN) {
+            // Vibrate briefly for highly profitable rides (TAKE IT only)
+            if (result.signal == Signal.GREEN && result.earningPerKm >= 10.0) {
                 vibrateShort()
             }
 
@@ -155,11 +155,19 @@ class HudOverlayManager(private val context: Context) {
         val platform = PlatformConfig.get(parsedRide.packageName)
 
         // Signal-based background and colors
-        val (signalEmoji, signalLabel, bgDrawable, signalColor) = when (result.signal) {
-            Signal.GREEN  -> SignalInfo("🟢", "TAKE IT",  R.drawable.hud_card_green,  ContextCompat.getColor(context, R.color.signal_green))
-            Signal.YELLOW -> SignalInfo("🟡", "OK",       R.drawable.hud_card_yellow, ContextCompat.getColor(context, R.color.signal_yellow))
-            Signal.RED    -> SignalInfo("🔴", "SKIP",     R.drawable.hud_card_red,    ContextCompat.getColor(context, R.color.signal_red))
+        // GREEN is split into TAKE IT (high profit) and GOOD (moderate profit)
+        val signalInfo = when (result.signal) {
+            Signal.GREEN -> {
+                if (result.earningPerKm >= 10.0) {
+                    SignalInfo("🟢", "TAKE IT", R.drawable.hud_card_green, ContextCompat.getColor(context, R.color.signal_green))
+                } else {
+                    SignalInfo("👍", "GOOD", R.drawable.hud_card_green, ContextCompat.getColor(context, R.color.signal_green))
+                }
+            }
+            Signal.YELLOW -> SignalInfo("🟡", "OK", R.drawable.hud_card_yellow, ContextCompat.getColor(context, R.color.signal_yellow))
+            Signal.RED    -> SignalInfo("🔴", "SKIP", R.drawable.hud_card_red, ContextCompat.getColor(context, R.color.signal_red))
         }
+        val (signalEmoji, signalLabel, bgDrawable, signalColor) = signalInfo
 
         // Card background
         view.findViewById<LinearLayout>(R.id.hud_root)
