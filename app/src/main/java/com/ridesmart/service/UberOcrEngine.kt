@@ -28,7 +28,6 @@ class UberOcrEngine : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val OFFER_CROP_RATIO = 0.60
         private const val MIN_OFFER_SIGNALS = 2
 
         // Screen-level rejection phrases (not an offer card)
@@ -192,6 +191,7 @@ class UberOcrEngine : IPlatformParser {
         // Target the top area of the bottom sheet where fare is displayed.
         val fareBitmap = crop(bitmap, 0.00, 0.55, 1.00, 0.72)
         val fareText = extractText(fareBitmap) ?: ""
+        Log.d(TAG, "UberOCR_FARE: $fareText")
         val fare = extractFare(fareText.lines()) ?: return null
         
         // Validation: reject implausible fares from phantom OCR reads
@@ -203,7 +203,7 @@ class UberOcrEngine : IPlatformParser {
         // CROP 2: Distance/Time Rows — mid section of the bottom sheet
         val distanceBitmap = crop(bitmap, 0.00, 0.68, 1.00, 0.82)
         val distanceOcrText = extractText(distanceBitmap) ?: ""
-        Log.d(TAG, "🔍 UberOCR raw distance text: $distanceOcrText")
+        Log.d(TAG, "UberOCR_DIST: $distanceOcrText")
         
         val distTimeRegex = Regex("""(\d+)\s*min\s*(?:\(([\d.]+)\s*km\))?""", RegexOption.IGNORE_CASE)
         val matches = distTimeRegex.findAll(distanceOcrText).toList()
@@ -228,6 +228,7 @@ class UberOcrEngine : IPlatformParser {
         // CROP 3: Addresses & Rating — lower area of the bottom sheet
         val detailsBitmap = crop(bitmap, 0.00, 0.75, 1.00, 0.95)
         val detailsText = extractText(detailsBitmap) ?: ""
+        Log.d(TAG, "UberOCR_DETAILS: $detailsText")
         val lines = detailsText.lines()
         
         val rating = extractRating(ratingLines = lines)
