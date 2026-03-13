@@ -29,6 +29,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.ProfitResult
 import com.ridesmart.model.RideResult
+import com.ridesmart.overlay.HudOverlayManager
 import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.ParserFactory
 import com.ridesmart.parser.UberNotificationParser
@@ -93,6 +94,7 @@ class RideSmartService : AccessibilityService() {
     private lateinit var historyRepository: RideHistoryRepository
     private lateinit var remoteConfig: RemoteConfigRepository
     private lateinit var overlayManager: OverlayManager
+    private lateinit var hudOverlayManager: HudOverlayManager
     private val uberOcrEngine by lazy { UberOcrEngine() }
 
     // Stage 1 & 2 Isolation: Dedicated Pipeline Context (Spec v2.0 Section 8.3)
@@ -205,6 +207,11 @@ class RideSmartService : AccessibilityService() {
                     uberScreenshotJob?.cancel()
                     uberScreenshotJob = null
                 }
+            }
+        }
+        hudOverlayManager = HudOverlayManager(this).apply {
+            onDismiss = {
+                Log.d(TAG, "HUD dismissed — resetting best tracker")
             }
         }
 
@@ -595,12 +602,17 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
                 overlayManager.showResult(
-                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
+                )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
                 )
                 
                 state.lastShownSmartScore = currentScore
@@ -719,12 +731,17 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                val rideResult = RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
                 overlayManager.showResult(
-                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
+                )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
                 )
                 if (isUber) {
                     uberOfferActiveMs = System.currentTimeMillis()
@@ -942,6 +959,7 @@ class RideSmartService : AccessibilityService() {
         screenshotExecutor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         overlayManager.dismiss()
+        hudOverlayManager.dismiss()
         serviceScope.cancel()
         super.onDestroy()
     }
