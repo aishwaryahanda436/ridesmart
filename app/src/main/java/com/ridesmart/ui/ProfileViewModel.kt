@@ -43,6 +43,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     val paymentModel: StateFlow<String> = repository.paymentModelFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "commission")
 
+    val dailyPassCost: StateFlow<Double> = repository.dailyPassCostFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val rentalCost: StateFlow<Double> = repository.rentalCostFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
     // Save driver profile (Step 2)
     fun saveDriverProfile(name: String, platforms: Set<String>) {
         viewModelScope.launch {

@@ -29,16 +29,18 @@ fun PlatformPaymentScreen(
 ) {
     val savedModel by viewModel.paymentModel.collectAsState()
     val savedProfile by viewModel.profile.collectAsState()
+    val savedDailyPassCost by viewModel.dailyPassCost.collectAsState()
+    val savedRentalCost by viewModel.rentalCost.collectAsState()
 
     var selectedModel by remember(savedModel) { mutableStateOf(savedModel) }
     var commissionPercent by remember(savedProfile) {
         mutableStateOf(savedProfile.platformCommissionPercent.toString())
     }
-    var dailyPassCost by remember(savedProfile) {
-        mutableStateOf(savedProfile.subscriptionDailyCost.toString())
+    var dailyPassCost by remember(savedDailyPassCost) {
+        mutableStateOf(savedDailyPassCost.toString())
     }
-    var rentalCost by remember(savedProfile) {
-        mutableStateOf(savedProfile.subscriptionDailyCost.toString())
+    var rentalCost by remember(savedRentalCost) {
+        mutableStateOf(savedRentalCost.toString())
     }
     var errorMessage by remember { mutableStateOf("") }
 
