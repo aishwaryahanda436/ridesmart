@@ -511,7 +511,9 @@ class RideSmartService : AccessibilityService() {
 
         val state = stateFor(pkg)
         val now = System.currentTimeMillis()
-        if (parsedRide.baseFare.toFloat() == state.lastFare && now - state.lastRideTime < 3000L) return
+        if (parsedRide.baseFare.toFloat() == state.lastFare &&
+            kotlin.math.abs(parsedRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
+            now - state.lastRideTime < 3000L) return
 
         state.lastFare = parsedRide.baseFare.toFloat()
         state.lastRideDistance = parsedRide.rideDistanceKm
@@ -631,7 +633,7 @@ class RideSmartService : AccessibilityService() {
         val now = System.currentTimeMillis()
 
         val sameFareTooSoon = bestRide.baseFare.toFloat() == state.lastFare &&
-                              bestRide.rideDistanceKm == state.lastRideDistance &&
+                              kotlin.math.abs(bestRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
                               now - state.lastRideTime < SAME_FARE_COOLDOWN_MS
         if (sameFareTooSoon) {
             Log.d(TAG, "Duplicate fare suppressed for $packageName")
