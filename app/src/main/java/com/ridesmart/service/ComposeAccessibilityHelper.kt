@@ -34,8 +34,11 @@ object ComposeAccessibilityHelper {
     /**
      * Detects whether the accessibility tree appears to be from a Compose UI.
      *
-     * Heuristic: If most visible nodes have className "android.view.View"
+     * Heuristic: If >70% of visible nodes have className "android.view.View"
      * and lack standard Android widget class names, it's likely Compose.
+     * The 70% threshold and minimum of 5 nodes were chosen empirically to
+     * avoid false positives on small trees or traditional View hierarchies
+     * that happen to contain a few generic View containers.
      */
     fun isComposeTree(root: AccessibilityNodeInfo): Boolean {
         var genericViewCount = 0

@@ -49,6 +49,9 @@ object ListRideDetector {
     // Minimum signals to consider a card group as a ride offer
     private const val MIN_CARD_SIGNALS = 1
 
+    /** Lightweight holder for text with screen bounds. */
+    private data class TextWithBounds(val text: String, val bounds: Rect)
+
     /**
      * Scans the accessibility tree for list containers and extracts
      * individual ride card text groups.
@@ -149,8 +152,6 @@ object ListRideDetector {
      * Used when list children don't correspond to individual ride cards.
      */
     private fun extractCardsBySpatialGrouping(listNode: AccessibilityNodeInfo): List<List<String>> {
-        data class TextWithBounds(val text: String, val bounds: Rect)
-
         val allTexts = mutableListOf<TextWithBounds>()
         collectTextWithBounds(listNode, allTexts, depth = 0)
 
@@ -206,7 +207,7 @@ object ListRideDetector {
      */
     private fun collectTextWithBounds(
         node: AccessibilityNodeInfo,
-        results: MutableList<Any>,
+        results: MutableList<TextWithBounds>,
         depth: Int
     ) {
         if (depth > 8) return
@@ -218,11 +219,7 @@ object ListRideDetector {
         if (!text.isNullOrBlank()) {
             val rect = Rect()
             node.getBoundsInScreen(rect)
-            @Suppress("UNCHECKED_CAST")
-            (results as MutableList<Any>).add(object {
-                val text = text
-                val bounds = rect
-            })
+            results.add(TextWithBounds(text, rect))
         }
 
         for (i in 0 until node.childCount) {
