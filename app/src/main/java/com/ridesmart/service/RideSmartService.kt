@@ -324,6 +324,8 @@ class RideSmartService : AccessibilityService() {
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot after settle delay")
                 // Delay to let bottom sheet animation settle before screenshot/node collection.
                 // Without this, isVisibleToUser may report false for nodes still animating in.
+                // 120ms covers Uber's standard bottom sheet entrance animation (~100ms)
+                // while staying under 150ms to avoid missing short-lived offers.
                 serviceScope.launch(Dispatchers.Main) {
                     delay(120L)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

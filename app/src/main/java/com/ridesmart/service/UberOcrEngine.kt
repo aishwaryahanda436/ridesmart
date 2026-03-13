@@ -188,7 +188,7 @@ class UberOcrEngine : IPlatformParser {
     }
 
     suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        // CROP 1: Fare Row — Uber popup is a bottom sheet occupying ~bottom 40% of screen.
+        // CROP 1: Fare Row — Uber popup is a bottom sheet occupying ~bottom 45% of screen.
         // Target the top area of the bottom sheet where fare is displayed.
         val fareBitmap = crop(bitmap, 0.00, 0.55, 1.00, 0.72)
         val fareText = extractText(fareBitmap) ?: ""
