@@ -226,4 +226,30 @@ class UberOcrEngineTest {
         val nodes = listOf("See all requests", "₹100", "5 km")
         assertTrue("Should detect see all requests + fare", engine.hasOfferSignals(nodes))
     }
+
+    // ── BUG 2: Compose clearAndSetSemantics merged node ──────────────
+
+    @Test
+    fun `compose merged node with fare and no identifiers parses successfully`() {
+        // Uber uses clearAndSetSemantics in Compose: single merged node with no "match"/"confirm"
+        val nodes = listOf("₹120 · 3.2 km · 12 min · 1.5 km away")
+        val result = engine.parseFromNodes(nodes)
+        assertNotNull("Compose-merged node with ₹ fare should pass identifier guard", result)
+        assertEquals("Fare", 120.0, result!!.baseFare, 0.01)
+    }
+
+    @Test
+    fun `compose merged node with Rs prefix and no identifiers parses successfully`() {
+        val nodes = listOf("Rs.95 · 5.0 km · 15 min · 2.0 km away")
+        val result = engine.parseFromNodes(nodes)
+        assertNotNull("Compose-merged node with Rs. fare should pass identifier guard", result)
+        assertEquals("Fare", 95.0, result!!.baseFare, 0.01)
+    }
+
+    @Test
+    fun `node without fare signal and without identifiers returns null`() {
+        val nodes = listOf("3.2 km · 12 min · 1.5 km away")
+        val result = engine.parseFromNodes(nodes)
+        assertNull("Node without fare signal and identifiers should return null", result)
+    }
 }
