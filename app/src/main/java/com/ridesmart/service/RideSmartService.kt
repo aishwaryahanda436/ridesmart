@@ -106,7 +106,7 @@ class RideSmartService : AccessibilityService() {
         var lastShownSmartScore: Double = Double.MIN_VALUE,
         val sessionCache: RideSessionCache = RideSessionCache()
     )
-    private val platformStates = mutableMapOf<String, PlatformState>()
+    private val platformStates = java.util.concurrent.ConcurrentHashMap<String, PlatformState>()
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
         return platformStates.getOrPut(key) {
@@ -348,10 +348,8 @@ class RideSmartService : AccessibilityService() {
                 }
                 return
             }
-        }
 
-        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            val pkg = event.packageName?.toString() ?: ""
+            // Non-Uber ride app notifications
             val notification = event.parcelableData as? Notification
             val extras = notification?.extras
             val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
@@ -359,7 +357,7 @@ class RideSmartService : AccessibilityService() {
 
             val isRideApp = pkg in SUPPORTED_PACKAGES
             val isRideNotification = (title.contains("Ride", ignoreCase = true) || text.contains("₹")) &&
-                                     (pkg.contains("rapido", ignoreCase = true) || pkg.contains("uber", ignoreCase = true))
+                                     pkg.contains("rapido", ignoreCase = true)
             
             if (isRideApp || isRideNotification) {
                 Log.d(TAG, "🔔 NOTIFICATION: pkg=$pkg title=\"$title\" text=\"$text\"")

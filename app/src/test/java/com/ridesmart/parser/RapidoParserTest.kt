@@ -241,4 +241,26 @@ class RapidoParserTest {
         assertTrue("Should return multiple rides for multiple cards", results.size >= 1)
     }
 
+    // ── Edge case: KM_REGEX should not match "min" as distance ──────
+
+    @Test
+    fun `node with min only does not register as km distance`() {
+        // This test validates the fix for KM_REGEX matching "5 min" as "5 km"
+        val nodes = listOf("₹80", "Accept", "12 min")
+        // "12 min" should be detected as time, not as distance
+        val state = parser.detectScreenState(nodes)
+        // Without km data, should be OFFER_LOADING not OFFER_LOADED
+        assertEquals(ScreenState.OFFER_LOADING, state)
+    }
+
+    @Test
+    fun `ride with min-only nodes does not parse incorrect km values`() {
+        val nodes = listOf("₹80", "Accept", "15 min", "Sector 18 to Connaught Place")
+        val ride = parser.parseExpandedCard(nodes, "com.rapido.rider")
+        // Should parse fare but distance should be 0 since only "min" was present
+        assertNotNull(ride)
+        assertEquals(80.0, ride!!.baseFare, 0.01)
+        assertEquals(0.0, ride.rideDistanceKm, 0.01)
+    }
+
 }
