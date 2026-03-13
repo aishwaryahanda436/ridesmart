@@ -12,7 +12,7 @@ class RapidoParser : IPlatformParser {
         private const val TAG = "RideSmart"
 
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
-        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*k?m""", RegexOption.IGNORE_CASE)
+        private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
         private val MIN_REGEX  = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BOOST_REGEX = Regex("""\+\s*₹\s*(\d+(?:\.\d{1,2})?)""")
 

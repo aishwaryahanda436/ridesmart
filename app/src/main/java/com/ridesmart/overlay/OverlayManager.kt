@@ -227,16 +227,19 @@ class OverlayManager(private val context: Context) {
         }
     }
 
+    @Suppress("DEPRECATION")
+    private val wakeLock: PowerManager.WakeLock by lazy {
+        powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+            PowerManager.ON_AFTER_RELEASE,
+            "RideSmart::OverlayWake"
+        ).apply { setReferenceCounted(false) }
+    }
+
     private fun wakeScreen() {
         if (!powerManager.isInteractive) {
-            @Suppress("DEPRECATION")
-            val wl = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-                PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                PowerManager.ON_AFTER_RELEASE,
-                "RideSmart::OverlayWake"
-            )
-            wl.acquire(15_000L)
+            wakeLock.acquire(15_000L)
         }
     }
 

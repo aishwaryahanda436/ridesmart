@@ -876,4 +876,43 @@ class ProfitCalculatorTest {
                 resultLow.efficiencyScore > resultHigh.efficiencyScore)
         }
     }
+
+    // ── INPUT VALIDATION TESTS ──────────────────────────────────────
+
+    @Test
+    fun `negative baseFare is clamped to zero`() {
+        val ride = ParsedRide(
+            baseFare = -50.0, rideDistanceKm = 5.0, pickupDistanceKm = 1.0,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+        // With zero fare, net profit should be negative (costs exist)
+        assertTrue("totalFare should be clamped to 0", result.totalFare >= 0.0)
+        assertTrue("netProfit should be negative with zero fare", result.netProfit <= 0.0)
+    }
+
+    @Test
+    fun `negative distances are clamped to zero`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = -3.0, pickupDistanceKm = -2.0,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+        // With zero distances, fuel cost should be zero
+        assertEquals("fuelCost should be 0 with zero distance", 0.0, result.fuelCost, 0.01)
+        assertEquals("wearCost should be 0 with zero distance", 0.0, result.wearCost, 0.01)
+        assertEquals("pickupRatio should be 0 with zero ride distance", 0.0, result.pickupRatio, 0.01)
+    }
+
+    @Test
+    fun `negative tip and bonus are clamped to zero`() {
+        val ride = ParsedRide(
+            baseFare = 80.0, rideDistanceKm = 5.0, pickupDistanceKm = 1.0,
+            tipAmount = -10.0, bonus = -20.0,
+            packageName = "com.rapido.rider"
+        )
+        val result = calculator.calculate(ride, profile, 12)
+        // Total fare should only include base fare (tip/bonus clamped to 0)
+        assertEquals("totalFare should be baseFare only", 80.0, result.totalFare, 0.01)
+    }
 }

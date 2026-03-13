@@ -23,7 +23,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Ridesmart"
-        android:isAccessibilityTool="false">
+        android:isAccessibilityTool="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
