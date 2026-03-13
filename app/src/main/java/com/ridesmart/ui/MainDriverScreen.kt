@@ -1,6 +1,7 @@
 package com.ridesmart.ui
 
 import android.content.Context
+import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridesmart.data.ProfileRepository
 import com.ridesmart.data.RideEntry
 import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.isAccessibilityServiceEnabled
@@ -44,7 +46,9 @@ fun MainDriverScreen(
 ) {
     val context = LocalContext.current
     val repo = remember { RideHistoryRepository(context) }
+    val profileRepo = remember { ProfileRepository(context) }
     val history by repo.historyFlow.collectAsState(initial = emptyList())
+    val driverName by profileRepo.driverNameFlow.collectAsState(initial = "")
     val isServiceActive = remember(Unit) { isAccessibilityServiceEnabled(context) }
     val isOverlayGranted = remember(Unit) { Settings.canDrawOverlays(context) }
 
@@ -97,7 +101,7 @@ fun MainDriverScreen(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        "Captain",
+                        driverName.ifBlank { "Captain" },
                         color = Color.White,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
@@ -138,6 +142,24 @@ fun MainDriverScreen(
                     SystemStatusRow("OCR Engine", true) // OCR via ML Kit is always available
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── MONITORING CONTROLS ──
+            Text(
+                "MONITORING",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.height(12.dp))
+
+            MonitoringButtons(
+                isServiceActive = isServiceActive,
+                context = context,
+                onNavigatePermissions = onNavigatePermissions
+            )
 
             Spacer(Modifier.height(24.dp))
 
@@ -247,6 +269,82 @@ fun StatusBadge(isActive: Boolean, onClick: () -> Unit) {
                 fontSize = 12.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun MonitoringButtons(
+    isServiceActive: Boolean,
+    context: Context,
+    onNavigatePermissions: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = {
+                if (!isServiceActive) {
+                    onNavigatePermissions()
+                }
+            },
+            enabled = !isServiceActive,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = RideGreen,
+                disabledContainerColor = RideGreen.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Start Monitoring",
+                color = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        OutlinedButton(
+            onClick = {
+                if (isServiceActive) {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+            },
+            enabled = isServiceActive,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = SignalRed,
+                disabledContentColor = TextMuted
+            ),
+            border = BorderStroke(
+                1.dp,
+                if (isServiceActive) SignalRed.copy(alpha = 0.5f) else DarkBorder
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Stop,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Stop Monitoring",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
         }
     }
