@@ -8,6 +8,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -17,6 +18,7 @@ import com.ridesmart.R
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.RideResult
 import com.ridesmart.model.Signal
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class OverlayManager(private val context: Context) {
@@ -29,11 +31,13 @@ class OverlayManager(private val context: Context) {
 
     // One slot per platform — keyed by platform name e.g. "Rapido", "Uber"
     private val activeCards   = mutableMapOf<String, View>()
+    private val activeParams  = mutableMapOf<String, WindowManager.LayoutParams>()
     private val dismissTimers = mutableMapOf<String, Runnable>()
     private val activeAnimators = mutableMapOf<String, android.animation.ObjectAnimator>()
 
     private val AUTO_DISMISS_MS = 12_000L
     private val TAG = "RideSmart"
+    private val DRAG_THRESHOLD_PX = 10
 
     var onDismiss: ((String) -> Unit)? = null
 
@@ -61,6 +65,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
+            activeParams.remove(platform)
 
             // Wake screen
             wakeScreen()
@@ -73,12 +78,13 @@ class OverlayManager(private val context: Context) {
             // Position depends on platform
             val params = buildParams(packageName)
 
-            // Tap to dismiss THIS card only
-            view.setOnClickListener { dismissPlatform(platform) }
+            // Draggable + tap-to-dismiss touch handler
+            makeDraggable(view, params, platform)
 
             windowManager.addView(view, params)
 
             activeCards[platform] = view
+            activeParams[platform] = params
 
             Log.d(TAG, "📐 Overlay added: platform=$platform " +
                 "gravity=${if (PlatformConfig.get(packageName).displayName.equals("Uber", ignoreCase = true)) "TOP" else "BOTTOM"} " +
@@ -100,6 +106,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(cardToRemove) } catch (_: Exception) { }
                 if (activeCards[platform] === cardToRemove) {
                     activeCards.remove(platform)
+                    activeParams.remove(platform)
                     activeAnimators[platform]?.cancel()
                     activeAnimators.remove(platform)
                 }
@@ -109,6 +116,54 @@ class OverlayManager(private val context: Context) {
             }
             dismissTimers[platform] = runnable
             handler.postDelayed(runnable, AUTO_DISMISS_MS)
+        }
+    }
+
+    /**
+     * Attach a touch listener that allows dragging the overlay card,
+     * with tap-to-dismiss when the finger lifts without significant movement.
+     */
+    @Suppress("ClickableViewAccessibility")
+    private fun makeDraggable(view: View, params: WindowManager.LayoutParams, platform: String) {
+        var initialX = 0
+        var initialY = 0
+        var initialTouchX = 0f
+        var initialTouchY = 0f
+        var isDragging = false
+
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params.x
+                    initialY = params.y
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    isDragging = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isDragging) {
+                        val dx = event.rawX - initialTouchX
+                        val dy = event.rawY - initialTouchY
+                        if (abs(dx) > DRAG_THRESHOLD_PX || abs(dy) > DRAG_THRESHOLD_PX) {
+                            isDragging = true
+                        }
+                    }
+                    if (isDragging) {
+                        params.x = initialX + (event.rawX - initialTouchX).toInt()
+                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!isDragging) {
+                        dismissPlatform(platform)
+                    }
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -258,6 +313,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.remove(platform)
+            activeParams.remove(platform)
             Log.d(TAG, "👆 Dismissed by tap: platform=$platform remaining=${activeCards.keys}")
             onDismiss?.invoke(platform)
         }
@@ -274,6 +330,7 @@ class OverlayManager(private val context: Context) {
                 try { windowManager.removeView(it) } catch (_: Exception) { }
             }
             activeCards.clear()
+            activeParams.clear()
         }
     }
 

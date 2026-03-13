@@ -197,7 +197,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="TAP TO DISMISS"
+            android:text="TAP TO DISMISS · DRAG TO MOVE"
             android:textSize="8sp"
             android:textColor="@color/overlay_text_hint"
             android:gravity="center"
