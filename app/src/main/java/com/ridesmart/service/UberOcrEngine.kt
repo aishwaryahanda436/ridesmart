@@ -156,7 +156,8 @@ class UberOcrEngine : IPlatformParser {
         }
 
         val identifiers = listOf("uber", "requests", "match", "incentive", "premium", "upfront", "confirm", "cash payment")
-        if (identifiers.none { combinedRaw.contains(it) }) return null
+        val hasFareSignal = Regex("""(?:₹|Rs\.?)\s*\d+""").containsMatchIn(combinedRaw)
+        if (!hasFareSignal && identifiers.none { combinedRaw.contains(it) }) return null
 
         val fare = extractFare(lines) ?: return null
         val premium = extractPremium(lines)
@@ -187,8 +188,9 @@ class UberOcrEngine : IPlatformParser {
     }
 
     suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        // CROP 1: Fare Row (always top)
-        val fareBitmap = crop(bitmap, 0.00, 0.05, 0.90, 0.25)
+        // CROP 1: Fare Row — Uber popup is a bottom sheet occupying ~bottom 45% of screen.
+        // Target the top area of the bottom sheet where fare is displayed.
+        val fareBitmap = crop(bitmap, 0.00, 0.55, 1.00, 0.72)
         val fareText = extractText(fareBitmap) ?: ""
         val fare = extractFare(fareText.lines()) ?: return null
         
@@ -198,8 +200,8 @@ class UberOcrEngine : IPlatformParser {
             return null
         }
         
-        // CROP 2: Distance/Time Rows
-        val distanceBitmap = crop(bitmap, 0.00, 0.25, 0.80, 0.60)
+        // CROP 2: Distance/Time Rows — mid section of the bottom sheet
+        val distanceBitmap = crop(bitmap, 0.00, 0.68, 1.00, 0.82)
         val distanceOcrText = extractText(distanceBitmap) ?: ""
         Log.d(TAG, "🔍 UberOCR raw distance text: $distanceOcrText")
         
@@ -223,8 +225,8 @@ class UberOcrEngine : IPlatformParser {
             estimatedDurationMin = matches[0].groupValues[1].toIntOrNull() ?: 0
         }
 
-        // CROP 3: Addresses & Rating
-        val detailsBitmap = crop(bitmap, 0.00, 0.50, 1.00, 0.90)
+        // CROP 3: Addresses & Rating — lower area of the bottom sheet
+        val detailsBitmap = crop(bitmap, 0.00, 0.75, 1.00, 0.95)
         val detailsText = extractText(detailsBitmap) ?: ""
         val lines = detailsText.lines()
         

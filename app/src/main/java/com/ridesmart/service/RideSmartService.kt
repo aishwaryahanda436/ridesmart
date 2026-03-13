@@ -328,9 +328,16 @@ class RideSmartService : AccessibilityService() {
                 // Reset throttle/cooldown on window state change (new context)
                 lastUberContentChangedMs.set(0L)
                 lastOcrFallbackMs.set(0L)
-                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    triggerUberScreenshot()
+                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot after settle delay")
+                // Delay to let bottom sheet animation settle before screenshot/node collection.
+                // Without this, isVisibleToUser may report false for nodes still animating in.
+                // 120ms covers Uber's standard bottom sheet entrance animation (~100ms)
+                // while staying under 150ms to avoid missing short-lived offers.
+                serviceScope.launch(Dispatchers.Main) {
+                    delay(120L)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        triggerUberScreenshot()
+                    }
                 }
                 return
             }
@@ -407,6 +414,7 @@ class RideSmartService : AccessibilityService() {
         // Extraction happens on Main thread (this function is called from Main thread)
         val allNodes = mutableListOf<String>()
         var detectedPackage = pkg
+        val density = resources.displayMetrics.density
 
         data class WindowCandidate(
             val pkg: String,
@@ -424,10 +432,10 @@ class RideSmartService : AccessibilityService() {
                     
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(root, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
 
                     // Try card-level reconstruction for ride lists
-                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes)
+                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes, density)
                     val hasMultipleCards = cardGroups.size > 1
 
                     rawNodes.forEach { it.safeRecycle() }
@@ -491,7 +499,7 @@ class RideSmartService : AccessibilityService() {
                 try {
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(fallbackRoot, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
                     rawNodes.forEach { it.safeRecycle() }
 
                     if (reconstructedText.isNotEmpty()) {
