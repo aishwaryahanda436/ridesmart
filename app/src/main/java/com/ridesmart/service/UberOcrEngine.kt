@@ -85,16 +85,65 @@ class UberOcrEngine : IPlatformParser {
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
         if (SCREEN_REJECT.any { combined.contains(it) }) return ScreenState.IDLE
-        
+
         val hasFare = Regex("""(?:₹|Rs\.?)\s*(\d+)""").containsMatchIn(combined)
         val hasButton = combined.contains("match") || combined.contains("confirm") || combined.contains("accept")
-        
+
+        // Detect Trip Radar / ride list screens
+        val isTripRadar = combined.contains("trip radar") ||
+                          combined.contains("see all requests") ||
+                          combined.contains("opportunity")
+
+        if (isTripRadar && hasFare) return ScreenState.TRIP_RADAR
+
+        // Detect multiple fare signals → ride list
+        val fareCount = Regex("""(?:₹|Rs\.?)\s*\d+""").findAll(combined).count()
+        if (fareCount >= 2 && !hasButton) return ScreenState.RIDE_LIST
+
         return if (hasFare && hasButton) ScreenState.OFFER_LOADED else ScreenState.IDLE
     }
 
     override fun parseAll(nodes: List<String>, packageName: String): List<ParsedRide> {
+        val screenState = detectScreenState(nodes)
+
+        // For ride lists and Trip Radar, attempt multi-card parsing
+        if (screenState == ScreenState.RIDE_LIST || screenState == ScreenState.TRIP_RADAR) {
+            val rides = parseMultipleCards(nodes)
+            if (rides.isNotEmpty()) return rides
+        }
+
         val ride = parseFromNodes(nodes) ?: return emptyList()
         return listOf(ride)
+    }
+
+    /**
+     * Parses multiple ride cards from a ride list / Trip Radar screen.
+     * Splits nodes into card groups based on fare signal boundaries.
+     */
+    fun parseMultipleCards(lines: List<String>): List<ParsedRide> {
+        if (lines.isEmpty()) return emptyList()
+
+        // Strategy: Split lines into card groups at each fare signal boundary
+        val fareRegex = Regex("""(?:₹|Rs\.?)\s*\d+""")
+        val cards = mutableListOf<MutableList<String>>()
+        var currentCard = mutableListOf<String>()
+
+        for (line in lines) {
+            if (fareRegex.containsMatchIn(line) && currentCard.isNotEmpty()) {
+                // Check if current card already has a fare — start new card
+                val currentHasFare = currentCard.any { fareRegex.containsMatchIn(it) }
+                if (currentHasFare) {
+                    cards.add(currentCard)
+                    currentCard = mutableListOf()
+                }
+            }
+            currentCard.add(line)
+        }
+        if (currentCard.isNotEmpty()) cards.add(currentCard)
+
+        return cards.mapNotNull { cardLines ->
+            parseFromNodes(cardLines)
+        }
     }
 
     fun parseFromNodes(lines: List<String>): ParsedRide? {
@@ -208,6 +257,30 @@ class UberOcrEngine : IPlatformParser {
         )
     }
 
+    /**
+     * Parses a full screenshot for multiple ride cards (Trip Radar / ride list).
+     * Uses full-screen OCR and splits by fare signals to detect multiple offers.
+     */
+    suspend fun parseFullScreen(bitmap: Bitmap): List<ParsedRide> {
+        val fullText = extractText(bitmap) ?: return emptyList()
+        val lines = fullText.lines().filter { it.isNotBlank() }
+
+        if (lines.isEmpty()) return emptyList()
+
+        // Check if this looks like a multi-ride screen
+        val fareRegex = Regex("""(?:₹|Rs\.?)\s*\d+""")
+        val fareCount = lines.count { fareRegex.containsMatchIn(it) }
+
+        if (fareCount <= 1) {
+            // Single ride — delegate to normal parse
+            val ride = parse(bitmap) ?: return emptyList()
+            return listOf(ride)
+        }
+
+        // Multiple fares detected — split into card groups and parse each
+        return parseMultipleCards(lines)
+    }
+
     private fun crop(bitmap: Bitmap, left: Double, top: Double, right: Double, bottom: Double): Bitmap {
         val x = (bitmap.width * left).toInt()
         val y = (bitmap.height * top).toInt()
@@ -226,7 +299,8 @@ class UberOcrEngine : IPlatformParser {
             "₹", "rs.", "match", "confirm", "accept",
             "min", "km", "away", "trip", "request",
             "upfront", "incentive", "premium", "cash payment",
-            "pickup", "drop", "ride", "destination", "see all requests"
+            "pickup", "drop", "ride", "destination", "see all requests",
+            "trip radar", "opportunity", "stacked"
         )
         val matchCount = signals.count { combined.contains(it) }
 
