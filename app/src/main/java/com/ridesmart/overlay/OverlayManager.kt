@@ -12,6 +12,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.ridesmart.R
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.RideResult
@@ -146,9 +147,9 @@ class OverlayManager(private val context: Context) {
         val parsedRide = result.parsedRide
 
         val (_, accentColor, bodyBgColor) = when (result.signal) {
-            Signal.GREEN  -> Triple("ACCEPT",    0xFF16A34A.toInt(), 0xFF060F08.toInt())
-            Signal.YELLOW -> Triple("BORDERLINE", 0xFFCA8A04.toInt(), 0xFF100C00.toInt())
-            Signal.RED    -> Triple("SKIP",       0xFFDC2626.toInt(), 0xFF0F0303.toInt())
+            Signal.GREEN  -> Triple("ACCEPT",    ContextCompat.getColor(context, R.color.signal_green), 0xFF060F08.toInt())
+            Signal.YELLOW -> Triple("BORDERLINE", ContextCompat.getColor(context, R.color.signal_yellow), 0xFF100C00.toInt())
+            Signal.RED    -> Triple("SKIP",       ContextCompat.getColor(context, R.color.signal_red), 0xFF0F0303.toInt())
         }
 
         // Background and accent bar
@@ -211,9 +212,9 @@ class OverlayManager(private val context: Context) {
         // Pickup — color based on distance
         val pickupRatioPct = (result.pickupRatio * 100).roundToInt()
         val pickupColor = when {
-            pickupRatioPct <= 8  -> 0xFF3DDC84.toInt()
-            pickupRatioPct <= 18 -> 0xFFF9AB00.toInt()
-            else                 -> 0xFFDC2626.toInt()
+            pickupRatioPct <= 8  -> ContextCompat.getColor(context, R.color.signal_green)
+            pickupRatioPct <= 18 -> ContextCompat.getColor(context, R.color.signal_yellow)
+            else                 -> ContextCompat.getColor(context, R.color.signal_red)
         }
         view.findViewById<TextView>(R.id.tv_pickup_ratio).apply {
             text = "${"%.1f".format(parsedRide.pickupDistanceKm)}km ($pickupRatioPct%)"

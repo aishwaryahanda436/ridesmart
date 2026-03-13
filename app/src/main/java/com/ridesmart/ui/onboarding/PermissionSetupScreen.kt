@@ -192,14 +192,14 @@ fun PermissionCard(
             // Icon
             Surface(
                 modifier = Modifier.size(48.dp),
-                color = if (isGranted) SignalGreen.copy(alpha = 0.15f) else RideGreen.copy(alpha = 0.1f),
+                color = if (isGranted) RideGreen.copy(alpha = 0.15f) else RideGreen.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(
                         icon,
                         contentDescription = null,
-                        tint = if (isGranted) SignalGreen else RideGreen,
+                        tint = RideGreen,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -242,7 +242,7 @@ fun PermissionCard(
 
                 if (isGranted) {
                     Surface(
-                        color = SignalGreen.copy(alpha = 0.1f),
+                        color = RideGreen.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
@@ -253,10 +253,10 @@ fun PermissionCard(
                             Icon(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = SignalGreen,
+                                tint = RideGreen,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Text("Enabled", color = SignalGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Enabled", color = RideGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 } else {
