@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand & Action -->
+    <!-- Brand & Action (RideGreen name kept for backward compat; actual color is blue accent) -->
     <color name="ride_green">#FF3A86FF</color>
     <color name="ride_green_dark">#FF2A6AD8</color>
 
