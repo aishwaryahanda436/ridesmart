@@ -25,7 +25,7 @@ import com.ridesmart.isAccessibilityServiceEnabled
 import com.ridesmart.ui.theme.*
 
 @Composable
-fun PermissionSetupScreen(onContinue: () -> Unit) {
+fun PermissionSetupScreen(onContinue: () -> Unit, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
 
     var accessibilityGranted by remember { mutableStateOf(isAccessibilityServiceEnabled(context)) }
@@ -50,6 +50,14 @@ fun PermissionSetupScreen(onContinue: () -> Unit) {
                 .fillMaxWidth()
                 .padding(top = 56.dp, start = 24.dp, end = 24.dp)
         ) {
+            if (onBack != null) {
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 0.dp)
+                ) {
+                    Text("← Back", color = RideGreen, fontSize = 15.sp)
+                }
+            }
             Text(
                 "Permissions",
                 color = TextPrimary,
@@ -161,7 +169,11 @@ fun PermissionSetupScreen(onContinue: () -> Unit) {
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    if (requiredGranted) "Continue" else "Grant Required Permissions",
+                    when {
+                        !requiredGranted -> "Grant Required Permissions"
+                        onBack != null -> "Done"
+                        else -> "Continue"
+                    },
                     color = if (requiredGranted) Color.White else TextMuted,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp

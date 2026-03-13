@@ -74,7 +74,8 @@ fun MainDriverScreen(
             ModernBottomNav(
                 onHistory = onNavigateHistory,
                 onDashboard = onNavigateDashboard,
-                onSettings = onNavigateSettings
+                onSettings = onNavigateSettings,
+                onPermissions = onNavigatePermissions
             )
         }
     ) { padding ->
@@ -529,7 +530,8 @@ fun MetricItem(label: String, value: String, icon: ImageVector) {
 fun ModernBottomNav(
     onHistory: () -> Unit,
     onDashboard: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onPermissions: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -548,9 +550,10 @@ fun ModernBottomNav(
             verticalAlignment = Alignment.CenterVertically
         ) {
             NavIcon(Icons.Default.Home, "Home", true, {})
-            NavIcon(Icons.Default.BarChart, "Stats", false, onDashboard)
+            NavIcon(Icons.Default.BarChart, "Dashboard", false, onDashboard)
             NavIcon(Icons.Default.History, "History", false, onHistory)
-            NavIcon(Icons.Default.Settings, "Config", false, onSettings)
+            NavIcon(Icons.Default.Shield, "Permissions", false, onPermissions)
+            NavIcon(Icons.Default.Settings, "Settings", false, onSettings)
         }
     }
 }
@@ -563,7 +566,7 @@ fun NavIcon(icon: ImageVector, label: String, active: Boolean, onClick: () -> Un
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(12.dp)
+            .padding(horizontal = 8.dp, vertical = 10.dp)
     ) {
         Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
         if (active) {
