@@ -22,3 +22,4 @@ enum class FuelType {
     CNG,
     ELECTRIC
 }
+

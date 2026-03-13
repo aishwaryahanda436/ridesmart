@@ -17,3 +17,4 @@ data class RideResult(
     val signal: Signal,
     val failedChecks: List<String>
 )
+

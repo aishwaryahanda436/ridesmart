@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridesmart.ui.theme.DarkBackground
 import com.ridesmart.ui.theme.RideGreen
-import com.ridesmart.ui.theme.RideBlue
 import kotlinx.coroutines.delay
 
 /**
@@ -128,7 +127,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
             }
         }
-        
+
         // Version hint at bottom
         Text(
             text = "PRODUCTION READY",

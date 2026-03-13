@@ -6,3 +6,4 @@ enum class ScreenState {
     ACTIVE_RIDE,     // Driver is mid-ride — suppress all overlays
     IDLE             // Map screen, no offers visible
 }
+

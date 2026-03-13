@@ -5,3 +5,4 @@ enum class Signal {
     YELLOW,  // Some checks failed — borderline
     RED      // Most checks failed — skip this ride
 }
+

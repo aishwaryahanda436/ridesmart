@@ -5,7 +5,7 @@ package com.ridesmart.model
  * Set ONCE by the rider in the profile screen.
  * Used for EVERY ride calculation automatically.
  * 
- * Spec v2.0 Update: Added EV support and aligned with Indian market 2026 reference.
+ * Spec v3.0 Update: Added EV support, adaptive thresholds, and performance cache.
  */
 data class RiderProfile(
 
