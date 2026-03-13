@@ -29,6 +29,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.ProfitResult
 import com.ridesmart.model.RideResult
+import com.ridesmart.model.Signal
 import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.ParserFactory
 import com.ridesmart.parser.UberNotificationParser
@@ -46,7 +47,9 @@ class RideSmartService : AccessibilityService() {
     companion object {
         const val TAG = "RideSmart"
         const val NOTIF_CHANNEL_ID = "ridesmart_service"
+        const val RIDE_RESULT_CHANNEL_ID = "ridesmart_ride_result"
         const val NOTIF_ID = 1
+        const val RIDE_RESULT_NOTIF_ID = 2
 
         val SUPPORTED_PACKAGES = setOf(
             "com.rapido.rider",
@@ -170,7 +173,7 @@ class RideSmartService : AccessibilityService() {
 
     private val screenWakeLock: PowerManager.WakeLock by lazy {
         (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+            PowerManager.PARTIAL_WAKE_LOCK or
             PowerManager.ACQUIRE_CAUSES_WAKEUP or
             PowerManager.ON_AFTER_RELEASE,
             "RideSmart::ScreenWake"
@@ -268,9 +271,21 @@ class RideSmartService : AccessibilityService() {
     }
 
     private fun startForegroundService() {
-        val channel = NotificationChannel(NOTIF_CHANNEL_ID, "RideSmart Service", NotificationManager.IMPORTANCE_LOW)
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+        val channel = NotificationChannel(NOTIF_CHANNEL_ID, "RideSmart Service", NotificationManager.IMPORTANCE_LOW)
         nm.createNotificationChannel(channel)
+
+        // Separate high-importance channel for ride result notifications
+        // (fallback when overlay may be hidden by HIDE_OVERLAY_WINDOWS on Android 12+)
+        val resultChannel = NotificationChannel(
+            RIDE_RESULT_CHANNEL_ID,
+            "Ride Analysis Results",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Shows ride profitability analysis when the overlay cannot be displayed"
+        }
+        nm.createNotificationChannel(resultChannel)
 
         val openApp = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
@@ -297,7 +312,7 @@ class RideSmartService : AccessibilityService() {
         if (evtPkg == packageName) return
 
         // ── Spec v2.0 Section 3.3: Rapido Animation Debounce ──
-        if (evtPkg == "com.rapido.rider") {
+        if (ParserFactory.isRapido(evtPkg)) {
             // Note: Debounce still needed, but extraction must be on main thread.
             // We can delay and then capture on main thread.
             serviceScope.launch(Dispatchers.Main) {
@@ -560,6 +575,44 @@ class RideSmartService : AccessibilityService() {
         }
     }
 
+    /**
+     * Posts a ride result as a heads-up notification — fallback display channel
+     * for when the overlay may be hidden by HIDE_OVERLAY_WINDOWS (Android 12+).
+     * Uber can call setHideOverlayWindows(true) to silently suppress TYPE_APPLICATION_OVERLAY
+     * windows without generating any error. This notification always appears.
+     */
+    private fun postResultNotification(result: RideResult) {
+        val ride = result.parsedRide
+        val signalEmoji = when (result.signal) {
+            Signal.GREEN  -> "✅"
+            Signal.YELLOW -> "🟡"
+            Signal.RED    -> "❌"
+        }
+        val signalText = when (result.signal) {
+            Signal.GREEN  -> "ACCEPT"
+            Signal.YELLOW -> "BORDERLINE"
+            Signal.RED    -> "SKIP"
+        }
+        val title = "$signalEmoji ${ride.platform} — $signalText"
+        val text = "₹${ride.baseFare.toInt()} · ${"%.1f".format(ride.rideDistanceKm)}km · Net ₹${"%.0f".format(result.netProfit)} · ₹${"%.1f".format(result.earningPerKm)}/km"
+
+        val openApp = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, RIDE_RESULT_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(openApp)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setTimeoutAfter(12_000L)
+            .build()
+
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(RIDE_RESULT_NOTIF_ID, notification)
+    }
+
     private suspend fun processNotificationData(pkg: String, title: String, text: String) {
         val parser = ParserFactory.getParser(pkg)
         val allRides = parser.parseAll(listOf(title, text), pkg)
@@ -595,6 +648,7 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                wakeScreen()
                 overlayManager.showResult(
                     RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
                     totalRidesConsidered = totalCardsSeen,
@@ -610,6 +664,11 @@ class RideSmartService : AccessibilityService() {
 
                 if (normalizePlatform(pkg) == "uber") {
                     uberOfferActiveMs = System.currentTimeMillis()
+                    // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
+                    // may silently suppress our overlay without any error
+                    postResultNotification(
+                        RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
+                    )
                 }
             }
         }
@@ -719,6 +778,7 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
+                wakeScreen()
                 overlayManager.showResult(
                     RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
                     totalRidesConsidered = totalCardsSeen,
@@ -728,6 +788,11 @@ class RideSmartService : AccessibilityService() {
                 )
                 if (isUber) {
                     uberOfferActiveMs = System.currentTimeMillis()
+                    // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
+                    // may silently suppress our overlay without any error
+                    postResultNotification(
+                        RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
+                    )
                 }
             }
         }

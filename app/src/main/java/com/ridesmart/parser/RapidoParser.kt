@@ -13,6 +13,7 @@ class RapidoParser : IPlatformParser {
 
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
         private val KM_REGEX   = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
+        private val METRES_REGEX = Regex("""(\d+)\s*m\b""", RegexOption.IGNORE_CASE)
         private val MIN_REGEX  = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
         private val BOOST_REGEX = Regex("""\+\s*₹\s*(\d+(?:\.\d{1,2})?)""")
 
@@ -117,9 +118,17 @@ class RapidoParser : IPlatformParser {
                 FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let { tipAmount = it }
             }
 
-            // Distance
-            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
-                allKmValues.add(Pair(i, it))
+            // Distance — km first, then metres (converted to km)
+            val kmMatch = KM_REGEX.find(node)
+            if (kmMatch != null) {
+                kmMatch.groupValues[1].toDoubleOrNull()?.let {
+                    allKmValues.add(Pair(i, it))
+                }
+            } else if (!MIN_REGEX.containsMatchIn(node)) {
+                // Only try metres if not already matched as km or min
+                METRES_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
+                    allKmValues.add(Pair(i, it / 1000.0))
+                }
             }
 
             // Duration
@@ -196,8 +205,7 @@ class RapidoParser : IPlatformParser {
             paymentType          = paymentType,
             vehicleType          = vehicleType,
             screenState          = screenState,
-            bonus                = premiumAmount,
-            fare                 = baseFare + premiumAmount
+            bonus                = premiumAmount
         )
     }
 

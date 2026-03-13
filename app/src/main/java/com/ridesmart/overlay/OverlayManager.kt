@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -25,8 +24,6 @@ class OverlayManager(private val context: Context) {
 
     private val windowManager =
         context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val powerManager =
-        context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val handler = Handler(Looper.getMainLooper())
 
     // One slot per platform — keyed by platform name e.g. "Rapido", "Uber"
@@ -67,8 +64,7 @@ class OverlayManager(private val context: Context) {
             activeCards.remove(platform)
             activeParams.remove(platform)
 
-            // Wake screen
-            wakeScreen()
+            // Wake screen — handled by RideSmartService.wakeScreen()
 
             // Inflate card
             val view = LayoutInflater.from(context)
@@ -87,7 +83,7 @@ class OverlayManager(private val context: Context) {
             activeParams[platform] = params
 
             Log.d(TAG, "📐 Overlay added: platform=$platform " +
-                "gravity=${if (PlatformConfig.get(packageName).displayName.equals("Uber", ignoreCase = true)) "TOP" else "BOTTOM"} " +
+                "gravity=BOTTOM " +
                 "active=${activeCards.keys}")
 
             // Auto-dismiss after 12 seconds — only this platform's card
@@ -168,12 +164,10 @@ class OverlayManager(private val context: Context) {
     }
 
     private fun buildParams(packageName: String): WindowManager.LayoutParams {
-        val gravity = if (PlatformConfig.get(packageName).displayName
-                .equals("Uber", ignoreCase = true)) {
-            Gravity.TOP
-        } else {
-            Gravity.BOTTOM
-        }
+        // All platforms use BOTTOM gravity — Uber's ride offer is a bottom sheet,
+        // so the overlay sits just above it with a Y offset.
+        val isUber = PlatformConfig.get(packageName).displayName
+            .equals("Uber", ignoreCase = true)
 
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -186,8 +180,14 @@ class OverlayManager(private val context: Context) {
                     WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             PixelFormat.TRANSLUCENT
         ).apply {
-            this.gravity = gravity
-            y = 0
+            gravity = Gravity.BOTTOM
+            y = if (isUber) {
+                // Offset above the Uber bottom sheet (~42% from bottom)
+                val dm = context.resources.displayMetrics
+                (dm.heightPixels * 0.42).toInt()
+            } else {
+                0
+            }
         }
     }
 
@@ -284,22 +284,6 @@ class OverlayManager(private val context: Context) {
             rowPerHour.visibility = View.VISIBLE
         } else {
             rowPerHour.visibility = View.GONE
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private val wakeLock: PowerManager.WakeLock by lazy {
-        powerManager.newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-            PowerManager.ACQUIRE_CAUSES_WAKEUP or
-            PowerManager.ON_AFTER_RELEASE,
-            "RideSmart::OverlayWake"
-        ).apply { setReferenceCounted(false) }
-    }
-
-    private fun wakeScreen() {
-        if (!powerManager.isInteractive) {
-            wakeLock.acquire(15_000L)
         }
     }
 

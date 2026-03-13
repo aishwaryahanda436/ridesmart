@@ -181,7 +181,6 @@ class UberOcrEngine : IPlatformParser {
             paymentType          = if (combinedRaw.contains("cash")) "cash" else "digital",
             premiumAmount        = premium,
             bonus                = bonus,
-            fare                 = effectiveFare,
             vehicleType          = vehicleType
         )
     }
@@ -252,7 +251,6 @@ class UberOcrEngine : IPlatformParser {
             paymentType          = if (detailsText.lowercase().contains("cash")) "cash" else "digital",
             premiumAmount        = premium,
             bonus                = bonus,
-            fare                 = fare + bonus,
             vehicleType          = extractVehicleType(detailsText.lowercase())
         )
     }
