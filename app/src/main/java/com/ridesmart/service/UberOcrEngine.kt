@@ -282,10 +282,10 @@ class UberOcrEngine : IPlatformParser {
     }
 
     private fun crop(bitmap: Bitmap, left: Double, top: Double, right: Double, bottom: Double): Bitmap {
-        val x = (bitmap.width * left).toInt()
-        val y = (bitmap.height * top).toInt()
-        val w = (bitmap.width * (right - left)).toInt()
-        val h = (bitmap.height * (bottom - top)).toInt()
+        val x = (bitmap.width * left).toInt().coerceIn(0, bitmap.width - 1)
+        val y = (bitmap.height * top).toInt().coerceIn(0, bitmap.height - 1)
+        val w = (bitmap.width * (right - left)).toInt().coerceIn(1, bitmap.width - x)
+        val h = (bitmap.height * (bottom - top)).toInt().coerceIn(1, bitmap.height - y)
         return Bitmap.createBitmap(bitmap, x, y, w, h)
     }
 

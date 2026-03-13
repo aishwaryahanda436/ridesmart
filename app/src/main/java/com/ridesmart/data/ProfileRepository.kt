@@ -80,6 +80,14 @@ class ProfileRepository(private val context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[KEY_PAYMENT_MODEL] ?: "commission" }
 
+    val dailyPassCostFlow: Flow<Double> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[KEY_DAILY_PASS_COST] ?: 0.0 }
+
+    val rentalCostFlow: Flow<Double> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[KEY_RENTAL_COST] ?: 0.0 }
+
     val profileFlow: Flow<RiderProfile> = context.dataStore.data
         .catch { exception ->
             if (exception is IOException) emit(emptyPreferences()) else throw exception
