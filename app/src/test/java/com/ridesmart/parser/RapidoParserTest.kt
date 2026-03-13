@@ -263,4 +263,48 @@ class RapidoParserTest {
         assertEquals(0.0, ride.rideDistanceKm, 0.01)
     }
 
+    // ── METRES_REGEX: metre values converted to km ──────────────────
+
+    @Test
+    fun `500m node is parsed as half km`() {
+        val nodes = listOf("₹65", "500m", "4.5 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull("Should parse offer with metres", result)
+        assertEquals("Pickup in metres → km", 0.5, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride distance in km", 4.5, result.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `300 m with space is parsed as 0 point 3 km`() {
+        val nodes = listOf("₹55", "300 m", "3.0 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("Pickup distance from metres", 0.3, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride distance in km", 3.0, result.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `metre-only ride has correct ride distance`() {
+        // Only metre value, no km → treated as ride distance
+        val nodes = listOf("₹30", "800m", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("800m → 0.8km ride distance", 0.8, result!!.rideDistanceKm, 0.01)
+    }
+
+    @Test
+    fun `min node is not matched as metres`() {
+        // "15 min" should NOT be matched as metres — word boundary \b prevents it
+        val nodes = listOf("₹80", "Accept", "15 min", "4.0 km")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        assertEquals("Duration in minutes", 15, result!!.estimatedDurationMin)
+        assertEquals("Only km distance, not min as metres", 4.0, result.rideDistanceKm, 0.01)
+        assertEquals("No pickup distance from min", 0.0, result.pickupDistanceKm, 0.01)
+    }
+
 }

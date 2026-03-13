@@ -21,9 +21,6 @@ object PlatformConfig {
         Platform("in.juspay.nammayatri",        "Namma Yatri", 0.0, 0.0),
         Platform("in.juspay.nammayatripartner",  "Namma Yatri", 0.0, 0.0),
         Platform("net.openkochi.yatri",          "Namma Yatri", 0.0, 0.0),
-        Platform("in.swiggy.partner",   "Swiggy", 0.0,  0.0),
-        Platform("com.zomato.captain",  "Zomato", 0.0,  0.0),
-        Platform("porter.in.android",   "Porter", 15.0, 0.0),
         Platform("in.shadowfax.gandalf",  "Shadowfax", 0.0, 0.0),
         Platform("com.shadowfax.driver",  "Shadowfax", 0.0, 0.0),
         Platform("com.shadowfax.zeus",    "Shadowfax", 0.0, 0.0)

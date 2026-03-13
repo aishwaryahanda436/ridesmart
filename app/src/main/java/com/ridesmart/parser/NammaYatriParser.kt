@@ -219,8 +219,7 @@ class NammaYatriParser : IPlatformParser {
             paymentType          = paymentType,
             vehicleType          = vehicleType,
             screenState          = screenState,
-            bonus                = bonusAmount,
-            fare                 = baseFare + bonusAmount
+            bonus                = bonusAmount
         )
     }
 }

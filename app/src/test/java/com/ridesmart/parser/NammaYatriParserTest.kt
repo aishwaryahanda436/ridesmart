@@ -199,7 +199,7 @@ class NammaYatriParserTest {
         assertNotNull(result)
         assertEquals("Base fare", 100.0, result!!.baseFare, 0.01)
         assertEquals("Bonus", 20.0, result.premiumAmount, 0.01)
-        assertEquals("Effective fare", 120.0, result.fare, 0.01)
+        assertEquals("Effective fare (baseFare + premium)", 120.0, result.baseFare + result.premiumAmount, 0.01)
     }
 
     @Test

@@ -309,7 +309,6 @@ class RideDataParser : IPlatformParser {
             pickupTimeMin         = pickupTimeMin,
             rideTimeMin           = rideTimeMin,
             bonus                 = bonusAmount,
-            fare                  = effectiveFare,
             vehicleType           = vehicleType
         )
     }

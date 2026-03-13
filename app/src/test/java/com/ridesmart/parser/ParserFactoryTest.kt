@@ -139,22 +139,26 @@ class ParserFactoryTest {
     }
 
     @Test
-    fun `wrong shadowfax packages route to fallback`() {
-        assertTrue("com.shadowfax.driver should NOT route to ShadowfaxParser",
-            ParserFactory.getParser("com.shadowfax.driver") is RideDataParser)
+    fun `shadowfax driver package routes to ShadowfaxParser`() {
+        assertTrue("com.shadowfax.driver should route to ShadowfaxParser",
+            ParserFactory.getParser("com.shadowfax.driver") is ShadowfaxParser)
+    }
+
+    @Test
+    fun `unknown shadowfax package routes to fallback`() {
         assertTrue("com.shadowfax.captain should NOT route to ShadowfaxParser",
             ParserFactory.getParser("com.shadowfax.captain") is RideDataParser)
     }
 
     @Test
-    fun `wrong ola packages route to fallback`() {
-        assertTrue("com.ola.driver should NOT route to OlaParser",
-            ParserFactory.getParser("com.ola.driver") is RideDataParser)
+    fun `ola driver package routes to OlaParser`() {
+        assertTrue("com.ola.driver should route to OlaParser",
+            ParserFactory.getParser("com.ola.driver") is OlaParser)
     }
 
     @Test
-    fun `wrong rapido packages route to fallback`() {
-        assertTrue("com.rapido.captain should NOT route to RapidoParser",
-            ParserFactory.getParser("com.rapido.captain") is RideDataParser)
+    fun `rapido captain package routes to RapidoParser`() {
+        assertTrue("com.rapido.captain should route to RapidoParser",
+            ParserFactory.getParser("com.rapido.captain") is RapidoParser)
     }
 }
