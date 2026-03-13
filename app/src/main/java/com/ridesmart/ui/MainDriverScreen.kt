@@ -300,16 +300,17 @@ fun MonitoringButtons(
             ),
             shape = RoundedCornerShape(16.dp)
         ) {
+            val contentColor = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f)
             Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f)
+                tint = contentColor
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 "Start Monitoring",
-                color = if (!isServiceActive) Color.White else Color.White.copy(alpha = 0.5f),
+                color = contentColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
