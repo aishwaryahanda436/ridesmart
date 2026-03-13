@@ -35,6 +35,9 @@ object SpatialReconstructor {
     // Y-gap threshold for separating card groups (ride cards in a list)
     private const val CARD_GAP_THRESHOLD = 80
 
+    // Horizontal pixel gap below which nodes are considered truly adjacent (no space inserted)
+    private const val HORIZONTAL_ADJACENCY_PX = 4
+
     fun reconstruct(nodes: List<AccessibilityNodeInfo>, density: Float = 3f): List<String> {
         if (nodes.isEmpty()) return emptyList()
 
@@ -129,10 +132,17 @@ object SpatialReconstructor {
             }
         }
 
-        // Sort each row horizontally and join text
+        // Sort each row horizontally and join text with smart spacing
         return rows.map { row ->
-            row.sortedBy { it.bounds.left }
-                .joinToString("") { it.text }
+            val sorted = row.sortedBy { it.bounds.left }
+            buildString {
+                sorted.forEachIndexed { i, node ->
+                    if (i > 0 && node.bounds.left > sorted[i - 1].bounds.right + HORIZONTAL_ADJACENCY_PX) {
+                        append(' ')
+                    }
+                    append(node.text)
+                }
+            }
         }
     }
 }
