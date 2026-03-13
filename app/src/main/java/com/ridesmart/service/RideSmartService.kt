@@ -72,8 +72,9 @@ class RideSmartService : AccessibilityService() {
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
         
-        // Spec v2.0 Section 8.2: BFS depth cap 8
-        private const val MAX_TREE_DEPTH         = 8
+        // Increased from 8 → 12 to handle Jetpack Compose trees (deeper nesting)
+        // and RecyclerView/LazyColumn list containers.
+        private const val MAX_TREE_DEPTH         = 12
 
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
 
@@ -328,7 +329,8 @@ class RideSmartService : AccessibilityService() {
             }
 
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-                event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+                event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
                 resetUberPollingBackoff()
                 // Throttle Uber content-changed events to prevent event storms
                 // from triggering excessive node collection and OCR fallback.
@@ -402,7 +404,8 @@ class RideSmartService : AccessibilityService() {
         data class WindowCandidate(
             val pkg: String,
             val nodes: List<String>,
-            val score: Int
+            val score: Int,
+            val hasRideList: Boolean = false
         )
         val candidates = mutableListOf<WindowCandidate>()
 
@@ -415,6 +418,11 @@ class RideSmartService : AccessibilityService() {
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(root, rawNodes)
                     val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+
+                    // Try card-level reconstruction for ride lists
+                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes)
+                    val hasMultipleCards = cardGroups.size > 1
+
                     rawNodes.forEach { it.safeRecycle() }
 
                     if (reconstructedText.isEmpty()) continue
@@ -424,7 +432,9 @@ class RideSmartService : AccessibilityService() {
                     val isRideApp = ParserFactory.isRideApp(windowPkg)
                     val hasUberSignal = combined.contains("Uber Driver", ignoreCase = true) ||
                                         combined.contains("Uber Request", ignoreCase = true) ||
-                                        combined.contains("See all requests", ignoreCase = true)
+                                        combined.contains("See all requests", ignoreCase = true) ||
+                                        combined.contains("Trip Radar", ignoreCase = true) ||
+                                        combined.contains("Opportunity", ignoreCase = true)
                     val isUberPkg = windowPkg.contains("ubercab", ignoreCase = true) ||
                                     windowPkg.contains("uber", ignoreCase = true)
                     if (!isRideApp && !hasUberSignal && !isUberPkg) continue
@@ -437,10 +447,16 @@ class RideSmartService : AccessibilityService() {
                         combined.contains("match", ignoreCase = true) ||
                         combined.contains("confirm", ignoreCase = true)) score += 8
 
+                    // Boost score for ride list screens
+                    if (combined.contains("trip radar", ignoreCase = true) ||
+                        combined.contains("see all requests", ignoreCase = true) ||
+                        combined.contains("opportunity", ignoreCase = true)) score += 6
+
                     if (isUberPkg && reconstructedText.isNotEmpty()) score += 2
+                    if (hasMultipleCards) score += 4
 
                     if (score > 0) {
-                        candidates.add(WindowCandidate(windowPkg, reconstructedText, score))
+                        candidates.add(WindowCandidate(windowPkg, reconstructedText, score, hasMultipleCards))
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing window: ${e.message}")
@@ -457,6 +473,9 @@ class RideSmartService : AccessibilityService() {
             allNodes.addAll(best.nodes)
             detectedPackage = if (best.pkg.contains("ubercab", ignoreCase = true))
                                 "com.ubercab.driver" else best.pkg
+            if (best.hasRideList) {
+                Log.d(TAG, "📋 Detected ride list with multiple cards for $detectedPackage")
+            }
         }
 
         if (allNodes.isEmpty()) {
@@ -495,11 +514,20 @@ class RideSmartService : AccessibilityService() {
         }
         
         val combined = allNodes.joinToString("|")
-        if (combined.contains("See all requests", ignoreCase = true)) {
+
+        // Trip Radar / ride list screens: trigger OCR for better extraction
+        // but also pass the accessibility data through for hybrid parsing
+        val isTripRadar = combined.contains("Trip Radar", ignoreCase = true) ||
+                          combined.contains("See all requests", ignoreCase = true) ||
+                          combined.contains("Opportunity", ignoreCase = true)
+
+        if (isTripRadar && detectedPackage.contains("uber", ignoreCase = true)) {
+            Log.d(TAG, "📋 UBER Trip Radar / ride list detected — hybrid parsing")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 triggerUberScreenshot()
             }
-            return
+            // Continue processing accessibility data — don't return early.
+            // Both accessibility and OCR paths may yield different data.
         }
 
         activeForegroundPlatform = if (detectedPackage.contains("uber", ignoreCase = true)) {
