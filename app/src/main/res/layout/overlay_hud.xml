@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart Driver HUD — compact floating card for ride profitability at a glance.
+     Positioned right-center; readable in <1 second while driving. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/hud_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/hud_card_background"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:elevation="12dp"
+    android:minWidth="180dp">
+
+    <!-- Header: "RideSmart" branding + optional "BEST OF X" -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/hud_header"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="RideSmart"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="@color/hud_header_text"
+            android:letterSpacing="0.06" />
+
+        <TextView
+            android:id="@+id/hud_best_of"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:textColor="@color/hud_header_text"
+            android:visibility="gone"
+            android:letterSpacing="0.04" />
+
+    </LinearLayout>
+
+    <!-- Row 1: Fare | Distance  (e.g. "₹180 | 6 km") -->
+    <TextView
+        android:id="@+id/hud_fare_distance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:paddingTop="4dp" />
+
+    <!-- Row 2: Profit  (e.g. "Profit ₹85") -->
+    <TextView
+        android:id="@+id/hud_profit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="@color/text_primary"
+        android:paddingTop="2dp" />
+
+    <!-- Row 3: ₹/km + Platform  (e.g. "₹14/km · Uber") -->
+    <TextView
+        android:id="@+id/hud_per_km_platform"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textColor="@color/hud_detail_text"
+        android:paddingTop="2dp" />
+
+    <!-- Signal recommendation — large, visually dominant -->
+    <TextView
+        android:id="@+id/hud_signal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="2dp" />
+
+</LinearLayout>
