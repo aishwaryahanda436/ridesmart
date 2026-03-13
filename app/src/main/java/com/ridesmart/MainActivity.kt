@@ -80,7 +80,7 @@ fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
             onNavigateHistory = { currentScreen = Screen.RideHistory },
             onNavigateDashboard = { currentScreen = Screen.Dashboard },
             onNavigateSettings = { currentScreen = Screen.Settings },
-            onNavigatePermissions = { currentScreen = Screen.PermissionSetup }
+            onNavigatePermissions = { currentScreen = Screen.ManagePermissions }
         )
         Screen.RideHistory -> RideHistoryScreen(
             onBack = { currentScreen = Screen.Main }
@@ -89,6 +89,10 @@ fun RideSmartApp(profileViewModel: ProfileViewModel = viewModel()) {
             onBack = { currentScreen = Screen.Main }
         )
         Screen.Settings -> SettingsScreen(
+            onBack = { currentScreen = Screen.Main }
+        )
+        Screen.ManagePermissions -> PermissionSetupScreen(
+            onContinue = { currentScreen = Screen.Main },
             onBack = { currentScreen = Screen.Main }
         )
     }
@@ -110,4 +114,5 @@ sealed class Screen {
     data object RideHistory : Screen()
     data object Dashboard : Screen()
     data object Settings : Screen()
+    data object ManagePermissions : Screen()
 }
