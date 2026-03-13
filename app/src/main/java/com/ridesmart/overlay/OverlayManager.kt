@@ -32,10 +32,11 @@ class OverlayManager(private val context: Context) {
     private val dismissTimers = mutableMapOf<String, Runnable>()
     private val activeAnimators = mutableMapOf<String, android.animation.ObjectAnimator>()
 
+    private val screenHeight = context.resources.displayMetrics.heightPixels
+
     private val AUTO_DISMISS_MS = 12_000L
     private val TAG = "RideSmart"
     private val DRAG_THRESHOLD_PX = 10
-    private val UBER_BOTTOM_SHEET_OFFSET_RATIO = 0.42  // Sit above Uber's bottom sheet popup
 
     var onDismiss: ((String) -> Unit)? = null
 
@@ -182,13 +183,7 @@ class OverlayManager(private val context: Context) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM
-            y = if (isUber) {
-                // Offset above the Uber bottom sheet
-                val dm = context.resources.displayMetrics
-                (dm.heightPixels * UBER_BOTTOM_SHEET_OFFSET_RATIO).toInt()
-            } else {
-                0
-            }
+            y = if (isUber) (screenHeight * 0.42).toInt() else 0
         }
     }
 
