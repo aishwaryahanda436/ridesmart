@@ -87,7 +87,7 @@ class UberOcrEngine : IPlatformParser {
         if (SCREEN_REJECT.any { combined.contains(it) }) return ScreenState.IDLE
         
         val hasFare = Regex("""(?:₹|Rs\.?)\s*(\d+)""").containsMatchIn(combined)
-        val hasButton = combined.contains("match") || combined.contains("confirm")
+        val hasButton = combined.contains("match") || combined.contains("confirm") || combined.contains("accept")
         
         return if (hasFare && hasButton) ScreenState.OFFER_LOADED else ScreenState.IDLE
     }
@@ -253,7 +253,7 @@ class UberOcrEngine : IPlatformParser {
 
             line = line.replace(Regex("""(?<![A-Za-z])[TtFf](?=\d)"""), "₹")
                        .replace(Regex("""(?<![A-Za-z])[TtFf]\s+(?=\d)"""), "₹")
-                       .replace(",", ".")
+                       .replace(",", "")
                        .replace(Regex("""(?<=\d)[lI]$"""), "")
 
             if ((line.lowercase().contains("min") || line.lowercase().contains("km") || line.lowercase().contains("away")) && !line.contains("₹")) continue
@@ -268,7 +268,7 @@ class UberOcrEngine : IPlatformParser {
     private fun extractBonus(lines: List<String>): Double {
         val bonusRegex = Regex("""(?:\s|^)\+\s*[₹TtFf]?\s*(\d+(?:\.\d{1,2})?)""")
         for (line in lines) {
-            val fixedLine = line.replace(",", ".")
+            val fixedLine = line.replace(",", "")
             val m = bonusRegex.find(fixedLine) ?: continue
             val v = m.groupValues[1].toDoubleOrNull() ?: continue
             if (v > 0) return v
@@ -278,7 +278,7 @@ class UberOcrEngine : IPlatformParser {
 
     private fun extractPremium(lines: List<String>): Double {
         for (line in lines) {
-            val fixedLine = line.replace(",", ".")
+            val fixedLine = line.replace(",", "")
             val match = PREMIUM_REGEX.find(fixedLine)
             if (match != null) {
                 val premium = match.groupValues[1].toDoubleOrNull() ?: 0.0
@@ -365,6 +365,8 @@ class UberOcrEngine : IPlatformParser {
     private fun extractRating(ratingLines: List<String>): Double? {
         val ratingRegex = Regex("""([45]\.\d{1,2})""")
         for (line in ratingLines) {
+            val lower = line.lowercase()
+            if (lower.contains("km") || lower.contains("min") || lower.contains("away")) continue
             val match = ratingRegex.find(line)
             if (match != null) return match.groupValues[1].toDoubleOrNull()
         }
