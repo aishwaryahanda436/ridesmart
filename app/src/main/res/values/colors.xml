@@ -1,3 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Brand & Action -->
+    <color name="ride_green">#FF3A86FF</color>
+    <color name="ride_green_dark">#FF2A6AD8</color>
+
+    <!-- Signal Verdicts (profit indicators only) -->
+    <color name="signal_green">#FF4CAF50</color>
+    <color name="signal_yellow">#FFFF9800</color>
+    <color name="signal_red">#FFF44336</color>
+
+    <!-- Dark System Surfaces -->
+    <color name="dark_background">#FF121212</color>
+    <color name="dark_surface">#FF1E1E1E</color>
+    <color name="dark_card">#FF1E1E1E</color>
+    <color name="dark_surface_variant">#FF2C2C2C</color>
+    <color name="dark_border">#FF333333</color>
+
+    <!-- Text System -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#FFB0B0B0</color>
+    <color name="text_muted">#FF757575</color>
+    <color name="text_on_green">#FFFFFFFF</color>
+
+    <!-- Overlay-specific -->
+    <color name="overlay_text_label">#88FFFFFF</color>
+    <color name="overlay_text_detail">#AAFFFFFF</color>
+    <color name="overlay_text_hint">#44FFFFFF</color>
+    <color name="overlay_divider">#22FFFFFF</color>
+    <color name="overlay_progress_tint">#44FFFFFF</color>
+    <color name="overlay_progress_bg">#11FFFFFF</color>
 </resources>
