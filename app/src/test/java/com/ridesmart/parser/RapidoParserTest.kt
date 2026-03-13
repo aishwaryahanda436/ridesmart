@@ -297,7 +297,7 @@ class RapidoParserTest {
 
     @Test
     fun `min node is not matched as metres`() {
-        // "15 min" should NOT be matched as metres — word boundary \b prevents it
+        // "15 min" should NOT be matched as metres — word boundary \b and (?!in) prevent it
         val nodes = listOf("₹80", "Accept", "15 min", "4.0 km")
         val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
@@ -307,4 +307,17 @@ class RapidoParserTest {
         assertEquals("No pickup distance from min", 0.0, result.pickupDistanceKm, 0.01)
     }
 
+    @Test
+    fun `km-native values preferred when multiple km values present alongside metres`() {
+        // 500m metres-derived + 1.5 km + 4.5 km → two km-native values, metres-derived should be ignored
+        val nodes = listOf("₹80", "500m", "1.5 km", "4.5 km", "Accept")
+        val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
+
+        assertNotNull(result)
+        // Should use only km-native values (≥2 km-native): pickup=1.5, ride=4.5
+        assertEquals("Pickup from km-native", 1.5, result!!.pickupDistanceKm, 0.01)
+        assertEquals("Ride from km-native", 4.5, result.rideDistanceKm, 0.01)
+    }
+
 }
+
