@@ -29,7 +29,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.ProfitResult
 import com.ridesmart.model.RideResult
-import com.ridesmart.model.Signal
+import com.ridesmart.overlay.HudOverlayManager
 import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.ParserFactory
 import com.ridesmart.parser.UberNotificationParser
@@ -97,6 +97,7 @@ class RideSmartService : AccessibilityService() {
     private lateinit var historyRepository: RideHistoryRepository
     private lateinit var remoteConfig: RemoteConfigRepository
     private lateinit var overlayManager: OverlayManager
+    private lateinit var hudOverlayManager: HudOverlayManager
     private val uberOcrEngine by lazy { UberOcrEngine() }
 
     // Stage 1 & 2 Isolation: Dedicated Pipeline Context (Spec v2.0 Section 8.3)
@@ -209,6 +210,11 @@ class RideSmartService : AccessibilityService() {
                     uberScreenshotJob?.cancel()
                     uberScreenshotJob = null
                 }
+            }
+        }
+        hudOverlayManager = HudOverlayManager(this).apply {
+            onDismiss = {
+                Log.d(TAG, "HUD dismissed — resetting best tracker")
             }
         }
 
@@ -337,9 +343,16 @@ class RideSmartService : AccessibilityService() {
                 // Reset throttle/cooldown on window state change (new context)
                 lastUberContentChangedMs.set(0L)
                 lastOcrFallbackMs.set(0L)
-                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    triggerUberScreenshot()
+                Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot after settle delay")
+                // Delay to let bottom sheet animation settle before screenshot/node collection.
+                // Without this, isVisibleToUser may report false for nodes still animating in.
+                // 120ms covers Uber's standard bottom sheet entrance animation (~100ms)
+                // while staying under 150ms to avoid missing short-lived offers.
+                serviceScope.launch(Dispatchers.Main) {
+                    delay(120L)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        triggerUberScreenshot()
+                    }
                 }
                 return
             }
@@ -416,6 +429,7 @@ class RideSmartService : AccessibilityService() {
         // Extraction happens on Main thread (this function is called from Main thread)
         val allNodes = mutableListOf<String>()
         var detectedPackage = pkg
+        val density = resources.displayMetrics.density
 
         data class WindowCandidate(
             val pkg: String,
@@ -433,10 +447,10 @@ class RideSmartService : AccessibilityService() {
                     
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(root, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
 
                     // Try card-level reconstruction for ride lists
-                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes)
+                    val cardGroups = SpatialReconstructor.reconstructAsCards(rawNodes, density)
                     val hasMultipleCards = cardGroups.size > 1
 
                     rawNodes.forEach { it.safeRecycle() }
@@ -500,7 +514,7 @@ class RideSmartService : AccessibilityService() {
                 try {
                     val rawNodes = mutableListOf<AccessibilityNodeInfo>()
                     collectRawNodes(fallbackRoot, rawNodes)
-                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes)
+                    val reconstructedText = SpatialReconstructor.reconstruct(rawNodes, density)
                     rawNodes.forEach { it.safeRecycle() }
 
                     if (reconstructedText.isNotEmpty()) {
@@ -649,13 +663,17 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
-                wakeScreen()
+                val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
                 overlayManager.showResult(
-                    RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
+                )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
                 )
                 
                 state.lastShownSmartScore = currentScore
@@ -779,13 +797,17 @@ class RideSmartService : AccessibilityService() {
 
         withContext(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@RideSmartService)) {
-                wakeScreen()
+                val rideResult = RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks)
                 overlayManager.showResult(
-                    RideResult(bestRide, bestResult.totalFare, bestResult.actualPayout, bestResult.fuelCost, bestResult.wearCost, bestResult.netProfit, bestResult.earningPerKm, bestResult.earningPerHour, bestResult.pickupRatio, bestResult.signal, bestResult.failedChecks),
+                    rideResult,
                     totalRidesConsidered = totalCardsSeen,
                     isBestSoFar          = isBestSoFar,
                     bestSeenFare         = bestSeen?.ride?.baseFare ?: bestRide.baseFare,
                     bestSeenNetProfit    = bestSeen?.netProfit ?: bestResult.netProfit
+                )
+                hudOverlayManager.showResult(
+                    rideResult,
+                    totalRidesConsidered = totalCardsSeen
                 )
                 if (isUber) {
                     uberOfferActiveMs = System.currentTimeMillis()
@@ -1008,6 +1030,7 @@ class RideSmartService : AccessibilityService() {
         screenshotExecutor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         overlayManager.dismiss()
+        hudOverlayManager.dismiss()
         serviceScope.cancel()
         super.onDestroy()
     }

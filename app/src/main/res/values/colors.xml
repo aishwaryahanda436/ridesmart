@@ -29,4 +29,12 @@
     <color name="overlay_divider">#22FFFFFF</color>
     <color name="overlay_progress_tint">#44FFFFFF</color>
     <color name="overlay_progress_bg">#11FFFFFF</color>
+
+    <!-- HUD Overlay -->
+    <color name="hud_background">#DD1A1A2E</color>
+    <color name="hud_bg_green">#DD0A1F0E</color>
+    <color name="hud_bg_yellow">#DD1F1800</color>
+    <color name="hud_bg_red">#DD1F0A0A</color>
+    <color name="hud_header_text">#99FFFFFF</color>
+    <color name="hud_detail_text">#BBFFFFFF</color>
 </resources>

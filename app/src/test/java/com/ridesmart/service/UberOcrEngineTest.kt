@@ -35,10 +35,18 @@ class UberOcrEngineTest {
     }
 
     @Test
-    fun `missing uber identifiers returns null`() {
+    fun `missing uber identifiers and fare signal returns null`() {
+        val nodes = listOf("7.4 km", "12 min")
+        val result = engine.parseFromNodes(nodes)
+        assertNull("Lines without fare signal and identifiers should return null", result)
+    }
+
+    @Test
+    fun `fare signal alone passes identifier guard`() {
         val nodes = listOf("₹74", "7.4 km", "12 min")
         val result = engine.parseFromNodes(nodes)
-        assertNull("Lines without Uber identifiers should return null", result)
+        assertNotNull("Fare signal should be sufficient to pass identifier guard", result)
+        assertEquals("Fare", 74.0, result!!.baseFare, 0.01)
     }
 
     // ── Successful parsing tests ─────────────────────────────────────

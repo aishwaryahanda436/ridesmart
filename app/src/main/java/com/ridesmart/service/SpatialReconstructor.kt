@@ -29,19 +29,23 @@ object SpatialReconstructor {
         val className: String = ""
     )
 
-    // Y-tolerance for row grouping (~8dp on XXHDPI / 3x density)
-    private const val ROW_TOLERANCE = 24
+    // Y-tolerance for row grouping in dp (~8dp)
+    private const val ROW_TOLERANCE_DP = 8
 
     // Y-gap threshold for separating card groups (ride cards in a list)
     private const val CARD_GAP_THRESHOLD = 80
 
-    fun reconstruct(nodes: List<AccessibilityNodeInfo>): List<String> {
+    // Horizontal pixel gap below which nodes are considered truly adjacent (no space inserted)
+    private const val HORIZONTAL_ADJACENCY_PX = 4
+
+    fun reconstruct(nodes: List<AccessibilityNodeInfo>, density: Float = 3f): List<String> {
         if (nodes.isEmpty()) return emptyList()
 
         val dataNodes = toNodeData(nodes)
         if (dataNodes.isEmpty()) return emptyList()
 
-        return groupIntoRows(dataNodes)
+        val tolerance = (ROW_TOLERANCE_DP * density).toInt()
+        return groupIntoRows(dataNodes, tolerance)
     }
 
     /**
@@ -51,7 +55,7 @@ object SpatialReconstructor {
      * Used for parsing ride lists where multiple offers appear in the same
      * accessibility tree (Trip Radar, stacked offers, ride queues).
      */
-    fun reconstructAsCards(nodes: List<AccessibilityNodeInfo>): List<List<String>> {
+    fun reconstructAsCards(nodes: List<AccessibilityNodeInfo>, density: Float = 3f): List<List<String>> {
         if (nodes.isEmpty()) return emptyList()
 
         val dataNodes = toNodeData(nodes)
@@ -77,7 +81,8 @@ object SpatialReconstructor {
         if (currentGroup.isNotEmpty()) cardGroups.add(currentGroup)
 
         // Reconstruct rows within each card group
-        return cardGroups.map { group -> groupIntoRows(group) }
+        val tolerance = (ROW_TOLERANCE_DP * density).toInt()
+        return cardGroups.map { group -> groupIntoRows(group, tolerance) }
     }
 
     /**
@@ -108,7 +113,7 @@ object SpatialReconstructor {
     /**
      * Groups node data into horizontal rows by Y-baseline proximity.
      */
-    private fun groupIntoRows(dataNodes: List<NodeData>): List<String> {
+    private fun groupIntoRows(dataNodes: List<NodeData>, tolerance: Int = 24): List<String> {
         val rows = mutableListOf<MutableList<NodeData>>()
         val sortedByY = dataNodes.sortedBy { it.bounds.centerY() }
 
@@ -116,7 +121,7 @@ object SpatialReconstructor {
             var foundRow = false
             for (row in rows) {
                 val rowCenterY = row.map { it.bounds.centerY() }.average().toInt()
-                if (abs(node.bounds.centerY() - rowCenterY) <= ROW_TOLERANCE) {
+                if (abs(node.bounds.centerY() - rowCenterY) <= tolerance) {
                     row.add(node)
                     foundRow = true
                     break
@@ -127,10 +132,17 @@ object SpatialReconstructor {
             }
         }
 
-        // Sort each row horizontally and join text
+        // Sort each row horizontally and join text with smart spacing
         return rows.map { row ->
-            row.sortedBy { it.bounds.left }
-                .joinToString("") { it.text }
+            val sorted = row.sortedBy { it.bounds.left }
+            buildString {
+                sorted.forEachIndexed { i, node ->
+                    if (i > 0 && node.bounds.left > sorted[i - 1].bounds.right + HORIZONTAL_ADJACENCY_PX) {
+                        append(' ')
+                    }
+                    append(node.text)
+                }
+            }
         }
     }
 }
