@@ -6,7 +6,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.os.Build
@@ -17,6 +20,7 @@ import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.ridesmart.MainActivity
 import com.ridesmart.R
 import com.ridesmart.data.ProfileRepository
@@ -89,6 +93,11 @@ class RideSmartService : AccessibilityService() {
         // Cooldown for OCR fallback trigger when accessibility tree is empty.
         // Prevents rapid-fire OCR attempts on consecutive empty-node events.
         private const val OCR_FALLBACK_COOLDOWN_MS = 2000L
+
+        // Per-package cooldown for the early notification trigger channel.
+        // Prevents duplicate processing when both the notification and the
+        // accessibility event fire for the same offer.
+        private const val NOTIFICATION_TRIGGER_COOLDOWN_MS = 2000L
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -231,6 +240,11 @@ class RideSmartService : AccessibilityService() {
 
         startUberPolling()
         prewarmOcr()
+
+        val filter = IntentFilter(RideNotificationListener.ACTION_RIDE_NOTIFICATION)
+        ContextCompat.registerReceiver(this, notificationReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        notificationReceiverRegistered = true
+
         Log.d(TAG, "✅ RideSmartService connected — pipeline ready")
     }
 
@@ -1007,6 +1021,40 @@ class RideSmartService : AccessibilityService() {
 
     private val lastScreenshotMs = AtomicLong(0L)
 
+    // Tracks the last early-trigger timestamp per package to enforce the
+    // NOTIFICATION_TRIGGER_COOLDOWN_MS de-duplication window.
+    private val notificationTriggerTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    @Volatile private var notificationReceiverRegistered = false
+
+    private val notificationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.getStringExtra(RideNotificationListener.EXTRA_PACKAGE) ?: return
+
+            val now = System.currentTimeMillis()
+            val lastTrigger = notificationTriggerTimestamps[pkg] ?: 0L
+            if (now - lastTrigger < NOTIFICATION_TRIGGER_COOLDOWN_MS) {
+                Log.d(TAG, "🔔 Notification trigger cooldown for $pkg — skipping")
+                return
+            }
+            notificationTriggerTimestamps[pkg] = now
+
+            Log.d(TAG, "🔔 Early notification trigger for $pkg")
+            wakeScreen()
+
+            if (pkg.contains("uber", ignoreCase = true)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    triggerUberScreenshot()
+                } else {
+                    // Pre-R: screenshot API unavailable — fall back to accessibility tree collection
+                    triggerNodeCollection(pkg)
+                }
+            } else {
+                triggerNodeCollection(pkg)
+            }
+        }
+    }
+
     private fun collectRawNodes(node: AccessibilityNodeInfo?, nodes: MutableList<AccessibilityNodeInfo>, depth: Int = 0) {
         if (node == null || depth > MAX_TREE_DEPTH) return
         
@@ -1047,6 +1095,10 @@ class RideSmartService : AccessibilityService() {
 
     override fun onDestroy() {
         if (screenWakeLock.isHeld) screenWakeLock.release()
+        if (notificationReceiverRegistered) {
+            unregisterReceiver(notificationReceiver)
+            notificationReceiverRegistered = false
+        }
         stopUberPolling()
         screenshotExecutor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
