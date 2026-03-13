@@ -266,7 +266,7 @@ class RapidoParserTest {
     // ── METRES_REGEX: metre values converted to km ──────────────────
 
     @Test
-    fun `500m node is parsed as 0_5 km`() {
+    fun `500m node is parsed as half km`() {
         val nodes = listOf("₹65", "500m", "4.5 km", "Accept")
         val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 
@@ -276,7 +276,7 @@ class RapidoParserTest {
     }
 
     @Test
-    fun `300 m with space is parsed as 0_3 km`() {
+    fun `300 m with space is parsed as 0 point 3 km`() {
         val nodes = listOf("₹55", "300 m", "3.0 km", "Accept")
         val result = parser.parseExpandedCard(nodes, "com.rapido.rider")
 

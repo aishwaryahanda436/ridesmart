@@ -35,6 +35,7 @@ class OverlayManager(private val context: Context) {
     private val AUTO_DISMISS_MS = 12_000L
     private val TAG = "RideSmart"
     private val DRAG_THRESHOLD_PX = 10
+    private val UBER_BOTTOM_SHEET_OFFSET_RATIO = 0.42  // Sit above Uber's bottom sheet popup
 
     var onDismiss: ((String) -> Unit)? = null
 
@@ -182,9 +183,9 @@ class OverlayManager(private val context: Context) {
         ).apply {
             gravity = Gravity.BOTTOM
             y = if (isUber) {
-                // Offset above the Uber bottom sheet (~42% from bottom)
+                // Offset above the Uber bottom sheet
                 val dm = context.resources.displayMetrics
-                (dm.heightPixels * 0.42).toInt()
+                (dm.heightPixels * UBER_BOTTOM_SHEET_OFFSET_RATIO).toInt()
             } else {
                 0
             }

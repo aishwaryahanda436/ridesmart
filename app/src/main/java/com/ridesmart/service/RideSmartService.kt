@@ -50,6 +50,7 @@ class RideSmartService : AccessibilityService() {
         const val RIDE_RESULT_CHANNEL_ID = "ridesmart_ride_result"
         const val NOTIF_ID = 1
         const val RIDE_RESULT_NOTIF_ID = 2
+        const val RIDE_RESULT_TIMEOUT_MS = 12_000L
 
         val SUPPORTED_PACKAGES = setOf(
             "com.rapido.rider",
@@ -606,7 +607,7 @@ class RideSmartService : AccessibilityService() {
             .setContentIntent(openApp)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-            .setTimeoutAfter(12_000L)
+            .setTimeoutAfter(RIDE_RESULT_TIMEOUT_MS)
             .build()
 
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
