@@ -119,7 +119,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "URPDE ENGINE v2.0",
+                    text = "SMART RIDE ENGINE v3.0",
                     color = RideGreen,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,

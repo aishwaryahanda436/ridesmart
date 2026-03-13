@@ -11,8 +11,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * RideSmart HUD Theme v2.0
- * Ultra-modern neon-dark interface optimized for high-speed decision making.
+ * RideSmart Theme v3.0
+ * Clean modern dark theme with blue accent for professional driver experience.
  */
 private val RideSmartColorScheme = darkColorScheme(
     primary = RideGreen,
@@ -20,7 +20,7 @@ private val RideSmartColorScheme = darkColorScheme(
     primaryContainer = RideGreenDark,
     onPrimaryContainer = Color.White,
     secondary = RideBlue,
-    onSecondary = Color.Black,
+    onSecondary = Color.White,
     tertiary = SignalYellow,
     onTertiary = Color.Black,
     background = DarkBackground,

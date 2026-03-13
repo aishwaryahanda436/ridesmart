@@ -157,6 +157,10 @@ class OverlayManager(private val context: Context) {
         view.findViewById<View>(R.id.accent_bar)
             .setBackgroundColor(accentColor)
 
+        // Platform name
+        view.findViewById<TextView>(R.id.tv_platform_name).text =
+            PlatformConfig.get(parsedRide.packageName).displayName.uppercase()
+
         // Signal text logic
         val tvSignal = view.findViewById<TextView>(R.id.tv_signal)
         val cardContext = if (totalRidesConsidered > 1) {

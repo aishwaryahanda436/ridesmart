@@ -6,7 +6,7 @@
     android:orientation="horizontal"
     android:elevation="16dp">
 
-    <!-- Left color accent bar — GREEN / YELLOW / RED -->
+    <!-- Left color accent bar — GREEN / ORANGE / RED -->
     <View
         android:id="@+id/accent_bar"
         android:layout_width="6dp"
@@ -23,14 +23,36 @@
         android:paddingTop="10dp"
         android:paddingBottom="4dp">
 
-        <!-- Row 1: Signal verdict -->
-        <TextView
-            android:id="@+id/tv_signal"
+        <!-- Row 1: Platform name + Signal verdict -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.05" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_platform_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#88FFFFFF"
+                android:letterSpacing="0.1" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tv_signal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+        </LinearLayout>
 
         <!-- Row 2: Fare (big) + Net profit -->
         <LinearLayout
@@ -61,7 +83,7 @@
                     android:id="@+id/tv_net_profit_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="NET PROFIT"
+                    android:text="EST. PROFIT"
                     android:textSize="9sp"
                     android:textColor="#88FFFFFF"
                     android:letterSpacing="0.08"
