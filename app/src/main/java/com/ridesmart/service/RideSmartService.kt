@@ -76,9 +76,9 @@ class RideSmartService : AccessibilityService() {
         private const val UBER_POLL_BASE_MS      = 1000L
         private const val UBER_POLL_MAX_MS       = 10_000L
         
-        // Increased from 8 → 12 to handle Jetpack Compose trees (deeper nesting)
+        // Increased from 8 → 16 to handle Jetpack Compose trees (typically 12-18 nodes deep)
         // and RecyclerView/LazyColumn list containers.
-        private const val MAX_TREE_DEPTH         = 12
+        private const val MAX_TREE_DEPTH         = 16
 
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
 
@@ -194,6 +194,7 @@ class RideSmartService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+            info.eventTypes = info.eventTypes or AccessibilityEvent.TYPE_WINDOWS_CHANGED
         }
 
         calculator = ProfitCalculator()
@@ -318,8 +319,28 @@ class RideSmartService : AccessibilityService() {
         // Skip our own package — we don't need to analyse ourselves
         if (evtPkg == packageName) return
 
+        // ── BUG 4: Detect when Uber app leaves foreground via window changes ──
+        // TYPE_WINDOWS_CHANGED fires for any window change (including the launcher
+        // coming to foreground). If no visible window belongs to Uber, clear the flag
+        // so the 1-second polling loop stops taking home-screen screenshots.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            val hasUberWindow = windows.any { win ->
+                normalizePlatform(win.root?.packageName?.toString() ?: "") == "uber"
+            }
+            if (!hasUberWindow) {
+                uberAppInForeground = false
+            }
+            return
+        }
+
         // ── Spec v2.0 Section 3.3: Rapido Animation Debounce ──
-        if (ParserFactory.isRapido(evtPkg)) {
+        // normalizePlatform is used instead of ParserFactory.isRapido so that all
+        // packages whose name contains "rapido" receive the debounce, not only the
+        // three exact package names currently in the set.
+        // TYPE_NOTIFICATION_STATE_CHANGED is excluded from the early return so that
+        // Rapido notifications fall through to the shared notification handler below.
+        if (normalizePlatform(evtPkg) == "rapido" &&
+            event.eventType != AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             // Note: Debounce still needed, but extraction must be on main thread.
             // We can delay and then capture on main thread.
             serviceScope.launch(Dispatchers.Main) {
