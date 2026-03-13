@@ -76,6 +76,14 @@ class RideSmartService : AccessibilityService() {
         private const val MAX_TREE_DEPTH         = 8
 
         private val FARE_SIGNAL_REGEX = Regex("""₹\d+""")
+
+        // Throttle interval for Uber TYPE_WINDOW_CONTENT_CHANGED events
+        // to prevent event storms from triggering excessive node collection.
+        private const val UBER_CONTENT_CHANGED_THROTTLE_MS = 300L
+
+        // Cooldown for OCR fallback trigger when accessibility tree is empty.
+        // Prevents rapid-fire OCR attempts on consecutive empty-node events.
+        private const val OCR_FALLBACK_COOLDOWN_MS = 2000L
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -107,8 +115,12 @@ class RideSmartService : AccessibilityService() {
         val sessionCache: RideSessionCache = RideSessionCache()
     )
     private val platformStates = java.util.concurrent.ConcurrentHashMap<String, PlatformState>()
+    // Sentinel state for packages with empty normalized platform key (launchers, systemui).
+    // Avoids creating a new disposable PlatformState on every call.
+    private val emptyPlatformState = PlatformState()
     private fun stateFor(pkg: String): PlatformState {
         val key = normalizePlatform(pkg)
+        if (key.isEmpty()) return emptyPlatformState
         return platformStates.getOrPut(key) {
             if (platformStates.size >= MAX_PLATFORM_STATES) {
                 val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
@@ -151,6 +163,8 @@ class RideSmartService : AccessibilityService() {
     private var recentForegroundPackage: String = ""
     private var uberOcrActive = false
     private var uberScreenshotJob: Job? = null
+    private val lastUberContentChangedMs = AtomicLong(0L)
+    private val lastOcrFallbackMs = AtomicLong(0L)
 
     private val screenWakeLock: PowerManager.WakeLock by lazy {
         (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
@@ -302,6 +316,9 @@ class RideSmartService : AccessibilityService() {
                 uberOcrActive = false
                 uberScreenshotJob?.cancel()
                 uberScreenshotJob = null
+                // Reset throttle/cooldown on window state change (new context)
+                lastUberContentChangedMs.set(0L)
+                lastOcrFallbackMs.set(0L)
                 Log.d(TAG, "📥 UBER WINDOW CHANGED — triggering screenshot immediately")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     triggerUberScreenshot()
@@ -312,6 +329,12 @@ class RideSmartService : AccessibilityService() {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
                 event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
                 resetUberPollingBackoff()
+                // Throttle Uber content-changed events to prevent event storms
+                // from triggering excessive node collection and OCR fallback.
+                val now = System.currentTimeMillis()
+                val last = lastUberContentChangedMs.get()
+                if (now - last < UBER_CONTENT_CHANGED_THROTTLE_MS) return
+                lastUberContentChangedMs.set(now)
             }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
             val platform = normalizePlatform(evtPkg)
@@ -458,6 +481,12 @@ class RideSmartService : AccessibilityService() {
 
         if (allNodes.isEmpty()) {
             if (uberAppInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Rate-limit OCR fallback to prevent rapid-fire triggers
+                // when Uber's accessibility tree is consistently empty.
+                val now = System.currentTimeMillis()
+                val lastOcr = lastOcrFallbackMs.get()
+                if (now - lastOcr < OCR_FALLBACK_COOLDOWN_MS) return
+                lastOcrFallbackMs.set(now)
                 Log.d(TAG, "🔍 UBER: empty accessibility tree — triggering OCR fallback")
                 triggerUberScreenshot()
             }
