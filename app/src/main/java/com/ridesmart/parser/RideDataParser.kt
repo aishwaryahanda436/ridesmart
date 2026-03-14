@@ -317,7 +317,7 @@ class RideDataParser : IPlatformParser {
         val activeNodes = nodes.filter { it.isNotBlank() }
         
         // Split logic: Uber cards often start with vehicle name or "See all requests"
-        val splitKeywords = listOf("Bike", "Auto", "Moto", "UberGo", "Premier", "XL", "Intercity")
+        val splitKeywords = listOf("Bike", "Auto", "Moto", "UberGo", "Uber", "Premier", "XL", "Intercity")
         
         val cards = mutableListOf<List<String>>()
         var currentCard = mutableListOf<String>()
@@ -329,8 +329,7 @@ class RideDataParser : IPlatformParser {
             val trimmed = node.trim()
             val isVehicleNode = trimmed.length < 30 &&
                 splitKeywords.any { trimmed.equals(it, ignoreCase = true) ||
-                    trimmed.startsWith("$it ", ignoreCase = true) ||
-                    trimmed.startsWith("Uber", ignoreCase = true) }
+                    trimmed.startsWith("$it ", ignoreCase = true) }
             if (isVehicleNode && currentCard.isNotEmpty()) {
                 cards.add(currentCard)
                 currentCard = mutableListOf()
