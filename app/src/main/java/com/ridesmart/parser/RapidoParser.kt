@@ -46,6 +46,9 @@ class RapidoParser : IPlatformParser {
             !hasFare && !hasAccept -> ScreenState.IDLE
             hasFare && hasAccept && !hasKm -> ScreenState.OFFER_LOADING
             hasFare && hasAccept && hasKm  -> ScreenState.OFFER_LOADED
+            // Fallback: fare + distance is a strong offer signal even if the
+            // Accept button text isn't detected (app update may rename it).
+            hasFare && hasKm -> ScreenState.OFFER_LOADED
             else -> ScreenState.IDLE
         }
     }

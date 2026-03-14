@@ -30,6 +30,10 @@ class UberOcrEngine : IPlatformParser {
         private const val TAG = "RideSmart"
         private const val MIN_OFFER_SIGNALS = 2
 
+        // Pre-compiled fare-signal regex used in the identifier guard.
+        // Avoids re-compiling on every parseFromNodes() call.
+        private val FARE_SIGNAL_REGEX = Regex("""(?:₹|Rs\.?)\s*\d+""")
+
         // Screen-level rejection phrases (not an offer card)
         private val SCREEN_REJECT = listOf(
             "you're online", "you are online", "finding trips", "you're offline", "you are offline",
@@ -37,10 +41,14 @@ class UberOcrEngine : IPlatformParser {
         )
 
         // ── GigU clinit blacklist ─────────────────────────────────────────────
+        // NOTE: "long trip", "multiple stops" and "reservation" are labels
+        // that Uber shows on LEGITIMATE ride offers (long-distance rides,
+        // multi-destination rides, scheduled rides).  They must NOT be
+        // blacklisted — doing so silently drops those offers and the driver
+        // never sees analysis for them.
         private val SCREEN_BLACKLIST = listOf(
             "copied to", 
             "all caught", "we'll let", "toward your", "let's go",
-            "long trip", "multiple stops", "reservation",
             "get priority", "press & hold",
             "you're in a quiet zone"
         )
@@ -155,7 +163,7 @@ class UberOcrEngine : IPlatformParser {
         }
 
         val identifiers = listOf("uber", "requests", "match", "incentive", "premium", "upfront", "confirm", "cash payment")
-        val hasFareSignal = Regex("""(?:₹|Rs\.?)\s*\d+""").containsMatchIn(combinedRaw)
+        val hasFareSignal = FARE_SIGNAL_REGEX.containsMatchIn(combinedRaw)
         if (!hasFareSignal && identifiers.none { combinedRaw.contains(it) }) return null
 
         val fare = extractFare(lines) ?: return null

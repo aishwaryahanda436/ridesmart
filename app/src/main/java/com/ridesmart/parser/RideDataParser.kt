@@ -323,7 +323,14 @@ class RideDataParser : IPlatformParser {
         var currentCard = mutableListOf<String>()
 
         for (node in activeNodes) {
-            val isVehicleNode = splitKeywords.any { node.contains(it, ignoreCase = true) } && node.length < 30
+            // Only split on a vehicle-type keyword when the node text is SHORT
+            // and does NOT look like an address (no commas, no "road", "nagar", etc.).
+            // This prevents splitting on address nodes like "Auto Stand, Main Road".
+            val trimmed = node.trim()
+            val isVehicleNode = trimmed.length < 30 &&
+                splitKeywords.any { trimmed.equals(it, ignoreCase = true) ||
+                    trimmed.startsWith("$it ", ignoreCase = true) ||
+                    trimmed.startsWith("Uber", ignoreCase = true) }
             if (isVehicleNode && currentCard.isNotEmpty()) {
                 cards.add(currentCard)
                 currentCard = mutableListOf()

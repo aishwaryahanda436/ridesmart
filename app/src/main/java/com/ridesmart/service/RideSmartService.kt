@@ -664,69 +664,73 @@ class RideSmartService : AccessibilityService() {
     }
 
     private suspend fun processNotificationData(pkg: String, title: String, text: String) {
-        val parser = ParserFactory.getParser(pkg)
-        val allRides = parser.parseAll(listOf(title, text), pkg)
-        if (allRides.isEmpty()) return
-        val parsedRide = allRides.first()
+        try {
+            val parser = ParserFactory.getParser(pkg)
+            val allRides = parser.parseAll(listOf(title, text), pkg)
+            if (allRides.isEmpty()) return
+            val parsedRide = allRides.first()
 
-        val state = stateFor(pkg)
-        val now = System.currentTimeMillis()
-        if (parsedRide.baseFare.toFloat() == state.lastFare &&
-            kotlin.math.abs(parsedRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
-            now - state.lastRideTime < 3000L) return
+            val state = stateFor(pkg)
+            val now = System.currentTimeMillis()
+            if (parsedRide.baseFare.toFloat() == state.lastFare &&
+                kotlin.math.abs(parsedRide.rideDistanceKm - state.lastRideDistance) < 0.01 &&
+                now - state.lastRideTime < 3000L) return
 
-        state.lastFare = parsedRide.baseFare.toFloat()
-        state.lastRideDistance = parsedRide.rideDistanceKm
-        state.lastRideTime = now
+            state.lastFare = parsedRide.baseFare.toFloat()
+            state.lastRideDistance = parsedRide.rideDistanceKm
+            state.lastRideTime = now
 
-        val profile = repository.profileFlow.first()
-        val result = calculator.calculate(parsedRide, profile)
-        
-        Log.d(TAG, "✅ Notification result for $pkg: fare=${parsedRide.baseFare} profit=${result.netProfit}")
+            val profile = repository.profileFlow.first()
+            val result = calculator.calculate(parsedRide, profile)
+            
+            Log.d(TAG, "✅ Notification result for $pkg: fare=${parsedRide.baseFare} profit=${result.netProfit}")
 
-        // Integrate with session cache for "best so far" comparison
-        if (parsedRide.rideDistanceKm > 0.0) {
-            if (state.sessionCache.isExpired()) state.sessionCache.reset()
-            val smartScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
-            state.sessionCache.addResult(parsedRide, result.netProfit, smartScore)
-        }
+            // Integrate with session cache for "best so far" comparison
+            if (parsedRide.rideDistanceKm > 0.0) {
+                if (state.sessionCache.isExpired()) state.sessionCache.reset()
+                val smartScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
+                state.sessionCache.addResult(parsedRide, result.netProfit, smartScore)
+            }
 
-        val bestSeen = state.sessionCache.getBestSeen()
-        val totalCardsSeen = state.sessionCache.getTotalCardsSeen()
-        val currentScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
-        val isBestSoFar = bestSeen == null || currentScore >= (bestSeen.smartScore - 0.01)
+            val bestSeen = state.sessionCache.getBestSeen()
+            val totalCardsSeen = state.sessionCache.getTotalCardsSeen()
+            val currentScore = result.netProfit - (parsedRide.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(parsedRide.pickupDistanceKm))
+            val isBestSoFar = bestSeen == null || currentScore >= (bestSeen.smartScore - 0.01)
 
-        withContext(Dispatchers.Main) {
-            if (Settings.canDrawOverlays(this@RideSmartService)) {
-                val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
-                overlayManager.showResult(
-                    rideResult,
-                    totalRidesConsidered = totalCardsSeen,
-                    isBestSoFar          = isBestSoFar,
-                    bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
-                    bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
-                )
-                hudOverlayManager.showResult(
-                    rideResult,
-                    totalRidesConsidered = totalCardsSeen
-                )
-                
-                state.lastShownSmartScore = currentScore
-                state.lastFare = parsedRide.baseFare.toFloat()
-                state.lastRideDistance = parsedRide.rideDistanceKm
-                state.lastRideTime = System.currentTimeMillis()
-
-                if (normalizePlatform(pkg) == "uber") {
-                    uberOfferActiveMs = System.currentTimeMillis()
-                    // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
-                    // may silently suppress our overlay without any error
-                    postResultNotification(
-                        RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
+            withContext(Dispatchers.Main) {
+                if (Settings.canDrawOverlays(this@RideSmartService)) {
+                    val rideResult = RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
+                    overlayManager.showResult(
+                        rideResult,
+                        totalRidesConsidered = totalCardsSeen,
+                        isBestSoFar          = isBestSoFar,
+                        bestSeenFare         = bestSeen?.ride?.baseFare ?: parsedRide.baseFare,
+                        bestSeenNetProfit    = bestSeen?.netProfit ?: result.netProfit
                     )
+                    hudOverlayManager.showResult(
+                        rideResult,
+                        totalRidesConsidered = totalCardsSeen
+                    )
+                    
+                    state.lastShownSmartScore = currentScore
+                    state.lastFare = parsedRide.baseFare.toFloat()
+                    state.lastRideDistance = parsedRide.rideDistanceKm
+                    state.lastRideTime = System.currentTimeMillis()
+
+                    if (normalizePlatform(pkg) == "uber") {
+                        uberOfferActiveMs = System.currentTimeMillis()
+                        // Fallback notification for Uber — HIDE_OVERLAY_WINDOWS (Android 12+)
+                        // may silently suppress our overlay without any error
+                        postResultNotification(
+                            RideResult(parsedRide, result.totalFare, result.actualPayout, result.fuelCost, result.wearCost, result.netProfit, result.earningPerKm, result.earningPerHour, result.pickupRatio, result.signal, result.failedChecks)
+                        )
+                    }
                 }
             }
+            saveRideToHistory(parsedRide, result, pkg)
+        } catch (e: Exception) {
+            Log.e(TAG, "Notification processing error for $pkg: ${e.message}", e)
         }
-        saveRideToHistory(parsedRide, result, pkg)
     }
 
     private fun cancelRiskMultiplier(pickupKm: Double): Double = when {
@@ -748,20 +752,36 @@ class RideSmartService : AccessibilityService() {
             return
         }
         if (screenState == com.ridesmart.model.ScreenState.ACTIVE_RIDE) return
+        // BUG FIX: Skip OFFER_LOADING — fare is visible but distances haven't
+        // loaded yet.  Processing a 0-distance ride inflates netProfit (no
+        // fuel/wear cost) and poisons lastShownSmartScore, causing the REAL
+        // offer (with actual distance) to be suppressed by MIN_SCORE_IMPROVEMENT.
+        if (screenState == com.ridesmart.model.ScreenState.OFFER_LOADING) return
 
-        var allRides = parser.parseAll(textNodes, packageName)
+        var allRides: List<ParsedRide>
+        try {
+            allRides = parser.parseAll(textNodes, packageName)
+        } catch (e: Exception) {
+            Log.e(TAG, "Parser error for $packageName: ${e.message}", e)
+            return
+        }
 
         if (allRides.isEmpty() && isUber) {
-            val fallbackRides = ParserFactory.getFallbackParser().parseAll(textNodes, packageName)
-            if (fallbackRides.isNotEmpty()) {
-                allRides = fallbackRides
-            } else if (uberOcrEngine.hasOfferSignals(textNodes)) {
-                Log.d(TAG, "🔍 UBER HYBRID: offer signals detected but parsing failed — triggering OCR")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    withContext(Dispatchers.Main) {
-                        triggerUberScreenshot()
+            try {
+                val fallbackRides = ParserFactory.getFallbackParser().parseAll(textNodes, packageName)
+                if (fallbackRides.isNotEmpty()) {
+                    allRides = fallbackRides
+                } else if (uberOcrEngine.hasOfferSignals(textNodes)) {
+                    Log.d(TAG, "🔍 UBER HYBRID: offer signals detected but parsing failed — triggering OCR")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        withContext(Dispatchers.Main) {
+                            triggerUberScreenshot()
+                        }
                     }
+                    return
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Uber fallback parser error: ${e.message}", e)
                 return
             }
         }
@@ -792,7 +812,12 @@ class RideSmartService : AccessibilityService() {
         val (bestRide, bestResult, currentScore) = best
 
         if (bestRide.rideDistanceKm > 0.0) {
-            if (state.sessionCache.isExpired()) state.sessionCache.reset()
+            if (state.sessionCache.isExpired()) {
+                state.sessionCache.reset()
+                // BUG FIX: Reset score threshold when session expires so that
+                // rides in the new session are not blocked by the old session's score.
+                state.lastShownSmartScore = Double.MIN_VALUE
+            }
             state.sessionCache.addResult(bestRide, bestResult.netProfit, currentScore)
         }
 
