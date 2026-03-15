@@ -45,16 +45,16 @@ class RideSmartService : AccessibilityService() {
         const val NOTIF_ID = 1
 
         val SUPPORTED_PACKAGES = setOf(
+            "com.ubercab.driver",
+            "com.olacabs.oladriver",
             "com.rapido.rider",
             "in.rapido.captain",
             "com.rapido.captain",
-            "com.ubercab.driver",
-            "com.ubercab",
-            "com.olacabs.driver",
-            "com.ola.driver",
-            "in.juspay.nammayatri",
-            "net.openkochi.yatri",
-            "in.juspay.nammayatripartner"
+            "in.shadowfax.gandalf",
+            "in.juspay.nammayatripartner",
+            "net.openkochi.yatripartner",
+            "sinet.startup.inDriver",
+            "com.meru.merumobile"
         )
 
         private const val PICKUP_PENALTY_PER_KM = 1.5
@@ -99,17 +99,14 @@ class RideSmartService : AccessibilityService() {
         }
     }
     private fun normalizePlatform(pkg: String): String = when {
-        pkg.contains("ubercab", ignoreCase = true) ||
-        pkg.contains("uber", ignoreCase = true)       -> "uber"
-        pkg.contains("rapido", ignoreCase = true)     -> "rapido"
-        pkg.contains("olacabs", ignoreCase = true) ||
-        pkg.contains("ola.driver", ignoreCase = true) -> "ola"
-        pkg.contains("nammayatri", ignoreCase = true) ||
-        pkg.contains("juspay", ignoreCase = true) ||
-        pkg.contains("yatri", ignoreCase = true)      -> "nammayatri"
-        // Launcher / System Home Screen is neutral — should not block Uber
-        pkg.contains("launcher", ignoreCase = true) ||
-        pkg.contains("systemui", ignoreCase = true)   -> ""
+        pkg == "com.ubercab.driver" -> "uber"
+        pkg == "com.olacabs.oladriver" -> "ola"
+        pkg == "com.rapido.rider" -> "rapido"
+        pkg == "in.shadowfax.gandalf" -> "shadowfax"
+        pkg == "in.juspay.nammayatripartner" || pkg == "net.openkochi.yatripartner" -> "nammayatri"
+        pkg == "sinet.startup.inDriver" -> "indrive"
+        pkg == "com.meru.merumobile" -> "meru"
+        pkg.contains("launcher", ignoreCase = true) || pkg.contains("systemui", ignoreCase = true) -> ""
         else -> pkg
     }
     private var activeForegroundPlatform: String = ""
