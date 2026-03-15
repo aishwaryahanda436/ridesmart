@@ -48,8 +48,6 @@ class RideSmartService : AccessibilityService() {
             "com.ubercab.driver",
             "com.olacabs.oladriver",
             "com.rapido.rider",
-            "in.rapido.captain",
-            "com.rapido.captain",
             "in.shadowfax.gandalf",
             "in.juspay.nammayatripartner",
             "net.openkochi.yatripartner",
