@@ -45,16 +45,16 @@ class RideSmartService : AccessibilityService() {
         const val NOTIF_ID = 1
 
         val SUPPORTED_PACKAGES = setOf(
+            "com.ubercab.driver",
+            "com.olacabs.oladriver",
             "com.rapido.rider",
             "in.rapido.captain",
             "com.rapido.captain",
-            "com.ubercab.driver",
-            "com.ubercab",
-            "com.olacabs.driver",
-            "com.ola.driver",
-            "in.juspay.nammayatri",
-            "net.openkochi.yatri",
-            "in.juspay.nammayatripartner"
+            "in.shadowfax.gandalf",
+            "in.juspay.nammayatripartner",
+            "net.openkochi.yatripartner",
+            "sinet.startup.inDriver",
+            "com.meru.merumobile"
         )
 
         private const val PICKUP_PENALTY_PER_KM = 1.5
