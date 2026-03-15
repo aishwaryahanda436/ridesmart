@@ -1,15 +1,8 @@
 package com.ridesmart.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
     primary = Amber400,
@@ -21,28 +14,42 @@ private val LightColorScheme = lightColorScheme(
     primary = Amber400,
     secondary = Green400,
     tertiary = Red400
+private val RideSmartColorScheme = darkColorScheme(
+    primary          = Amber400,
+    onPrimary        = BgDeep,
+    primaryContainer = AmberLight,
+    onPrimaryContainer = Amber800,
+
+    secondary        = Green400,
+    onSecondary      = BgDeep,
+    secondaryContainer = GreenLight,
+    onSecondaryContainer = GreenDark,
+
+    tertiary         = Red400,
+    onTertiary       = BgDeep,
+
+    background       = BgDeep,
+    onBackground     = TextPrimary,
+
+    surface          = BgSurface,
+    onSurface        = TextPrimary,
+    surfaceVariant   = BgElevated,
+    onSurfaceVariant = TextSecondary,
+
+    outline          = BorderDefault,
+    outlineVariant   = BorderSubtle,
+
+    error            = Red400,
+    onError          = BgDeep
 )
 
 @Composable
-fun RidesmartTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun RidesmartTheme(content: @Composable () -> Unit) {
+    // dynamicColor is intentionally OFF — wallpaper colors must never
+    // override the green/amber/red signal colours captains rely on
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = RideSmartColorScheme,
+        typography  = Typography,
+        content     = content
     )
 }
