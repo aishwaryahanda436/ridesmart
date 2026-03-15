@@ -61,6 +61,23 @@ class RideSmartService : AccessibilityService() {
         private const val MAX_PLATFORM_STATES    = 8
         private const val UBER_POLL_BASE_MS      = 2500L
         private const val UBER_POLL_MAX_MS       = 10_000L
+
+        data class NodeSnapshot(
+            val text: String?,
+            val contentDesc: String?,
+            val viewId: String?,
+            val className: String?,
+            val boundsTop: Int,
+            val boundsBottom: Int,
+            val boundsLeft: Int,
+            val boundsRight: Int
+        ) {
+            fun bestText(): String? = when {
+                !text.isNullOrBlank() -> text
+                !contentDesc.isNullOrBlank() -> contentDesc
+                else -> null
+            }
+        }
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -655,6 +672,39 @@ class RideSmartService : AccessibilityService() {
             }
         }
         return texts
+    }
+
+    private fun snapshotTree(
+        root: AccessibilityNodeInfo?,
+        depth: Int = 0
+    ): List<NodeSnapshot> {
+        if (root == null || depth > 8) return emptyList()
+        val result = mutableListOf<NodeSnapshot>()
+        val bounds = android.graphics.Rect()
+        root.getBoundsInScreen(bounds)
+        val t = root.text?.toString()
+        val cd = root.contentDescription?.toString()
+        if (!t.isNullOrBlank() || !cd.isNullOrBlank()) {
+            result += NodeSnapshot(
+                text        = t,
+                contentDesc = cd,
+                viewId      = root.viewIdResourceName,
+                className   = root.className?.toString(),
+                boundsTop   = bounds.top,
+                boundsBottom= bounds.bottom,
+                boundsLeft  = bounds.left,
+                boundsRight = bounds.right
+            )
+        }
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i) ?: continue
+            try {
+                result += snapshotTree(child, depth + 1)
+            } finally {
+                child.recycle()
+            }
+        }
+        return result
     }
 
     override fun onInterrupt() {}
