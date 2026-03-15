@@ -6,4 +6,4 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagIncludeNotImportantViews|flagReportViewIds"
     android:notificationTimeout="50"
-    android:packageNames="com.rapido.rider,in.rapido.captain,com.rapido.captain,com.ubercab.driver,com.ubercab,com.olacabs.driver,com.ola.driver,in.juspay.nammayatri,net.openkochi.yatri,in.juspay.nammayatripartner" />
+    android:packageNames="com.rapido.rider" />
