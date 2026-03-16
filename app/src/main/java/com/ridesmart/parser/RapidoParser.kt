@@ -88,6 +88,11 @@ class RapidoParser : IPlatformParser {
             }
         }
 
+        if (premiumAmount > baseFare) {
+            Log.d(TAG, "⚠️ Boost ₹$premiumAmount exceeds fare ₹$baseFare — capping to fare")
+            premiumAmount = baseFare
+        }
+
         var tipAmount = 0.0
         activeNodes.forEach { node ->
             if (node.contains("Tip", ignoreCase = true)) {

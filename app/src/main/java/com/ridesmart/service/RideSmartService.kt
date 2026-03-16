@@ -102,9 +102,10 @@ class RideSmartService : AccessibilityService() {
     )
     private val platformStates = mutableMapOf<String, PlatformState>()
     private fun stateFor(pkg: String): PlatformState {
+        if (pkg.isBlank()) return PlatformState()
         val key = normalizePlatform(pkg)
+        if (key.isBlank()) return PlatformState()
         return platformStates.getOrPut(key) {
-            // Evict oldest entry if map grows beyond supported platform count
             if (platformStates.size >= MAX_PLATFORM_STATES) {
                 val oldest = platformStates.entries.minByOrNull { it.value.lastRideTime }
                 oldest?.let { platformStates.remove(it.key) }
@@ -256,7 +257,10 @@ class RideSmartService : AccessibilityService() {
             }
         } else if (evtPkg.isNotBlank() && evtPkg != "android" && !evtPkg.contains("systemui")) {
             uberAppInForeground = false
-            activeForegroundPlatform = normalizePlatform(evtPkg)
+            val normalized = normalizePlatform(event.packageName?.toString() ?: "")
+            if (normalized.isNotBlank()) {
+                activeForegroundPlatform = normalized
+            }
         }
 
         // ── UBER NOTIFICATION INTERCEPTION ──────────────────────────────
@@ -371,10 +375,15 @@ class RideSmartService : AccessibilityService() {
                 val fallbackRoot = rootInActiveWindow
                 if (fallbackRoot != null) {
                     try {
-                        val fallbackNodes = collectAllText(fallbackRoot)
+                        val packageName = fallbackRoot.packageName?.toString() ?: pkg
+                        val fallbackNodes = if (packageName == "in.shadowfax.gandalf") {
+                            findNodesForPackage(packageName)
+                        } else {
+                            collectAllText(fallbackRoot)
+                        }
                         if (fallbackNodes.isNotEmpty()) {
                             allNodes.addAll(fallbackNodes)
-                            detectedPackage = fallbackRoot.packageName?.toString() ?: pkg
+                            detectedPackage = packageName
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error processing fallback root: ${e.message}")
@@ -566,7 +575,7 @@ class RideSmartService : AccessibilityService() {
                     earningPerHour       = result.earningPerHour,
                     signal               = result.signal,
                     failedChecks         = result.failedChecks.joinToString("|"),
-                    smartScore           = result.netProfit - (ride.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(ride.pickupDistanceKm)),
+                    smartScore           = result.netProfit - (ride.pickupDistanceKm * PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(pickupKm = ride.pickupDistanceKm)),
                     pickupAddress        = ride.pickupAddress,
                     dropAddress          = ride.dropAddress,
                     riderRating          = ride.riderRating,
@@ -705,6 +714,33 @@ class RideSmartService : AccessibilityService() {
             }
         }
         return result
+    }
+
+    private fun findNodesForPackage(packageName: String): List<String> {
+        // Strategy 1: scan all windows for the matching package
+        // This is required for apps that draw overlays over the launcher
+        // (e.g. Shadowfax offer popup appears over home screen)
+        try {
+            val allWindows = windows
+            for (window in allWindows) {
+                val windowPkg = window.root?.packageName?.toString() ?: continue
+                if (windowPkg == packageName) {
+                    val nodes = collectAllText(window.root)
+                    if (nodes.isNotEmpty()) {
+                        Log.d(TAG, "🪟 findNodesForPackage: found $packageName " +
+                            "in window ${window.id} nodes=${nodes.size}")
+                        window.root?.recycle()
+                        return nodes
+                    }
+                }
+                window.root?.recycle()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "🪟 findNodesForPackage error: ${e.message}")
+        }
+
+        // Strategy 2: fall back to rootInActiveWindow
+        return collectAllText(rootInActiveWindow)
     }
 
     override fun onInterrupt() {}

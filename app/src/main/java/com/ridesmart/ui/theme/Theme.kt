@@ -4,16 +4,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Amber400,
-    secondary = Green400,
-    tertiary = Red400
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Amber400,
-    secondary = Green400,
-    tertiary = Red400
 private val RideSmartColorScheme = darkColorScheme(
     primary          = Amber400,
     onPrimary        = BgDeep,

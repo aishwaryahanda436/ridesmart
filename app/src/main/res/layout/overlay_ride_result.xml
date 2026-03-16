@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/overlay_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:elevation="16dp">
 
-    <!-- Countdown progress bar — drains from full to empty -->
+    <!-- Timer bar — drains left to right over 12 seconds -->
     <ProgressBar
         android:id="@+id/dismiss_progress"
         style="?android:attr/progressBarStyleHorizontal"
@@ -14,16 +13,17 @@
         android:layout_height="4dp"
         android:max="120"
         android:progress="120"
-        android:progressTint="#44FFFFFF"
-        android:progressBackgroundTint="#11FFFFFF" />
+        android:progressTint="#FFEF9F27"
+        android:progressBackgroundTint="#22EF9F27" />
 
-    <!-- Accent bar + main content row -->
+    <!-- Accent bar + content row -->
     <LinearLayout
+        android:id="@+id/overlay_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- Left color accent bar — GREEN / YELLOW / RED -->
+        <!-- Left color accent bar -->
         <View
             android:id="@+id/accent_bar"
             android:layout_width="8dp"
@@ -38,19 +38,19 @@
             android:paddingStart="12dp"
             android:paddingEnd="14dp"
             android:paddingTop="10dp"
-            android:paddingBottom="4dp">
+            android:paddingBottom="10dp">
 
             <!-- Row 1: Signal verdict -->
             <TextView
                 android:id="@+id/tv_signal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/barlow_condensed_bold"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:letterSpacing="0.05" />
+                android:fontFamily="@font/barlow_condensed_bold"
+                android:letterSpacing="0.08" />
 
-            <!-- Row 2: Fare (big) + Net profit -->
+            <!-- Row 2: Fare + Net profit -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -58,18 +58,16 @@
                 android:gravity="center_vertical"
                 android:paddingTop="4dp">
 
-                <!-- Fare — largest number, most important -->
                 <TextView
                     android:id="@+id/tv_fare"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:fontFamily="@font/ibm_plex_mono_medium"
                     android:textSize="40sp"
+                    android:fontFamily="@font/ibm_plex_mono_medium"
                     android:textStyle="bold"
                     android:textColor="#FFFFFF" />
 
-                <!-- Right side: net profit + platform+distance stacked -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -83,6 +81,7 @@
                         android:text="NET PROFIT"
                         android:textSize="9sp"
                         android:textColor="#88FFFFFF"
+                        android:fontFamily="@font/barlow_condensed_regular"
                         android:letterSpacing="0.08"
                         android:gravity="end" />
 
@@ -90,8 +89,8 @@
                         android:id="@+id/tv_net_profit"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/ibm_plex_mono_medium"
                         android:textSize="28sp"
+                        android:fontFamily="@font/ibm_plex_mono_medium"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF"
                         android:gravity="end" />
@@ -105,7 +104,6 @@
                         android:gravity="end" />
 
                 </LinearLayout>
-
             </LinearLayout>
 
             <!-- Divider -->
@@ -122,7 +120,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <!-- ₹/km -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -134,17 +131,18 @@
                         android:text="₹/KM"
                         android:textSize="9sp"
                         android:textColor="#88FFFFFF"
+                        android:fontFamily="@font/barlow_condensed_regular"
                         android:letterSpacing="0.08" />
                     <TextView
                         android:id="@+id/tv_per_km"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textSize="15sp"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/ibm_plex_mono_medium"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF" />
                 </LinearLayout>
 
-                <!-- Pickup distance -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -156,17 +154,18 @@
                         android:text="PICKUP"
                         android:textSize="9sp"
                         android:textColor="#88FFFFFF"
+                        android:fontFamily="@font/barlow_condensed_regular"
                         android:letterSpacing="0.08" />
                     <TextView
                         android:id="@+id/tv_pickup_ratio"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textSize="15sp"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/ibm_plex_mono_medium"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF" />
                 </LinearLayout>
 
-                <!-- ₹/hr (hidden when no duration) -->
                 <LinearLayout
                     android:id="@+id/row_per_hour"
                     android:layout_width="0dp"
@@ -179,20 +178,19 @@
                         android:text="₹/HR"
                         android:textSize="9sp"
                         android:textColor="#88FFFFFF"
+                        android:fontFamily="@font/barlow_condensed_regular"
                         android:letterSpacing="0.08" />
                     <TextView
                         android:id="@+id/tv_per_hour"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textSize="15sp"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/ibm_plex_mono_medium"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF" />
                 </LinearLayout>
 
             </LinearLayout>
-
         </LinearLayout>
-
     </LinearLayout>
-
 </LinearLayout>

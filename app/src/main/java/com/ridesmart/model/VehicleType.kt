@@ -12,6 +12,7 @@ enum class VehicleType(
     CNG_AUTO    ("CNG Auto",   28.0,  FuelType.CNG,      1.6),
     EBIKE       ("e-Bike",      0.0,  FuelType.ELECTRIC, 0.7),
     CAR         ("Car",        15.0,  FuelType.PETROL,   2.3),
+    DELIVERY    ("Delivery",   45.0,  FuelType.PETROL,   1.0),
     UNKNOWN     ("Unknown",    45.0,  FuelType.PETROL,   1.0)
 }
 
