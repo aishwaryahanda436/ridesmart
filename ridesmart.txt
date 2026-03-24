@@ -1,0 +1,780 @@
+================================================================================
+                    RIDESMART — DEEP ANALYSIS REPORT
+           Test Coverage | Bugs | Optimizations | Feature Gaps
+================================================================================
+Generated: 2026-03-24
+Repository: aishwaryahanda436/ridesmart
+Branch: copilot/analyze-test-coverage
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. PROJECT OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RideSmart is an Android Accessibility Service application that monitors
+ride-hailing app screens (Rapido, Uber, Ola, Shadowfax, Namma Yatri) in
+real-time and displays a profit/loss overlay so gig-economy riders can quickly
+decide whether to accept or reject a ride offer.
+
+KEY MODULES
+-----------
+  engine/   ProfitCalculator, RideResult, RideSessionCache
+  model/    ParsedRide, PlatformConfig, ProfitResult, RideResult,
+            RiderProfile, ScreenState, Signal, VehicleType, FuelType
+  parser/   IPlatformParser, ParserFactory, RapidoParser, RideDataParser,
+            ShadowfaxParser, UberNotificationParser
+  service/  RideSmartService (AccessibilityService), UberOcrEngine,
+            RideNotificationListener (deprecated/empty)
+  data/     ProfileRepository (DataStore), RideHistoryRepository
+  overlay/  OverlayManager
+  ui/       MainActivity, ProfileSetupScreen, ProfileViewModel,
+            RideHistoryScreen, LockScreenWakeActivity
+  receiver/ BootReceiver
+
+TECH STACK: Kotlin · Jetpack Compose · DataStore Preferences · ML Kit OCR
+           · Android Accessibility Service · Firebase Crashlytics
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. EXISTING TEST COVERAGE SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  File                                 Tests   Coverage Assessment
+  ──────────────────────────────────── ──────  ─────────────────────────────
+  engine/ProfitCalculatorTest.kt        7      Good — happy path + edge cases
+  parser/RideDataParserTest.kt          6      Partial — Uber & Rapido only
+  service/UberOcrEngineTest.kt          9      Partial — core paths covered
+  ExampleUnitTest.kt                    1      Trivial placeholder only
+  ExampleInstrumentedTest.kt            1      Trivial placeholder only
+
+MODULES WITH ZERO TEST COVERAGE
+---------------------------------
+  • parser/RapidoParser               (active parser, zero tests)
+  • parser/ShadowfaxParser            (complete implementation, zero tests)
+  • parser/ParserFactory              (routing logic, zero tests)
+  • parser/UberNotificationParser     (reflection logic, zero tests)
+  • engine/RideSessionCache           (stateful session logic, zero tests)
+  • model/PlatformConfig              (commission/payout math, zero tests)
+  • data/RideHistoryRepository        (CSV encode/decode, zero tests)
+  • data/ProfileRepository            (DataStore integration, zero tests)
+  • ui/ProfileViewModel               (ViewModel logic, zero tests)
+  • receiver/BootReceiver             (zero tests)
+
+ESTIMATED OVERALL UNIT TEST COVERAGE: ~18–22%
+(Only ProfitCalculator and partial parser/OCR paths are exercised.)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. MISSING & INSUFFICIENT TESTS — DETAILED BREAKDOWN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3.1 RapidoParser (parser/RapidoParser.kt)
+------------------------------------------
+  MISSING TESTS:
+  a) detectScreenState() — IDLE when no fare/accept
+  b) detectScreenState() — OFFER_LOADING (fare present, no km yet)
+  c) detectScreenState() — OFFER_LOADED (fare + accept + km)
+  d) detectScreenState() — ACTIVE_RIDE (keyword "end ride" present)
+  e) detectVehicleType() — each VehicleType enum value (BIKE, BIKE_BOOST, 
+     CNG_AUTO, EBIKE, AUTO, CAR, UNKNOWN)
+  f) parseExpandedCard() — basic fare extraction
+  g) parseExpandedCard() — boost/premium extraction (+₹ pattern)
+  h) parseExpandedCard() — boost cap: premiumAmount should never exceed baseFare
+  i) parseExpandedCard() — tip extraction via "Tip ₹XX" node
+  j) parseExpandedCard() — km swap when pickup > 5km AND pickup > ride distance
+  k) parseExpandedCard() — sanity check: returns null for ₹/km > 80
+  l) parseExpandedCard() — returns null for IDLE/ACTIVE_RIDE screens
+  m) parseAll() — multi-card split on CARD_SPLIT_KEYWORDS
+  n) parseAll() — single card falls through to parseExpandedCard()
+
+3.2 ShadowfaxParser (parser/ShadowfaxParser.kt)
+-------------------------------------------------
+  MISSING TESTS:
+  a) detectScreenState() — IDLE (searching nearby keywords)
+  b) detectScreenState() — ACTIVE_RIDE (delivered/picked/otp keywords)
+  c) detectScreenState() — OFFER_LOADED (accept order + fare + km)
+  d) detectScreenState() — OFFER_LOADING (accept order + fare, no km)
+  e) parseAll() — labeled strategy: "Pickup: 0.2 km" / "Drop: 14.94 kms"
+  f) parseAll() — merged/fallback strategy (single Compose text node)
+  g) parseLabeledNodes() — baseFare extraction
+  h) parseLabeledNodes() — payment type via "Amount: Cash" pattern
+  i) parseLabeledNodes() — returns null when no km data
+  j) parseMergedText() — single km value → rideDistanceKm only
+  k) parseMergedText() — two km values → pickup + drop correctly assigned
+
+3.3 RideDataParser — missing scenarios
+----------------------------------------
+  EXISTING: Uber home screen, Uber basic popup, Uber with tip,
+            Rapido basic, Rapido with tip, non-popup screen.
+  MISSING:
+  a) Ola fare extraction — uses minOrNull() (different from Uber/Rapido)
+  b) Porter fare extraction (15% commission platform)
+  c) Namma Yatri fare extraction
+  d) Non-Uber platform with two km values (pickup + ride distance)
+  e) Vehicle type detection: Moto → BIKE, Auto → AUTO, else → CAR
+  f) Bonus/premium extraction (+₹ pattern) for non-Uber platform
+  g) Rating extraction (e.g. "★4.8" node)
+  h) Payment type extraction ("cash", "upi", "wallet")
+  i) Address extraction logic (12+ char nodes, no km/fare)
+  j) parseAll() multi-card split via vehicle keywords (Bike, Auto, UberGo)
+  k) isUberHomeScreen() — quest text patterns ("Complete 3 more trips")
+
+3.4 ProfitCalculatorTest — missing edge cases
+----------------------------------------------
+  EXISTING: basic YELLOW, tip GREEN, premium+hour GREEN, long pickup YELLOW,
+            borderline GREEN, CNG Auto, eBike zero fuel.
+  MISSING:
+  a) Zero rideDistanceKm → earningPerKm should be 0.0, no division crash
+  b) Zero estimatedDurationMin → earningPerHour should be 0.0 (not crash)
+  c) Platform commission override (profile.platformCommissionPercent > 0)
+  d) PlatformConfig commission (Ola 20%, Porter 15%) via package name
+  e) Three or more failed checks → signal = RED
+  f) Exactly one failed check → signal = YELLOW
+  g) Car vehicle type — uses 15.0 km/l default + 2.3 wear multiplier
+  h) Custom mileage profile (not 45.0) should override vehicle default
+  i) earningPerHour check: only fires when earningPerHour > 0
+  j) Pickup ratio exactly at threshold (0.40 — boundary test)
+
+3.5 RideSessionCache (engine/RideSessionCache.kt)
+--------------------------------------------------
+  MISSING TESTS (entire class uncovered):
+  a) reset() clears results and resets cardIndex
+  b) isExpired() returns false before any session starts (sessionStartMs=0)
+  c) isExpired() returns false within 90 seconds
+  d) isExpired() returns true after 90 seconds elapsed
+  e) addResult() stores first result for new key
+  f) addResult() updates if new score is higher (isBetterScore)
+  g) addResult() updates if more distance data and score within range
+  h) addResult() does NOT update if existing score is higher
+  i) getBestSeen() returns entry with highest smartScore
+  j) getBestSeen() returns null on empty cache
+  k) getTotalCardsSeen() returns count of unique keys
+  l) isEmpty() returns true initially, false after addResult()
+  m) cardIndex increments per unique card, not per update
+
+3.6 PlatformConfig (model/PlatformConfig.kt)
+---------------------------------------------
+  MISSING TESTS:
+  a) get() returns correct platform for known package names
+  b) get() returns default Platform with 20% commission for unknown package
+  c) effectivePayout() for Ola (20% commission) → fare * 0.80
+  d) effectivePayout() for Porter (15% commission) → fare * 0.85
+  e) effectivePayout() for Rapido (0% commission) → gross fare unchanged
+  f) effectivePayout() for Uber (0% commission) → gross fare unchanged
+
+3.7 RideHistoryRepository (data/RideHistoryRepository.kt)
+----------------------------------------------------------
+  MISSING TESTS (requires Robolectric or mocked Context):
+  a) encodeRow() → parseRow() round-trip preserves all fields
+  b) parseRow() handles legacy comma-separated rows (< 23 fields)
+  c) parseRow() returns null for malformed rows
+  d) Zero-width-space separator handles addresses containing commas
+  e) saveRide() trims to MAX_ENTRIES (200) when limit exceeded
+  f) clearHistory() removes all saved data
+  g) Signal.valueOf() for all enum values (GREEN, YELLOW, RED)
+  h) historyFlow emits entries sorted by descending timestamp
+
+3.8 UberOcrEngineTest — missing cases
+---------------------------------------
+  EXISTING: idle screen, blacklisted phrase, missing identifiers,
+            basic fare, Rs prefix, bonus, cash/digital payment,
+            empty input, fare below threshold.
+  MISSING:
+  a) fixOcrErrors() — "krn" → "km", "lmin" → "1min", "knn" → "km"
+  b) extractTimeAndDistance() — "5 mins (4.2 km)" pattern parsing
+  c) extractTimeAndDistance() — "away" keyword for pickup distance
+  d) extractBonus() — no bonus line → returns 0.0
+  e) extractRating() — rating in "★4.8" format
+  f) extractAddresses() — address extraction with India-specific keywords
+     (nagar, colony, sector, chowk, marg)
+  g) detectScreenState() — OFFER_LOADED vs IDLE determination
+  h) parseAll() calls parseFromNodes() and wraps in list
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. BUGS AND ERRORS FOUND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG-01 [CRITICAL] ShadowfaxParser Not Wired Into ParserFactory
+  File: parser/ParserFactory.kt, Line 5–11
+  Description:
+    ShadowfaxParser was written and exists at parser/ShadowfaxParser.kt but
+    ParserFactory.getParser() only maps "com.rapido.rider" → RapidoParser and
+    everything else → RideDataParser. When RideSmartService calls
+    ParserFactory.getParser("in.shadowfax.gandalf"), it receives a
+    RideDataParser instance, meaning Shadowfax-specific labeled parsing
+    ("Pickup: X km", "Drop: X km", "Amount: Cash") never fires.
+  Impact: All Shadowfax rides are parsed by the wrong parser; result may be
+          null or incorrect, and the overlay never appears for Shadowfax.
+  Fix:
+    Add to ParserFactory.getParser():
+      "in.shadowfax.gandalf" -> ShadowfaxParser()
+
+BUG-02 [HIGH] Rapido Captain Packages Use Wrong Parser
+  File: parser/ParserFactory.kt, Line 5
+  Description:
+    PlatformConfig.ALL defines three Rapido package names:
+      - "com.rapido.rider"      ← mapped to RapidoParser ✓
+      - "in.rapido.captain"     ← falls to RideDataParser ✗
+      - "com.rapido.captain"    ← falls to RideDataParser ✗
+    RapidoParser contains Rapido-specific logic (BOOST_REGEX, km-swap, sanity
+    check, CARD_SPLIT_KEYWORDS) that RideDataParser lacks.
+  Impact: Riders using the captain-variant app get degraded parsing.
+  Fix: Add "in.rapido.captain" and "com.rapido.captain" to ParserFactory.
+
+BUG-03 [HIGH] Ola Package Name Mismatch
+  File: service/RideSmartService.kt, Line 49; parser/ParserFactory.kt
+  Description:
+    SUPPORTED_PACKAGES and normalizePlatform() use "com.olacabs.oladriver"
+    but PlatformConfig.ALL lists "com.olacabs.driver" and "com.ola.driver".
+    This means:
+      - If the real Ola app uses "com.olacabs.driver", it is not in
+        SUPPORTED_PACKAGES and accessibility events are filtered out.
+      - PlatformConfig.get("com.olacabs.oladriver") returns the Unknown
+        fallback (20% commission) instead of the explicit Ola entry.
+  Impact: Ola rides might not be detected, or commission calculated wrongly.
+  Fix: Align SUPPORTED_PACKAGES and normalizePlatform() with PlatformConfig.
+
+BUG-04 [HIGH] RapidoParser Sanity Check Rejects Valid Short Rides
+  File: parser/RapidoParser.kt, Line ~120
+  Code:
+    if (rideDistanceKm > 0.0 && baseFare / rideDistanceKm > 80.0) { return null }
+  Description:
+    A ₹50 fare for a 0.5 km ride gives ₹100/km — a common and valid ultra-short
+    ride (e.g., station drop). This sanity check silently discards the ride.
+    The threshold of ₹80/km was tuned for misparses (e.g., distance OCR read
+    as "0.1 km" instead of "1.0 km") but is too aggressive for short rides.
+  Impact: Some valid short-distance Rapido rides produce no overlay.
+  Fix: Raise threshold to ₹150/km, or make the threshold configurable, or
+       additionally require minimum rideDistanceKm > 0.3 before applying.
+
+BUG-05 [MEDIUM] RideDataParser Vehicle Type Defaults to CAR Incorrectly
+  File: parser/RideDataParser.kt, Line ~215 (detectVehicleType section)
+  Code:
+    else -> vehicleType = VehicleType.CAR
+  Description:
+    For Rapido/Ola/Namma Yatri offers that do not contain "Moto", "Bike", or
+    "Auto" anywhere in the text, the parser falls through to VehicleType.CAR.
+    Rapido's main offering is bike taxis; defaulting to CAR applies the wrong
+    mileage (15 km/l vs 45 km/l) and wear multiplier (2.3× vs 1.0×), causing
+    ProfitCalculator to severely underestimate fuel cost and over-estimate wear.
+  Impact: Incorrect profit calculations for non-Uber platforms without explicit
+          vehicle type tokens in screen text.
+  Fix: Default to VehicleType.UNKNOWN, not VehicleType.CAR, so
+       ProfitCalculator uses the profile's default mileage correctly.
+
+BUG-06 [MEDIUM] UberOcrEngine OCR Character Substitution Too Broad
+  File: service/UberOcrEngine.kt, extractFare(), Line ~185
+  Code:
+    line = line.replace(Regex("""(?<![A-Za-z])[TtFf](?=\d)"""), "₹")
+  Description:
+    This regex converts any standalone T, t, F, or f immediately before a
+    digit into the ₹ symbol for OCR error correction. While this catches some
+    OCR artefacts ("T120" → "₹120"), it also converts legitimate text tokens
+    like "T20" (cricket reference in notification) or "F1" into fare values.
+    There is also a risk of matching within place names or addresses.
+  Impact: False positive fare detection in non-fare lines.
+  Fix: Narrow the regex to only apply on lines that already contain other
+       fare-adjacent patterns (digits with decimal), or require the character
+       to be at line start.
+
+BUG-07 [MEDIUM] RideHistoryRepository Silent Exception Swallowing
+  File: data/RideHistoryRepository.kt, parseRow(), Line ~100
+  Code:
+    } catch (e: Exception) { null }
+  Description:
+    Any parsing exception (malformed number, missing field, invalid Signal
+    enum name) is silently swallowed and returns null. While this prevents
+    crashes, it also means data corruption goes completely unnoticed —
+    history entries silently vanish with no log or crash report.
+  Impact: Silent data loss; users may lose ride history without knowing.
+  Fix: Log the exception at minimum: Log.w(TAG, "Failed to parse row", e)
+       Optionally emit a metric to Firebase Crashlytics for monitoring.
+
+BUG-08 [LOW] RideSessionCache isExpired() Edge Case After Reset
+  File: engine/RideSessionCache.kt, isExpired(), Line 42
+  Code:
+    fun isExpired(): Boolean {
+        if (sessionStartMs == 0L) return false
+        return System.currentTimeMillis() - sessionStartMs > SESSION_TIMEOUT_MS
+    }
+  Description:
+    After reset() is called, sessionStartMs is set to System.currentTimeMillis()
+    (not 0L). Immediately after a reset, the timer is running. If the service
+    calls isExpired() microseconds after reset() from a fast event, it will
+    return false (correct), but subsequent idle processing might call isExpired()
+    before addResult() is called and misinterpret state. This is a minor
+    logical inconsistency: sessionStartMs starts the clock on first addResult()
+    when uninitialized, but reset() restarts it immediately without waiting for
+    the first ride, creating a potential phantom 90-second countdown.
+  Fix: In reset(), set sessionStartMs = 0L so the clock only starts on the
+       next addResult() call.
+
+BUG-09 [LOW] PlatformConfig Commission for Namma Yatri Shows 0%
+  File: model/PlatformConfig.kt, Line 18
+  Code:
+    Platform("com.namma.yatri", "Namma", 0.0, 0.0)
+  Description:
+    Namma Yatri operates on a subscription model (no per-ride commission) but
+    the actual subscription daily cost is also 0.0, meaning the app treats it
+    as fully free. In practice, Namma Yatri charges ~₹50–₹100/day subscription.
+    Not accounting for this daily overhead means all Namma Yatri profit
+    calculations are optimistic.
+  Impact: Profit overstated for Namma Yatri riders.
+  Fix: Add subscription daily cost, or document the known limitation clearly
+       in the UI and in PlatformConfig comments.
+
+BUG-10 [LOW] Pickup Ratio Threshold Hardcoded in ProfitCalculator
+  File: engine/ProfitCalculator.kt, Line ~84
+  Code:
+    if (pickupRatio > 0.40) { failedChecks.add(...) }
+  Description:
+    The 40% pickup-distance threshold is hardcoded and not exposed via
+    RiderProfile. A rider in a dense city may accept a 50% pickup ratio for
+    a lucrative fare, while a suburb rider may want a stricter 25% threshold.
+  Impact: One-size-fits-all threshold may produce irrelevant warnings.
+  Fix: Add maxPickupRatio: Double = 0.40 to RiderProfile and use it in
+       ProfitCalculator.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. OPTIMIZATION OPPORTUNITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPT-01 [Performance] RideHistoryRepository — Single String Storage
+  File: data/RideHistoryRepository.kt
+  Issue: The entire ride history (up to 200 entries) is stored, parsed, and
+         re-saved as a single delimited string on every write. For 200 entries
+         each with 27 fields, this could exceed 20–40 KB per DataStore edit.
+         Reads parse the entire string even if only the latest entry is needed.
+  Recommendation: Migrate to Room database (SQLite) for proper indexed
+         queries, or at minimum use a JSON array with Gson/Moshi to leverage
+         partial reads. A Room migration would also enable analytics queries
+         by date, platform, or vehicle type without manual string parsing.
+
+OPT-02 [Performance] RideSmartService — Regex Compilation on Every Call
+  File: multiple parsers (RapidoParser, RideDataParser, ShadowfaxParser)
+  Issue: All Regex patterns are declared in companion objects (compiled once
+         per class load). This is correct and already optimized. However,
+         in UberOcrEngine.extractFare() and extractBonus(), local Regex
+         patterns are compiled fresh inside the loop body on every iteration:
+           val fareRegex = Regex("""(?:₹|Rs\.?)\s*(\d{1,5}...)""")
+         This creates a new Regex object for every line processed.
+  Recommendation: Hoist these inner Regex instances to companion object
+         constants (as the other parsers already do) to avoid recompilation.
+
+OPT-03 [Performance] RideSmartService — PlatformState Map Unbounded Growth
+  File: service/RideSmartService.kt, stateFor()
+  Issue: MAX_PLATFORM_STATES = 8 limits map size, evicting by lastRideTime.
+         However, blank/normalized packages can still insert entries if the
+         normalizePlatform() guard is ever bypassed. Also, the eviction
+         strategy (remove oldest by lastRideTime) may remove a still-active
+         platform if it hasn't processed a ride recently.
+  Recommendation: Evict only platforms whose last ride was > 30 minutes ago,
+         or use a fixed-size LRU cache (LinkedHashMap with removeEldestEntry).
+
+OPT-04 [Memory] OverlayManager — View Leak on Exception
+  File: overlay/OverlayManager.kt
+  Issue: windowManager.addView() can throw WindowManager.BadTokenException
+         (e.g., if the service is disconnecting) but the view reference is
+         stored in activeCards before addView() succeeds. If an exception is
+         thrown mid-add, the view is orphaned in activeCards and can never be
+         removed.
+  Recommendation: Only store in activeCards after addView() succeeds:
+           windowManager.addView(view, params)
+           activeCards[platform] = view  // ← move AFTER addView
+
+OPT-05 [UX/Logic] Uber Polling Adaptive Backoff
+  File: service/RideSmartService.kt
+  Issue: uberPollingIntervalMs starts at 2.5s and backs off to 10s after
+         consecutive empty polls. The backoff resets via
+         resetUberPollingBackoff() on window changes, but the polling
+         continues even when the screen is off (only gated by
+         uberAppInForeground flag, not screen-on state).
+  Recommendation: Also gate polling on PowerManager.isInteractive() to
+         avoid consuming CPU/battery when the device screen is off.
+
+OPT-06 [Readability] RideDataParser — Fare Extraction Logic Duplication
+  File: parser/RideDataParser.kt, parse() method
+  Issue: The fare extraction for Ola/Namma (minOrNull) vs others (firstOrNull)
+         is implemented with a when block but re-reads allFares multiple times.
+         There is also implicit coupling between the Uber-specific fare filter
+         (minFareThreshold = 30.0 vs 10.0) and the hasConfirm guard.
+  Recommendation: Extract fare extraction into a private fun extractBaseFare()
+         method for testability and clarity.
+
+OPT-07 [Architecture] Smart Score Not Part of ProfitResult
+  File: engine/ProfitCalculator.kt, service/RideSmartService.kt
+  Issue: The "smart score" (netProfit - pickupPenalty) is computed inline in
+         RideSmartService three separate times with duplicate math:
+           val currentScore = result.netProfit - (ride.pickupDistanceKm * 
+               PICKUP_PENALTY_PER_KM * cancelRiskMultiplier(...))
+         The constant PICKUP_PENALTY_PER_KM = 1.5 and cancelRiskMultiplier()
+         live in the service, not in the engine, making them invisible to tests.
+  Recommendation: Move smartScore calculation into ProfitCalculator.calculate()
+         and include it in ProfitResult. This makes it testable and eliminates
+         the three duplicate inline calculations.
+
+OPT-08 [Testability] System.currentTimeMillis() Direct Usage in Cache
+  File: engine/RideSessionCache.kt
+  Issue: RideSessionCache uses System.currentTimeMillis() directly, making
+         isExpired() tests non-deterministic. Tests cannot control time.
+  Recommendation: Inject a clock abstraction (e.g. a () -> Long lambda with
+         default System::currentTimeMillis) to enable time-controlled testing.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. MISSING FEATURES AND ENHANCEMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FEAT-01 [Parsers] Namma Yatri Dedicated Parser
+  Current State: "in.juspay.nammayatripartner" falls to generic RideDataParser.
+  Namma Yatri has a distinct UI layout with Kannada text, specific fare display
+  format, and "Accept" button placement that RideDataParser may not handle.
+  Recommendation: Implement NammaYatriParser similar to ShadowfaxParser, with
+         language-aware fare detection and platform-specific screen state logic.
+
+FEAT-02 [Parsers] Ola-Specific Parser
+  Current State: Ola falls to RideDataParser; fare extraction uses minOrNull()
+  as a crude workaround to get the lowest fare value. Ola's UI shows surge
+  multipliers and multiple fare options that generic parsing handles poorly.
+  Recommendation: Implement OlaParser with Ola-specific patterns.
+
+FEAT-03 [Profile] Configurable Pickup Ratio Threshold
+  Current State: Hardcoded at 40% in ProfitCalculator.
+  Recommendation: Add maxAcceptablePickupRatio: Double = 0.40 to RiderProfile
+         so riders in different cities can tune this threshold from the UI.
+
+FEAT-04 [Profile] Subscription Cost Overhead
+  Current State: PlatformConfig.subscriptionDailyCost is stored but never used
+         in ProfitCalculator. The daily subscription cost for Namma Yatri,
+         Rapido, and Uber subscription plans is a real cost that currently
+         vanishes from all profit calculations.
+  Recommendation: Add a dailySubscriptionCost: Double field to RiderProfile
+         and amortize it per ride (e.g., assume 10 rides/day:
+         subscriptionCostPerRide = dailySubscriptionCost / 10.0) in
+         ProfitCalculator.
+
+FEAT-05 [Analytics] Acceptance Rate Tracking
+  Current State: RideHistoryRepository stores every offer shown by the overlay.
+         There is no field to record whether the rider accepted or rejected
+         the ride.
+  Recommendation: Add an accepted: Boolean? = null field to RideEntry.
+         Track this via a broadcast from the target app or a timer-based
+         heuristic (if the ride app disappears within 15s of overlay, likely
+         accepted). This enables "acceptance rate by signal color" analytics.
+
+FEAT-06 [Analytics] Peak Hours Heatmap
+  Current State: RideEntry stores hourOfDay and dayOfWeek but there is no
+         screen in the UI to visualize this data.
+  Recommendation: Add a "Peak Hours" analytics screen to RideHistoryScreen
+         showing a 7×24 heatmap of average netProfit by hour and day of week.
+         This helps riders plan their active hours.
+
+FEAT-07 [UI] Overlay Customization
+  Current State: Overlay position is hardcoded per platform (Uber = top,
+         others = bottom) in OverlayManager.buildParams().
+  Recommendation: Let the rider choose overlay position (top/bottom/left/right)
+         in ProfileSetupScreen and persist it in DataStore.
+
+FEAT-08 [Reliability] InDriver / Meru Support
+  Current State: SUPPORTED_PACKAGES includes "sinet.startup.inDriver" and
+         "com.meru.merumobile" but there are no dedicated parsers and no
+         PlatformConfig entries for either.
+  Recommendation: Either add basic parser support and commission data, or
+         remove from SUPPORTED_PACKAGES to avoid confusing incomplete results.
+
+FEAT-09 [CI/CD] No Jacoco Coverage Reports
+  Current State: build.gradle.kts has no Jacoco configuration; test coverage
+         numbers are estimates.
+  Recommendation: Add jacoco plugin to build.gradle.kts with a coverage report
+         task and a minimum threshold (e.g., 60% line coverage). This makes
+         coverage regressions visible in CI.
+
+FEAT-10 [Testing] Robolectric for Repository Tests
+  Current State: data/ layer (ProfileRepository, RideHistoryRepository) has
+         zero tests because they require an Android Context.
+  Recommendation: Add Robolectric dependency to testImplementation scope so
+         unit tests can run DataStore operations without a device emulator.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. COMPREHENSIVE TEST CASES TO ADD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Below are specific test cases that should be created as new test files.
+
+─────────────────────────────────────────────────────────────────────────────
+FILE: app/src/test/java/com/ridesmart/parser/RapidoParserTest.kt
+─────────────────────────────────────────────────────────────────────────────
+
+  @Test `detect screen state IDLE when no fare`
+    nodes = listOf("Map", "Search", "Account")
+    → detectScreenState(nodes) == ScreenState.IDLE
+
+  @Test `detect screen state OFFER_LOADING when fare but no km`
+    nodes = listOf("₹55", "Accept")
+    → detectScreenState(nodes) == ScreenState.OFFER_LOADING
+
+  @Test `detect screen state OFFER_LOADED with fare km and accept`
+    nodes = listOf("₹55", "1.2 km", "4.5 km", "Accept")
+    → detectScreenState(nodes) == ScreenState.OFFER_LOADED
+
+  @Test `detect ACTIVE_RIDE when end ride keyword present`
+    nodes = listOf("End Ride", "OTP: 1234")
+    → detectScreenState(nodes) == ScreenState.ACTIVE_RIDE
+
+  @Test `detect vehicle type BIKE_BOOST`
+    nodes = listOf("₹65", "Bike Boost", "+₹20", "Accept")
+    → detectVehicleType(nodes) == VehicleType.BIKE_BOOST
+
+  @Test `detect vehicle type CNG_AUTO`
+    nodes = listOf("CNG Auto", "₹80", "Accept")
+    → detectVehicleType(nodes) == VehicleType.CNG_AUTO
+
+  @Test `detect vehicle type EBIKE`
+    nodes = listOf("e-Bike", "₹50")
+    → detectVehicleType(nodes) == VehicleType.EBIKE
+
+  @Test `parse expanded card extracts fare correctly`
+    nodes = listOf("₹55", "1.2 km", "4.5 km", "18 min", "Accept")
+    → parseExpandedCard(nodes, "com.rapido.rider")?.baseFare == 55.0
+
+  @Test `parse expanded card boost is capped at base fare`
+    nodes = listOf("₹30", "+₹50", "1.0 km", "3.0 km", "Accept")
+    // +₹50 > ₹30 base fare → should cap premiumAmount = 30.0
+    → result.premiumAmount == 30.0
+
+  @Test `parse expanded card extracts tip`
+    nodes = listOf("₹60", "Tip ₹15", "0.5 km", "5.0 km", "Accept")
+    → result.tipAmount == 15.0
+
+  @Test `parse expanded card swaps distances when pickup far exceeds ride`
+    // pickup 8.0 km > rideDistance 3.0 km → swap
+    nodes = listOf("₹70", "8.0 km", "3.0 km", "Accept")
+    → result.pickupDistanceKm == 3.0 && result.rideDistanceKm == 8.0
+
+  @Test `parse expanded card returns null when fare per km exceeds sanity`
+    // ₹90 / 0.5 km = ₹180/km → rejected
+    nodes = listOf("₹90", "0.5 km", "Accept")
+    → parseExpandedCard(nodes, "com.rapido.rider") == null
+
+  @Test `parse expanded card returns null for active ride`
+    nodes = listOf("End Ride", "₹80", "2.1 km")
+    → parseExpandedCard(nodes, "com.rapido.rider") == null
+
+  @Test `parseAll returns list with one card when no split keywords`
+    nodes = listOf("₹55", "1.2 km", "4.5 km", "Accept")
+    → parseAll(nodes, "com.rapido.rider").size == 1
+
+  @Test `parseAll splits on card keyword and returns multiple results`
+    nodes = listOf("₹55", "1.2 km", "4.5 km", "Accept",
+                   "Auto", "₹80", "1.0 km", "6.0 km", "Accept")
+    → parseAll(nodes, "com.rapido.rider").size == 2
+
+─────────────────────────────────────────────────────────────────────────────
+FILE: app/src/test/java/com/ridesmart/parser/ShadowfaxParserTest.kt
+─────────────────────────────────────────────────────────────────────────────
+
+  @Test `detect IDLE with searching nearby keywords`
+    nodes = listOf("Searching nearby orders", "Move to a nearby area")
+    → detectScreenState(nodes) == ScreenState.IDLE
+
+  @Test `detect ACTIVE_RIDE with delivery started keyword`
+    nodes = listOf("Delivery started", "OTP: 4521")
+    → detectScreenState(nodes) == ScreenState.ACTIVE_RIDE
+
+  @Test `detect OFFER_LOADED with accept order fare and km`
+    nodes = listOf("₹166", "Accept Order", "Pickup: 0.2 km", "Drop: 14.94 kms")
+    → detectScreenState(nodes) == ScreenState.OFFER_LOADED
+
+  @Test `detect OFFER_LOADING with accept order and fare but no km`
+    nodes = listOf("₹166", "Accept Order")
+    → detectScreenState(nodes) == ScreenState.OFFER_LOADING
+
+  @Test `parseAll labeled strategy extracts fare and distances`
+    nodes = listOf("₹166", "Accept Order", "Pickup: 0.2 km", "Drop: 14.94 kms",
+                   "Amount: Cash", "12 min")
+    result = parser.parseAll(nodes, "in.shadowfax.gandalf").first()
+    → result.baseFare == 166.0
+    → result.pickupDistanceKm == 0.2
+    → result.rideDistanceKm == 14.94
+    → result.paymentType == "cash"
+    → result.estimatedDurationMin == 12
+
+  @Test `parseAll labeled strategy returns empty when no km data`
+    nodes = listOf("₹166", "Accept Order", "Amount: Cash")
+    → parseAll(nodes, "in.shadowfax.gandalf").isEmpty()
+
+  @Test `parseAll merged strategy works when nodes are combined`
+    merged = "₹120 · Accept Order · 0.3 kms · 5.2 kms · Amount: Online"
+    nodes = listOf(merged)
+    → parseAll(nodes, "in.shadowfax.gandalf").first().baseFare == 120.0
+
+  @Test `parseAll returns empty for IDLE screen`
+    nodes = listOf("Searching nearby orders")
+    → parseAll(nodes, "in.shadowfax.gandalf").isEmpty()
+
+  @Test `vehicle type is always DELIVERY for Shadowfax`
+    nodes = listOf("₹150", "Accept Order", "Drop: 8.0 km")
+    → parseAll(nodes, ...).first().vehicleType == VehicleType.DELIVERY
+
+─────────────────────────────────────────────────────────────────────────────
+FILE: app/src/test/java/com/ridesmart/engine/RideSessionCacheTest.kt
+─────────────────────────────────────────────────────────────────────────────
+
+  @Test `isEmpty returns true on fresh cache`
+    → RideSessionCache().isEmpty() == true
+
+  @Test `getBestSeen returns null on empty cache`
+    → RideSessionCache().getBestSeen() == null
+
+  @Test `addResult stores first result`
+    cache.addResult(ride1, netProfit=50.0, smartScore=48.5)
+    → cache.isEmpty() == false
+    → cache.getTotalCardsSeen() == 1
+
+  @Test `getBestSeen returns highest smartScore entry`
+    cache.addResult(ride1, 40.0, 38.0)
+    cache.addResult(ride2, 60.0, 58.0)  // different key
+    cache.addResult(ride3, 30.0, 25.0)  // different key
+    → cache.getBestSeen()?.smartScore == 58.0
+
+  @Test `addResult does not duplicate entries for same key`
+    cache.addResult(ride, 50.0, 48.0)
+    cache.addResult(ride, 50.0, 48.0)  // same fare/pickup/ride combo
+    → cache.getTotalCardsSeen() == 1
+
+  @Test `addResult updates if new score is higher`
+    cache.addResult(ride, 50.0, 48.0)
+    cache.addResult(ride, 60.0, 58.0)  // same key, better score
+    → cache.getBestSeen()?.smartScore == 58.0
+    → cache.getTotalCardsSeen() == 1  // still one unique card
+
+  @Test `addResult does NOT update if existing score is higher`
+    cache.addResult(ride, 60.0, 58.0)
+    cache.addResult(ride, 50.0, 48.0)  // same key, lower score
+    → cache.getBestSeen()?.smartScore == 58.0
+
+  @Test `reset clears all entries`
+    cache.addResult(ride, 50.0, 48.0)
+    cache.reset()
+    → cache.isEmpty() == true
+    → cache.getTotalCardsSeen() == 0
+
+  @Test `isExpired returns false before any addResult`
+    → RideSessionCache().isExpired() == false
+
+─────────────────────────────────────────────────────────────────────────────
+FILE: app/src/test/java/com/ridesmart/model/PlatformConfigTest.kt
+─────────────────────────────────────────────────────────────────────────────
+
+  @Test `get returns correct platform for Rapido`
+    → PlatformConfig.get("com.rapido.rider").displayName == "Rapido"
+    → PlatformConfig.get("com.rapido.rider").commissionPercent == 0.0
+
+  @Test `get returns correct platform for Ola`
+    → PlatformConfig.get("com.olacabs.driver").commissionPercent == 20.0
+
+  @Test `get returns default for unknown package`
+    → PlatformConfig.get("com.unknown.app").commissionPercent == 20.0
+    → PlatformConfig.get("com.unknown.app").displayName == "Unknown"
+
+  @Test `effectivePayout for Ola deducts 20 percent`
+    → PlatformConfig.effectivePayout(100.0, "com.olacabs.driver") == 80.0
+
+  @Test `effectivePayout for Rapido returns full fare`
+    → PlatformConfig.effectivePayout(100.0, "com.rapido.rider") == 100.0
+
+  @Test `effectivePayout for Porter deducts 15 percent`
+    → PlatformConfig.effectivePayout(100.0, "porter.in.android") == 85.0
+
+─────────────────────────────────────────────────────────────────────────────
+FILE: app/src/test/java/com/ridesmart/engine/ProfitCalculatorTest.kt
+  (ADDITIONS to existing file)
+─────────────────────────────────────────────────────────────────────────────
+
+  @Test `zero rideDistance returns zero earningPerKm and pickupRatio`
+    ride = ParsedRide(baseFare=50.0, rideDistanceKm=0.0, pickupDistanceKm=1.0)
+    → result.earningPerKm == 0.0
+    → result.pickupRatio == 0.0
+
+  @Test `zero estimatedDuration returns zero earningPerHour`
+    ride = ParsedRide(baseFare=80.0, rideDistanceKm=5.0, estimatedDurationMin=0)
+    → result.earningPerHour == 0.0
+
+  @Test `three failed checks produces RED signal`
+    profile = RiderProfile(minAcceptableNetProfit=100.0,  // very high target
+                           minAcceptablePerKm=20.0,       // very high target
+                           targetEarningPerHour=500.0)    // very high target
+    ride = ParsedRide(baseFare=30.0, rideDistanceKm=3.0,
+                      pickupDistanceKm=2.0, estimatedDurationMin=20)
+    → result.signal == Signal.RED
+    → result.failedChecks.size >= 3
+
+  @Test `platform commission override from profile takes precedence`
+    profileWithCommission = RiderProfile(platformCommissionPercent=20.0)
+    ride = ParsedRide(baseFare=100.0, rideDistanceKm=5.0, packageName="com.rapido.rider")
+    // Profile says 20% commission → actualPayout = 80.0
+    → result.actualPayout < 100.0
+    → result.actualPayout == approx(80.0 + tip + premium)
+
+  @Test `Car vehicle type uses 15 km/l and 2.3 wear multiplier`
+    ride = ParsedRide(baseFare=200.0, rideDistanceKm=10.0,
+                      pickupDistanceKm=2.0, vehicleType=VehicleType.CAR)
+    // fuelCost = 12.0 / 15.0 * 102 = 81.6
+    // wearCost = 12.0 * 1.10 * 2.3 = 30.36
+    → result.fuelCost ≈ 81.6 (within 1.0)
+    → result.wearCost ≈ 30.36 (within 1.0)
+
+  @Test `Custom mileage in profile overrides vehicle default`
+    profileCustom = RiderProfile(mileageKmPerLitre=30.0)
+    ride = ParsedRide(baseFare=80.0, rideDistanceKm=5.0, vehicleType=VehicleType.BIKE)
+    // BIKE + profile mileage 30.0 (not 45.0 default) → uses 30.0
+    expectedFuelCost = 5.0 / 30.0 * 102.0 = 17.0
+    → result.fuelCost ≈ 17.0 (within 0.5)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. PRIORITY MATRIX — RECOMMENDED ACTION ORDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Priority  Item          Action                               Effort
+  ────────  ──────────    ───────────────────────────────────  ──────
+  P0 CRIT   BUG-01        Wire ShadowfaxParser in Factory      15 min
+  P0 CRIT   BUG-02        Add Rapido captain pkgs to Factory   10 min
+  P0 HIGH   BUG-03        Align Ola package names              20 min
+  P1 HIGH   BUG-05        Fix vehicle type default to UNKNOWN  5 min
+  P1 HIGH   BUG-08        Fix RideSessionCache reset() clock   10 min
+  P1 HIGH   OPT-07        Move smartScore into ProfitResult    2 hrs
+  P2 MED    BUG-04        Relax sanity check threshold         10 min
+  P2 MED    BUG-07        Log exceptions in parseRow()         5 min
+  P2 MED    OPT-02        Hoist UberOcrEngine Regex to const   20 min
+  P2 MED    OPT-04        Fix OverlayManager view store order  5 min
+  P3 LOW    FEAT-03       Add pickupRatio to RiderProfile      30 min
+  P3 LOW    FEAT-04       Use subscriptionDailyCost in calc    1 hr
+  P3 LOW    FEAT-05       Track acceptance/rejection events    3 hrs
+  P3 LOW    FEAT-09       Add Jacoco coverage to build.gradle  30 min
+  P4 ENH    FEAT-01       NammaYatriParser                     4 hrs
+  P4 ENH    FEAT-02       OlaParser                            4 hrs
+  P4 ENH    FEAT-06       Peak Hours heatmap UI                6 hrs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Total source files analyzed:       34 (Kotlin)
+  Total existing test files:          5 (3 unit, 2 instrumented)
+  Total existing test cases:         ~23
+  Estimated current coverage:       ~18-22%
+
+  Bugs found:                        10 (1 critical, 3 high, 3 medium, 3 low)
+  Optimization items found:           8
+  Missing feature items found:       10
+  New test cases recommended:        ~55 across 4 new test files + additions
+
+  Most critical issue: ShadowfaxParser exists but is never used because
+  ParserFactory does not route "in.shadowfax.gandalf" to it (BUG-01).
+  This is a silent complete failure for all Shadowfax users.
+
+  Highest ROI test additions:
+  1. RapidoParserTest (14 cases) — active parser, zero coverage
+  2. RideSessionCacheTest (9 cases) — stateful session logic, zero coverage
+  3. ShadowfaxParserTest (9 cases) — broken by BUG-01, tests will expose it
+  4. PlatformConfigTest (6 cases) — commission math, zero coverage
+
+================================================================================
+END OF REPORT
+================================================================================
