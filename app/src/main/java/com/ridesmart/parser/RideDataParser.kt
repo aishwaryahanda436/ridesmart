@@ -2,42 +2,25 @@ package com.ridesmart.parser
 
 import android.util.Log
 import com.ridesmart.model.ParsedRide
+import com.ridesmart.model.ParseResult
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
 
 class RideDataParser : IPlatformParser {
 
     companion object {
-        private const val TAG = "RideDataParser"
+        private const val TAG = "RideSmart"
 
-        // Regex for Fare: supports "₹45.83", "₹ 123"
         private val FARE_REGEX = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
-
-        // Regex for Bonus/Premium: matches "+₹8.00"
         private val BONUS_REGEX = Regex("""\+₹\s*(\d+(?:\.\d{1,2})?)""")
-
-        // Regex for Distance: "4.2 km", "(0.5km)"
         private val KM_REGEX = Regex("""(\d+(?:\.\d{1,2})?)\s*km""", RegexOption.IGNORE_CASE)
-
-        // Regex for Duration: "12 min", "13 mins"
         private val MIN_REGEX = Regex("""(\d+)\s*mins?""", RegexOption.IGNORE_CASE)
 
         private val UBER_HOME_MARKERS = listOf(
-            "SEE WEEKLY SUMMARY",
-            "SEE DETAILS",
-            "SEE PROGRESS",
-            "Finding trips",
-            "You're online",
-            "You're Online",
-            "Upcoming promotions",
-            "Refer friends and earn",
-            "No insights to show",
-            "Cash out and more",
-            "LAST TRIP",
-            "Bar Chart",
-            "Next payout",
-            "Points reset",
-            "More ways to earn"
+            "SEE WEEKLY SUMMARY", "SEE DETAILS", "SEE PROGRESS", "Finding trips",
+            "You're online", "Upcoming promotions", "Refer friends and earn",
+            "No insights to show", "Cash out and more", "LAST TRIP",
+            "Bar Chart", "Next payout", "Points reset", "More ways to earn"
         )
     }
 
@@ -60,7 +43,7 @@ class RideDataParser : IPlatformParser {
         }
     }
 
-    fun isUberHomeScreen(nodes: List<String>): Boolean {
+    private fun isUberHomeScreen(nodes: List<String>): Boolean {
         val combined = nodes.joinToString("|")
         val isHomeScreen = UBER_HOME_MARKERS.any { combined.contains(it, ignoreCase = true) }
 
@@ -72,19 +55,14 @@ class RideDataParser : IPlatformParser {
         return isHomeScreen || hasQuestText
     }
 
-    fun parse(nodes: List<String>, packageName: String): ParsedRide? {
+    internal fun parse(nodes: List<String>, packageName: String): ParsedRide? {
         val activeNodes = nodes.filter { it.isNotBlank() }
         if (activeNodes.isEmpty()) return null
 
         val isUber = packageName.contains("ubercab") || packageName.contains("uber")
 
-        // ── UBER HOME SCREEN GUARD ──────────────────────────────────
         if (isUber) {
-            if (isUberHomeScreen(activeNodes)) {
-                Log.d("RideSmart", "🚫 UBER HOME SCREEN — skipping, not a ride offer")
-                return null
-            }
-
+            if (isUberHomeScreen(activeNodes)) return null
             val hasConfirm = activeNodes.any {
                 it.equals("Confirm", ignoreCase = true) ||
                 it.equals("Match", ignoreCase = true) ||
@@ -93,13 +71,9 @@ class RideDataParser : IPlatformParser {
             val combinedText = activeNodes.joinToString(" ")
             val hasFareWithDecimal = Regex("₹\\s*\\d+\\.\\d+").containsMatchIn(combinedText)
             val hasKm = KM_REGEX.containsMatchIn(combinedText)
-
-            if (!hasConfirm && !hasFareWithDecimal && !hasKm) {
-                return null
-            }
+            if (!hasConfirm && !hasFareWithDecimal && !hasKm) return null
         }
 
-        // ── EXTRACT FARE ─────────────────────────────────────────────────
         val minFareThreshold = if (isUber) 30.0 else 10.0
         val allFares = activeNodes.mapNotNull { node ->
             if (node.contains("km", ignoreCase = true) || node.contains("+")) null
@@ -107,35 +81,20 @@ class RideDataParser : IPlatformParser {
         }.filter { it > minFareThreshold }
 
         val baseFare = when {
-            packageName.contains("olacabs") || packageName.contains("ola") -> 
-                allFares.minOrNull() ?: 0.0
-            packageName.contains("nammayatri") || packageName.contains("juspay") -> 
-                allFares.minOrNull() ?: 0.0
+            packageName.contains("olacabs") || packageName.contains("ola") -> allFares.minOrNull() ?: 0.0
+            packageName.contains("nammayatri") || packageName.contains("juspay") -> allFares.minOrNull() ?: 0.0
             else -> allFares.firstOrNull() ?: 0.0
         }
-
         if (baseFare == 0.0) return null
 
         var bonusAmount = 0.0
         activeNodes.forEach { node ->
             val match = BONUS_REGEX.find(node)
-            if (match != null) {
-                bonusAmount += match.groupValues[1].toDoubleOrNull() ?: 0.0
-            }
+            if (match != null) bonusAmount += match.groupValues[1].toDoubleOrNull() ?: 0.0
         }
         
-        val effectiveFare = if (isUber) baseFare + bonusAmount else baseFare
-        if (isUber && bonusAmount > 0) {
-            Log.d(TAG, "💰 Premium bonus ₹$bonusAmount added → effective ₹$effectiveFare")
-        }
-
-        // ── EXTRACT DISTANCES & TIMES ────────────────────────────────────
-        val kmMatches = activeNodes.mapNotNull { node ->
-            KM_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull()
-        }
-        val minMatches = activeNodes.mapNotNull { node ->
-            MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-        }
+        val kmMatches = activeNodes.mapNotNull { KM_REGEX.find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
+        val minMatches = activeNodes.mapNotNull { MIN_REGEX.find(it)?.groupValues?.get(1)?.toIntOrNull() }
 
         var pickupDistanceKm = 0.0
         var rideDistanceKm = 0.0
@@ -144,25 +103,23 @@ class RideDataParser : IPlatformParser {
 
         if (isUber) {
             if (kmMatches.size >= 2) {
-                pickupDistanceKm = kmMatches[0]
-                rideDistanceKm = kmMatches[1]
+                // First value is usually the trip length, second is "km away"
+                rideDistanceKm = kmMatches[0]
+                pickupDistanceKm = kmMatches[1]
             } else if (kmMatches.size == 1) {
                 rideDistanceKm = kmMatches[0]
             }
-
             if (minMatches.size >= 2) {
-                pickupTimeMin = minMatches[0]
-                rideTimeMin = minMatches[1]
+                // First value is usually the trip duration, second is pickup time
+                rideTimeMin = minMatches[0]
+                pickupTimeMin = minMatches[1]
             } else if (minMatches.size == 1) {
                 rideTimeMin = minMatches[0]
             }
         } else {
             when (kmMatches.size) {
                 1 -> rideDistanceKm = kmMatches[0]
-                2 -> {
-                    pickupDistanceKm = kmMatches[0]
-                    rideDistanceKm = kmMatches[1]
-                }
+                2 -> { pickupDistanceKm = kmMatches[0]; rideDistanceKm = kmMatches[1] }
                 else -> if (kmMatches.isNotEmpty()) {
                     pickupDistanceKm = kmMatches[0]
                     rideDistanceKm = kmMatches.last()
@@ -170,26 +127,17 @@ class RideDataParser : IPlatformParser {
             }
         }
 
-        if (isUber && rideDistanceKm == 0.0 && pickupDistanceKm == 0.0) {
-            return null
-        }
+        if (isUber && rideDistanceKm == 0.0 && pickupDistanceKm == 0.0) return null
 
-        // ── EXTRACT ADDRESSES ────────────────────────────────────────────
         var pickupAddress = ""
         var dropAddress = ""
-
-        val kmNodeIndices = activeNodes.mapIndexedNotNull { i, node ->
-            if (KM_REGEX.containsMatchIn(node)) i else null
-        }
+        val kmNodeIndices = activeNodes.mapIndexedNotNull { i, node -> if (KM_REGEX.containsMatchIn(node)) i else null }
 
         if (kmNodeIndices.isNotEmpty()) {
             val firstKmIdx = kmNodeIndices[0]
             for (i in (firstKmIdx + 1) until activeNodes.size) {
                 val node = activeNodes[i]
-                if (node.length > 12 && 
-                    !KM_REGEX.containsMatchIn(node) && 
-                    !FARE_REGEX.containsMatchIn(node) &&
-                    !node.contains("Premium", ignoreCase = true)) {
+                if (node.length > 12 && !KM_REGEX.containsMatchIn(node) && !FARE_REGEX.containsMatchIn(node)) {
                     pickupAddress = node
                     break
                 }
@@ -199,68 +147,43 @@ class RideDataParser : IPlatformParser {
         if (isUber) {
             val cityPatterns = listOf("New Delhi", "Gurugram", "Noida", "Delhi")
             val longNodes = activeNodes.filter { node ->
-                node.length > 20 && 
-                (cityPatterns.any { node.contains(it, ignoreCase = true) } || 
-                 node.contains("|") || 
-                 Regex("\\d{6}").containsMatchIn(node))
+                node.length > 20 && (cityPatterns.any { node.contains(it, ignoreCase = true) } || node.contains("|") || Regex("\\d{6}").containsMatchIn(node))
             }
-            if (longNodes.size >= 2) {
-                dropAddress = longNodes.last()
-            }
+            if (longNodes.size >= 2) dropAddress = longNodes.last()
         } else if (kmNodeIndices.size >= 2) {
             val secondKmIdx = kmNodeIndices[1]
             for (i in (secondKmIdx + 1) until activeNodes.size) {
                 val node = activeNodes[i]
-                if (node.length > 12 && 
-                    !KM_REGEX.containsMatchIn(node) && 
-                    !FARE_REGEX.containsMatchIn(node) &&
-                    !node.contains("Premium", ignoreCase = true)) {
+                if (node.length > 12 && !KM_REGEX.containsMatchIn(node) && !FARE_REGEX.containsMatchIn(node)) {
                     dropAddress = node
                     break
                 }
             }
         }
 
-        // ── EXTRACT RIDER RIDER RATING ───────────────────────────────────
-        val RATING_REGEX = Regex("""^[1-5]\.\d{1,2}$""")
+        val ratingRegex = Regex("""^[1-5]\.\d{1,2}$""")
         val riderRating = activeNodes.mapNotNull { node ->
             val cleaned = node.replace("★", "").trim()
-            if (RATING_REGEX.matches(cleaned)) cleaned.toDoubleOrNull() else null
+            if (ratingRegex.matches(cleaned)) cleaned.toDoubleOrNull() else null
         }.firstOrNull() ?: 0.0
 
-        // ── EXTRACT PAYMENT TYPE ─────────────────────────────────────────
         val paymentKeywords = listOf("cash", "upi", "online", "wallet", "card")
-        val paymentType = activeNodes.firstOrNull { node ->
-            paymentKeywords.any { node.contains(it, ignoreCase = true) }
-        } ?: ""
+        val paymentType = activeNodes.firstOrNull { node -> paymentKeywords.any { node.contains(it, ignoreCase = true) } } ?: ""
 
-        // ── EXTRACT DURATION ─────────────────────────────────────────────
-        val durationMinutes = if (isUber) rideTimeMin else {
-            activeNodes.mapNotNull { node ->
-                MIN_REGEX.find(node)?.groupValues?.get(1)?.toIntOrNull()
-            }.sum()
-        }
+        val durationMinutes = if (isUber) rideTimeMin else activeNodes.mapNotNull { MIN_REGEX.find(it)?.groupValues?.get(1)?.toIntOrNull() }.sum()
 
-        // ── EXTRACT SECONDARY FARES (Tips/Premiums) ──────────────────────
         var tipAmount = 0.0
         var premiumAmount = if (isUber) bonusAmount else 0.0
         activeNodes.forEach { node ->
-            if (node.contains("Tip", ignoreCase = true)) {
-                tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            }
-            if (!isUber && node.contains("Premium", ignoreCase = true)) {
-                premiumAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-            }
+            if (node.contains("Tip", ignoreCase = true)) tipAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+            if (!isUber && node.contains("Premium", ignoreCase = true)) premiumAmount = FARE_REGEX.find(node)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
         }
 
-        // ── DETECT VEHICLE TYPE ──────────────────────────────────────────
         var vehicleType = VehicleType.UNKNOWN
         val fullText = activeNodes.joinToString(" ")
         when {
-            fullText.contains("Moto", ignoreCase = true) || fullText.contains("Bike", ignoreCase = true) -> 
-                vehicleType = VehicleType.BIKE
-            fullText.contains("Auto", ignoreCase = true) -> 
-                vehicleType = VehicleType.AUTO
+            fullText.contains("Moto", ignoreCase = true) || fullText.contains("Bike", ignoreCase = true) -> vehicleType = VehicleType.BIKE
+            fullText.contains("Auto", ignoreCase = true) -> vehicleType = VehicleType.AUTO
             else -> vehicleType = VehicleType.CAR
         }
 
@@ -279,19 +202,16 @@ class RideDataParser : IPlatformParser {
             riderRating           = riderRating,
             paymentType           = paymentType,
             pickupTimeMin         = pickupTimeMin,
-            rideTimeMin           = rideTimeMin,
-            bonus                 = bonusAmount,
-            fare                  = effectiveFare,
             vehicleType           = vehicleType
         )
     }
 
-    override fun parseAll(nodes: List<String>, packageName: String): List<ParsedRide> {
+    override fun parseAll(nodes: List<String>, packageName: String): ParseResult {
         val activeNodes = nodes.filter { it.isNotBlank() }
-        
-        // Split logic: Uber cards often start with vehicle name or "See all requests"
+        val screenState = detectScreenState(activeNodes)
+        if (screenState == ScreenState.IDLE) return ParseResult.Idle
+
         val splitKeywords = listOf("Bike", "Auto", "Moto", "UberGo", "Premier", "XL", "Intercity")
-        
         val cards = mutableListOf<List<String>>()
         var currentCard = mutableListOf<String>()
 
@@ -305,6 +225,11 @@ class RideDataParser : IPlatformParser {
         }
         if (currentCard.isNotEmpty()) cards.add(currentCard)
 
-        return cards.mapNotNull { parse(it, packageName) }
+        val results = cards.mapNotNull { parse(it, packageName) }
+        return if (results.isNotEmpty()) {
+            ParseResult.Success(results)
+        } else {
+            ParseResult.Failure("No rides parsed for $packageName", confidence = 0.2f)
+        }
     }
 }

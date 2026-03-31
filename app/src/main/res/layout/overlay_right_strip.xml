@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="76dp"
+    android:layout_height="wrap_content"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:id="@+id/rs_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="#F5000000"
+        android:elevation="14dp"
+        android:paddingBottom="10dp">
+
+        <View
+            android:id="@+id/rs_accent_bar"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:background="#FF16A34A"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingTop="6dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <TextView
+                android:id="@+id/rs_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BEST"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:textColor="#FF16A34A"
+                android:letterSpacing="0.06"/>
+
+            <TextView
+                android:id="@+id/rs_time_context"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:textSize="9sp"
+                android:textColor="#886B6B85"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/rs_net"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="₹54"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="net profit"
+                android:textSize="9sp"
+                android:textColor="#55FFFFFF"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_fare"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹84"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#CCFFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="fare"
+                android:textSize="8sp"
+                android:textColor="#33FFFFFF"/>
+
+            <TextView
+                android:id="@+id/rs_extras"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="9sp"
+                android:textColor="#88FFFFFF"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_platform"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OLA"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#AAFFFFFF"
+                android:letterSpacing="0.05"/>
+
+            <TextView
+                android:id="@+id/rs_pass_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PASS"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:textColor="#FFEF9F27"
+                android:letterSpacing="0.06"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="#33EF9F27"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/rs_vehicle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:textSize="9sp"
+                android:textColor="#66FFFFFF"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_per_km"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹7.4/km"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"/>
+
+            <TextView
+                android:id="@+id/rs_per_hour"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"
+                android:visibility="gone"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_pickup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.8km"
+                android:textSize="11sp"
+                android:textColor="#FF3DDC84"
+                android:gravity="center"/>
+
+            <TextView
+                android:id="@+id/rs_pickup_pct"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="31% pkup"
+                android:textSize="11sp"
+                android:textColor="#FF3DDC84"
+                android:gravity="center"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_payment"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#FFEF9F27"
+                android:letterSpacing="0.06"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="#33EF9F27"
+                android:visibility="gone"/>
+
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/rs_fuel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="fuel ₹18"
+                android:textSize="10sp"
+                android:textColor="#55FFFFFF"/>
+
+            <TextView
+                android:id="@+id/rs_wear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="wear ₹9"
+                android:textSize="10sp"
+                android:textColor="#55FFFFFF"/>
+
+            <TextView
+                android:id="@+id/rs_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textSize="10sp"
+                android:textColor="#AA9B8FFF"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/rs_today"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textSize="10sp"
+                android:textColor="#AA3DDC84"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+            <View
+                android:id="@+id/rs_checks_divider"
+                android:layout_width="56dp"
+                android:layout_height="1dp"
+                android:background="#333333"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/rs_checks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textColor="#FFCA8A04"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

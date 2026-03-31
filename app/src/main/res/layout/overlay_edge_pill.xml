@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pill_root"
+    android:layout_width="64dp"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:id="@+id/pill_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#EE101114"
+        android:elevation="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
+
+        <!-- Signal accent bar — coloured GREEN / YELLOW / RED in code -->
+        <View
+            android:id="@+id/pill_accent_bar"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:background="#FF16A34A"
+            android:layout_marginBottom="5dp"/>
+
+        <!-- Badge: BEST · WARN · SKIP -->
+        <TextView
+            android:id="@+id/tv_pill_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BEST"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:textColor="#FF16A34A"
+            android:letterSpacing="0.08"/>
+
+        <!-- NET PROFIT — hero number the driver reads first -->
+        <TextView
+            android:id="@+id/tv_pill_net"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="₹68"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF"/>
+
+        <!-- Static "net" label -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="net"
+            android:textSize="9sp"
+            android:textColor="#88FFFFFF"/>
+
+        <!-- Hairline divider -->
+        <View
+            android:layout_width="32dp"
+            android:layout_height="1dp"
+            android:background="#22FFFFFF"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"/>
+
+        <!-- Gross fare — secondary, dimmer -->
+        <TextView
+            android:id="@+id/tv_pill_fare"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₹92"
+            android:textSize="13sp"
+            android:textColor="#CCFFFFFF"/>
+
+        <!-- Platform name -->
+        <TextView
+            android:id="@+id/tv_pill_platform"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text="RAPIDO"
+            android:textSize="8sp"
+            android:textColor="#66FFFFFF"
+            android:letterSpacing="0.06"/>
+
+        <!-- Vehicle type — set GONE when UNKNOWN -->
+        <TextView
+            android:id="@+id/tv_pill_vehicle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="BIKE"
+            android:textSize="8sp"
+            android:textColor="#88FFFFFF"
+            android:letterSpacing="0.05"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+</FrameLayout>

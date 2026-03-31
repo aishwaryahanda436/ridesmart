@@ -1,0 +1,199 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "9e4787c0920075435964c3e05f2a09dd",
+    "entities": [
+      {
+        "tableName": "ride_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestampMs` INTEGER NOT NULL, `hourOfDay` INTEGER NOT NULL, `dayOfWeek` INTEGER NOT NULL, `platform` TEXT NOT NULL, `packageName` TEXT NOT NULL, `baseFare` REAL NOT NULL, `tipAmount` REAL NOT NULL, `premiumAmount` REAL NOT NULL, `actualPayout` REAL NOT NULL, `rideKm` REAL NOT NULL, `pickupKm` REAL NOT NULL, `totalKm` REAL NOT NULL, `pickupRatioPct` INTEGER NOT NULL, `estimatedDurationMin` INTEGER NOT NULL, `fuelCost` REAL NOT NULL, `wearCost` REAL NOT NULL, `totalCost` REAL NOT NULL, `netProfit` REAL NOT NULL, `earningPerKm` REAL NOT NULL, `pickupPenaltyPct` REAL NOT NULL, `earningPerHour` REAL NOT NULL, `signal` TEXT NOT NULL, `failedChecks` TEXT NOT NULL, `smartScore` REAL NOT NULL, `pickupAddress` TEXT NOT NULL, `dropAddress` TEXT NOT NULL, `riderRating` REAL NOT NULL, `paymentType` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestampMs",
+            "columnName": "timestampMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hourOfDay",
+            "columnName": "hourOfDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayOfWeek",
+            "columnName": "dayOfWeek",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "platform",
+            "columnName": "platform",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseFare",
+            "columnName": "baseFare",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipAmount",
+            "columnName": "tipAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "premiumAmount",
+            "columnName": "premiumAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualPayout",
+            "columnName": "actualPayout",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rideKm",
+            "columnName": "rideKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pickupKm",
+            "columnName": "pickupKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalKm",
+            "columnName": "totalKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pickupRatioPct",
+            "columnName": "pickupRatioPct",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedDurationMin",
+            "columnName": "estimatedDurationMin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fuelCost",
+            "columnName": "fuelCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wearCost",
+            "columnName": "wearCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalCost",
+            "columnName": "totalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "netProfit",
+            "columnName": "netProfit",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "earningPerKm",
+            "columnName": "earningPerKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pickupPenaltyPct",
+            "columnName": "pickupPenaltyPct",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "earningPerHour",
+            "columnName": "earningPerHour",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signal",
+            "columnName": "signal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failedChecks",
+            "columnName": "failedChecks",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smartScore",
+            "columnName": "smartScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pickupAddress",
+            "columnName": "pickupAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dropAddress",
+            "columnName": "dropAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riderRating",
+            "columnName": "riderRating",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentType",
+            "columnName": "paymentType",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9e4787c0920075435964c3e05f2a09dd')"
+    ]
+  }
+}

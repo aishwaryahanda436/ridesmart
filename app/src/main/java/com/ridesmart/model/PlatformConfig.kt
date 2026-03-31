@@ -10,22 +10,22 @@ object PlatformConfig {
     )
 
     val ALL = listOf(
-        Platform("com.rapido.rider",    "Rapido", 0.0, 0.0),
-        Platform("in.rapido.captain",   "Rapido", 0.0, 0.0),
-        Platform("com.rapido.captain",  "Rapido", 0.0, 0.0),
-        Platform("com.ubercab.driver",  "Uber",   0.0, 0.0),
-        Platform("com.ubercab",         "Uber",   0.0, 0.0),
-        Platform("com.olacabs.driver",  "Ola",    20.0, 0.0),
-        Platform("com.ola.driver",      "Ola",    20.0, 0.0),
-        Platform("com.namma.yatri",     "Namma",  0.0,  0.0),
-        Platform("in.swiggy.partner",   "Swiggy", 0.0,  0.0),
-        Platform("com.zomato.captain",  "Zomato", 0.0,  0.0),
-        Platform("porter.in.android",   "Porter", 15.0, 0.0)
+        Platform("com.rapido.rider",            "Rapido",       0.0,  67.0),
+        Platform("com.ubercab.driver",          "Uber",         0.0,  0.0),
+        Platform("com.olacabs.oladriver",       "Ola",          20.0, 0.0),
+        Platform("in.shadowfax.gandalf",        "Shadowfax",    0.0,  0.0),
+        Platform("in.juspay.nammayatripartner", "Namma Yatri",  0.0,  0.0),
+        Platform("net.openkochi.yatripartner",  "Yatri",        0.0,  0.0),
+        Platform("sinet.startup.inDriver",      "inDrive",      10.0, 0.0),
+        Platform("com.meru.merumobile",         "Meru",         20.0, 0.0),
+        Platform("in.swiggy.partner",           "Swiggy",       0.0,  0.0),
+        Platform("com.zomato.captain",          "Zomato",       0.0,  0.0),
+        Platform("porter.in.android",           "Porter",       15.0, 0.0)
     )
 
     fun get(packageName: String) =
         ALL.find { it.packageName == packageName }
-            ?: Platform(packageName, "Unknown", 20.0, 0.0)
+            ?: Platform(packageName, "Unknown", 0.0, 0.0)
 
     fun effectivePayout(grossFare: Double, packageName: String): Double {
         val p = get(packageName)

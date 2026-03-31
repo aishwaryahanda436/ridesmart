@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/panel_root"
+    android:layout_width="250dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#F2101114"
+    android:elevation="18dp">
+
+    <!-- 1. Signal accent bar -->
+    <View
+        android:id="@+id/panel_accent_bar"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="#FF16A34A"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <!-- 2. Header: Platform · Vehicle type badge · Verdict -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_panel_platform"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RAPIDO"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.10"
+                android:textColor="#88FFFFFF"/>
+
+            <!-- Vehicle type badge e.g. "BIKE BOOST" — GONE when UNKNOWN -->
+            <TextView
+                android:id="@+id/tv_panel_vehicle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="BIKE"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:textColor="#AAFFFFFF"
+                android:letterSpacing="0.06"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="#33FFFFFF"
+                android:visibility="gone"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <TextView
+                android:id="@+id/tv_panel_verdict"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✅ ACCEPT"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#FF16A34A"/>
+        </LinearLayout>
+
+        <!-- 3. Fare + Net profit row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <!-- Left: gross fare + extras -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_panel_fare"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹92"
+                    android:textStyle="bold"
+                    android:textSize="32sp"
+                    android:textColor="#FFFFFFFF"/>
+
+                <!-- "+₹10 tip · +₹22 premium" — GONE when both are zero -->
+                <TextView
+                    android:id="@+id/tv_panel_extras"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="#AAFFFFFF"
+                    android:visibility="gone"/>
+
+            </LinearLayout>
+
+            <!-- Right: net profit + payout + payment type -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/tv_panel_net"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹68 net"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:textColor="#FF16A34A"/>
+
+                <!-- Shown only when platform commission reduces gross fare -->
+                <TextView
+                    android:id="@+id/tv_panel_payout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="#88FFFFFF"
+                    android:gravity="end"
+                    android:visibility="gone"/>
+
+                <!-- CASH / COD / ONLINE / UPI badge — amber -->
+                <TextView
+                    android:id="@+id/tv_panel_payment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFEF9F27"
+                    android:letterSpacing="0.06"
+                    android:visibility="gone"/>
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#22FFFFFF"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- 5a. Distance row: pickup% on left, ride km on right -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/tv_panel_pickup"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="1.2km pickup (15%)"
+                android:textSize="11sp"
+                android:textColor="#FF3DDC84"/>
+
+            <TextView
+                android:id="@+id/tv_panel_ride"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="8.0km ride"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"/>
+        </LinearLayout>
+
+        <!-- 5b. Pace row: ₹/km on left, ₹/hr on right -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/tv_panel_per_km"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="₹9.2/km"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"/>
+
+            <LinearLayout
+                android:id="@+id/row_per_hour"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_panel_per_hour"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹240/hr"
+                    android:textSize="11sp"
+                    android:textColor="#AAFFFFFF"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 6. Cost breakdown: fuel left, wear right -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="2dp">
+
+            <TextView
+                android:id="@+id/tv_panel_fuel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⛽ ₹12 fuel"
+                android:textSize="10sp"
+                android:textColor="#66FFFFFF"/>
+
+            <TextView
+                android:id="@+id/tv_panel_wear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔧 ₹8 wear"
+                android:textSize="10sp"
+                android:textColor="#66FFFFFF"/>
+        </LinearLayout>
+
+        <!-- 7. Customer rating — GONE unless riderRating > 0 -->
+        <TextView
+            android:id="@+id/tv_panel_rating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:text="★ 5.0 rider"
+            android:textSize="10sp"
+            android:textColor="#FFEF9F27"
+            android:visibility="gone"/>
+
+        <!-- 8. Context: BEST SO FAR · CARD 2 · cross-platform hint -->
+        <TextView
+            android:id="@+id/tv_panel_context"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="10sp"
+            android:textColor="#88FFFFFF"
+            android:visibility="gone"/>
+
+        <!-- 9. Failed checks — one per line, amber, GONE when GREEN -->
+        <TextView
+            android:id="@+id/tv_panel_checks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="10sp"
+            android:textColor="#FFCA8A04"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+</LinearLayout>

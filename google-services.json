@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1065294939013",
+    "project_id": "ride-smart-6b1b1",
+    "storage_bucket": "ride-smart-6b1b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1065294939013:android:1b4c2101c7bca6e1b1baec",
+        "android_client_info": {
+          "package_name": "in.ridesmart.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBb9pXgaDZLkH8WprBRQ3sS4npFlSv1Uvk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

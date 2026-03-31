@@ -9,7 +9,7 @@ package com.ridesmart.model
 data class RiderProfile(
 
     // ── BIKE SETTINGS ──
-    val mileageKmPerLitre: Double = 45.0,
+    val mileageKmPerLitre: Double = DEFAULT_MILEAGE,
     // How many km the bike gives per litre of fuel
     // Typical range: 35-55 for 100-150cc bikes
 
@@ -39,16 +39,35 @@ data class RiderProfile(
     // Drivers think in GROSS ₹/km (fare ÷ distance)
     // We calculate NET ₹/km (profit after all costs ÷ distance)
     // On a typical ₹7/km gross fare, ₹3.50 net = ~50% margin after fuel+wear
-    // ₹15 net/km was unrealistically high — it would require fares of ₹25+/km
 
     val targetEarningPerHour: Double = 200.0,
     // Rider's hourly income goal (₹/hr)
     // Used to score whether ride pace is good or bad
 
+    val dailyEarningTarget: Double = 0.0,
+    // Rider's direct daily ₹ goal.
+    // 0.0 = not set — overlay hides the "₹X / ₹Y today" progress line.
+    // When set, replaces the targetEarningPerHour × 8 approximation
+    // used by the overlay and dashboard progress bar.
+    // Example: ₹1200 means rider wants ₹1,200 profit today.
+
     // ── PLATFORM SETTING ──
-    val platformCommissionPercent: Double = 0.0
+    val useCustomCommission: Boolean = false,
+    val platformCommissionPercent: Double = 0.0,
     // Commission % the platform takes from the fare shown
-    // Set to 0.0 if the fare shown in popup is ALREADY the driver's payout
-    // Set to 20.0 if platform takes 20% and fare shown is the gross amount
-    // Rapido/Uber typically show post-commission fare to driver — default 0
-)
+    // If useCustomCommission is false, we use platform defaults from PlatformConfig.
+
+    // ── PER-PLATFORM PLANS ──
+    val platformPlans: Map<String, PlatformPlan> = emptyMap(),
+    // Key = platform display name: "Rapido", "Uber", "Ola", "Shadowfax"
+    // Value = the rider's personal plan for that platform.
+    // If a platform is not in this map, PlatformConfig defaults apply.
+
+    val incentiveProfiles: Map<String, IncentiveProfile> = emptyMap()
+    // Key = platform display name: "Rapido", "Uber", "Ola", "Shadowfax"
+    // Value = the rider's incentive setup for that platform.
+) {
+    companion object {
+        const val DEFAULT_MILEAGE = 45.0
+    }
+}

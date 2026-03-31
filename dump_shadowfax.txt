@@ -1,0 +1,2702 @@
+=== 11:55:39.919 pkg=in.shadowfax.gandalf count=18 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Book Instamart Dedicated Slot Now
+  [7] Get only Short Distance IM Orders
+  [8] Home
+  [9] Home
+  [10] Slots
+  [11] Slots
+  [12] Offers
+  [13] Offers
+  [14] Earnings
+  [15] Earnings
+  [16] History
+  [17] History
+=== 11:55:40.082 pkg=in.shadowfax.gandalf count=22 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Go Online
+  [9] Click here to go online in Bike Taxi Mode & start ordering
+  [10] Go Online in Bike Taxi Mode
+  [11] Join Food Delivery
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+=== 11:55:43.726 pkg=in.shadowfax.gandalf count=31 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Back to Home
+  [6] Scroll up
+  [7] Online on Bike Taxi
+  [8] Searching for bike taxi orders...
+  [9] Choose Your Orders
+  [10] Extra Earnings
+  [11] Referrals this month
+  [12] 0
+  [13] 0
+  [14] Joined
+  [15] 50
+  [16] Earned
+  [17] 50000
+  [18] Refer and earn upto ₹50000/month
+  [19] 1 Referral = 500*
+  [20] REFER NOW
+  [21] Home
+  [22] Home
+  [23] Slots
+  [24] Slots
+  [25] Offers
+  [26] Offers
+  [27] Earnings
+  [28] Earnings
+  [29] History
+  [30] History
+=== 11:55:44.240 pkg=in.shadowfax.gandalf count=33 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.600897445100877,"longitude":77.10512758480384},"corners":[{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.589390138914894,"longitude":77.11102749705188},{"latitude":28.59964468574278,"longitude":77.12006689519397},{"latitude":28.61115364083894,"longitude":77.1141677539239},{"latitude":28.612406107850145,"longitude":77.09922555351218}],"distance":2880.0,"name":"BIKE TAXI:High Demand","unmet_demand":19}
+  [6] {"category":3,"center":{"latitude":28.604646245581115,"longitude":77.06030337349391},"corners":[{"latitude":28.605892684946777,"longitude":77.04535988275249},{"latitude":28.594386556087354,"longitude":77.05127134778046},{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.616154024511847,"longitude":77.05439267461429}],"distance":4368.0,"name":"BIKE TAXI:High Demand","unmet_demand":153}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Extra Earnings
+  [13] Referrals this month
+  [14] 0
+  [15] 0
+  [16] Joined
+  [17] 50
+  [18] Earned
+  [19] 50000
+  [20] Refer and earn upto ₹50000/month
+  [21] 1 Referral = 500*
+  [22] REFER NOW
+  [23] Home
+  [24] Home
+  [25] Slots
+  [26] Slots
+  [27] Offers
+  [28] Offers
+  [29] Earnings
+  [30] Earnings
+  [31] History
+  [32] History
+=== 11:55:46.078 pkg=in.shadowfax.gandalf count=55 ===
+  [0] Page 1 of 2.
+  [1] Search
+  [2] Google Search
+  [3] Google app
+  [4] Voice search
+  [5] Camera search
+  [6] Search
+  [7] Gemini
+  [8] Type Gemini prompt
+  [9] Share video with Gemini Live
+  [10] Share screen with Gemini Live
+  [11] Talk with Gemini Live
+  [12] Page 1 of 2.
+  [13] Page 2 of 2.
+  [14] Google, Folder
+  [15] Google
+  [16] Chrome
+  [17] Gmail
+  [18] Maps
+  [19] YouTube
+  [20] Drive
+  [21] Meet
+  [22] Photos
+  [23] Open folder, Button
+  [24] Google
+  [25] Google, Folder
+  [26] Page 2 of 2.
+  [27] Daily activity
+  [28] Steps, 30 out of 6000 steps, Active time, 0 out of 90 minutes, Activity calories, 0 out of 500 kcal
+  [29] 30
+  [30] 0
+  [31] 0
+  [32] Daily activity
+  [33] Multiple routines
+  [34] Start
+  [35] Routines
+  [36] Page 1 of 2.
+  [37] Page 2 of 2.
+  [38] Device care
+  [39] Device care
+  [40] Optimise now
+  [41] Optimise
+  [42] 83 GB / 128 GB
+  [43] 5.7
+  [44] GB
+  [45] /
+  [46] 8 GB
+  [47] Device care
+  [48] Google Discover
+  [49] Page 1 of 2., Default page
+  [50] Page 2 of 2.
+  [51] Phone
+  [52] Messages
+  [53] Camera
+  [54] Apps
+=== 11:55:51.971 pkg=in.shadowfax.gandalf count=11 ===
+  [0] ₹134.27
+  [1] Amount:
+  [2] Cash
+  [3] Pickup:
+  [4] 0.2 km
+  [5] Uber
+  [6] RZ/725/7 Main Rd, Block RZ, Ra..
+  [7] Drop:
+  [8] Nangloi
+  [9] Accept Order
+  [10] 13
+=== 11:55:52.434 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 12
+=== 11:55:53.334 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 11
+=== 11:55:54.136 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 10
+=== 11:55:55.341 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 9
+=== 11:55:56.450 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 8
+=== 11:55:57.140 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 7
+=== 11:55:58.270 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 6
+=== 11:55:59.369 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 5
+=== 11:56:00.486 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 4
+=== 11:56:01.402 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 3
+=== 11:56:02.303 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 2
+=== 11:56:03.318 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 1
+=== 11:56:04.102 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹141.27
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.23 km
+  [6] RZ/725/7 Main Rd, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 15.47 kms
+  [10] B.S.W. Batra Samosa Wala 2187/1, Rani Bagh, Raja Park, Pitampura, Delhi
+  [11] Accept Order
+  [12] 0
+=== 11:56:05.079 pkg=in.shadowfax.gandalf count=55 ===
+  [0] Page 1 of 2.
+  [1] Search
+  [2] Google Search
+  [3] Google app
+  [4] Voice search
+  [5] Camera search
+  [6] Search
+  [7] Gemini
+  [8] Type Gemini prompt
+  [9] Share video with Gemini Live
+  [10] Share screen with Gemini Live
+  [11] Talk with Gemini Live
+  [12] Page 1 of 2.
+  [13] Page 2 of 2.
+  [14] Google, Folder
+  [15] Google
+  [16] Chrome
+  [17] Gmail
+  [18] Maps
+  [19] YouTube
+  [20] Drive
+  [21] Meet
+  [22] Photos
+  [23] Open folder, Button
+  [24] Google
+  [25] Google, Folder
+  [26] Page 2 of 2.
+  [27] Daily activity
+  [28] Steps, 30 out of 6000 steps, Active time, 0 out of 90 minutes, Activity calories, 0 out of 500 kcal
+  [29] 30
+  [30] 0
+  [31] 0
+  [32] Daily activity
+  [33] Multiple routines
+  [34] Start
+  [35] Routines
+  [36] Page 1 of 2.
+  [37] Page 2 of 2.
+  [38] Device care
+  [39] Device care
+  [40] Optimise now
+  [41] Optimise
+  [42] 83 GB / 128 GB
+  [43] 5.7
+  [44] GB
+  [45] /
+  [46] 8 GB
+  [47] Device care
+  [48] Google Discover
+  [49] Page 1 of 2., Default page
+  [50] Page 2 of 2.
+  [51] Phone
+  [52] Messages
+  [53] Camera
+  [54] Apps
+=== 11:56:12.954 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 11:56:13.229 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 11:56:14.185 pkg=in.shadowfax.gandalf count=33 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.600897445100877,"longitude":77.10512758480384},"corners":[{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.589390138914894,"longitude":77.11102749705188},{"latitude":28.59964468574278,"longitude":77.12006689519397},{"latitude":28.61115364083894,"longitude":77.1141677539239},{"latitude":28.612406107850145,"longitude":77.09922555351218}],"distance":2880.0,"name":"BIKE TAXI:High Demand","unmet_demand":19}
+  [6] {"category":3,"center":{"latitude":28.604646245581115,"longitude":77.06030337349391},"corners":[{"latitude":28.605892684946777,"longitude":77.04535988275249},{"latitude":28.594386556087354,"longitude":77.05127134778046},{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.616154024511847,"longitude":77.05439267461429}],"distance":4368.0,"name":"BIKE TAXI:High Demand","unmet_demand":153}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Extra Earnings
+  [13] Referrals this month
+  [14] 0
+  [15] 0
+  [16] Joined
+  [17] 50
+  [18] Earned
+  [19] 50000
+  [20] Refer and earn upto ₹50000/month
+  [21] 1 Referral = 500*
+  [22] REFER NOW
+  [23] Home
+  [24] Home
+  [25] Slots
+  [26] Slots
+  [27] Offers
+  [28] Offers
+  [29] Earnings
+  [30] Earnings
+  [31] History
+  [32] History
+=== 11:56:14.932 pkg=in.shadowfax.gandalf count=29 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Online on Bike Taxi
+  [7] Searching for bike taxi orders...
+  [8] Extra Earnings
+  [9] Referrals this month
+  [10] 0
+  [11] 0
+  [12] Joined
+  [13] 50
+  [14] Earned
+  [15] 50000
+  [16] Refer and earn upto ₹50000/month
+  [17] 1 Referral = 500*
+  [18] REFER NOW
+  [19] Home
+  [20] Home
+  [21] Slots
+  [22] Slots
+  [23] Offers
+  [24] Offers
+  [25] Earnings
+  [26] Earnings
+  [27] History
+  [28] History
+=== 13:03:35.200 pkg=in.shadowfax.gandalf count=23 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Go Online
+  [9] Click here to go online in Bike Taxi Mode & start ordering
+  [10] Go Online in Bike Taxi Mode
+  [11] Join Food Delivery
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+  [22] No Internet.
+=== 13:03:41.598 pkg=in.shadowfax.gandalf count=34 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.591891505718337,"longitude":77.08115151149728},"corners":[{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.581634750922117,"longitude":77.07211840799353},{"latitude":28.580386141886834,"longitude":77.08705508134695},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.603398225499337,"longitude":77.07524582203172}],"distance":897.0,"name":"BIKE TAXI:High Demand","unmet_demand":8}
+  [6] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3855.0,"name":"BIKE TAXI:High Demand","unmet_demand":108}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Extra Earnings
+  [13] Referrals this month
+  [14] 0
+  [15] 0
+  [16] Joined
+  [17] 50
+  [18] Earned
+  [19] 50000
+  [20] Refer and earn upto ₹50000/month
+  [21] 1 Referral = 500*
+  [22] REFER NOW
+  [23] Home
+  [24] Home
+  [25] Slots
+  [26] Slots
+  [27] Offers
+  [28] Offers
+  [29] Earnings
+  [30] Earnings
+  [31] History
+  [32] History
+  [33] No Internet.
+=== 13:03:43.160 pkg=in.shadowfax.gandalf count=33 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.591891505718337,"longitude":77.08115151149728},"corners":[{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.581634750922117,"longitude":77.07211840799353},{"latitude":28.580386141886834,"longitude":77.08705508134695},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.603398225499337,"longitude":77.07524582203172}],"distance":897.0,"name":"BIKE TAXI:High Demand","unmet_demand":8}
+  [6] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3855.0,"name":"BIKE TAXI:High Demand","unmet_demand":108}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Extra Earnings
+  [13] Referrals this month
+  [14] 0
+  [15] 0
+  [16] Joined
+  [17] 50
+  [18] Earned
+  [19] 50000
+  [20] Refer and earn upto ₹50000/month
+  [21] 1 Referral = 500*
+  [22] REFER NOW
+  [23] Home
+  [24] Home
+  [25] Slots
+  [26] Slots
+  [27] Offers
+  [28] Offers
+  [29] Earnings
+  [30] Earnings
+  [31] History
+  [32] History
+=== 13:03:44.195 pkg=in.shadowfax.gandalf count=11 ===
+  [0] 3 active apps
+  [1] 3 items active in background
+  [2] More optionsButton
+  [3] Shadowfax Partner
+  [4] Advanced options, Shadowfax Partner, Button
+  [5] Close all
+  [6] WA Business
+  [7] ridesmart
+  [8] ridesmart, 1 notification
+  [9] Instagram
+  [10] Ola Partner
+=== 13:04:06.694 pkg=in.shadowfax.gandalf count=13 ===
+  [0] Minimize
+  [1] ₹136.74
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.6 km
+  [6] Uber
+  [7] Mamta Bakery H3MP+4R9, Block D..
+  [8] Drop:
+  [9] DEL_Karol Bagh
+  [10] Choose Order
+  [11] 16
+  [12] 1+ More Bike Taxi Trips Available
+=== 13:04:07.301 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 15
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:08.467 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 14
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:09.569 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 13
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:10.367 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 12
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:11.067 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 11
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:12.283 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 10
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:13.139 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 9
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:14.091 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 8
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:15.297 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 7
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:16.104 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 6
+  [13] 1+ More Bike Taxi Trips Available
+=== 13:04:16.404 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 6
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:17.194 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 5
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:18.490 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 4
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:19.223 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 3
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:19.619 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 3
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:20.387 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 2
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:21.308 pkg=in.shadowfax.gandalf count=14 ===
+  [0] Minimize
+  [1] ₹143.74
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 0.62 km
+  [7] Mamta Bakery H3MP+4R9, Block D, Palam Colony, Raj Nagar II Extension, Raj Nagar, Delhi
+  [8] Drop:
+  [9] 16.29 kms
+  [10] SIR GANGA RAM HOSPITAL Sir Ganga Ram Hospital Marg, Old Rajinder Nagar, New Rajinder Nagar, Delhi
+  [11] Choose Order
+  [12] 1
+  [13] 3+ More Bike Taxi Trips Available
+=== 13:04:22.192 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 13:04:22.948 pkg=in.shadowfax.gandalf count=38 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 6
+  [20] Payment:
+  [21] Prepaid
+  [22] Pickup:
+  [23] Drop:
+  [24] Accept Order
+  [25] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+  [26] ₹104 + ₹7
+  [27] *Includes taxes and fees
+  [28] Payment:
+  [29] COD
+  [30] Pickup:
+  [31] 1.11 km
+  [32] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [33] Drop:
+  [34] 13.21 km
+  [35] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [36] Choose Order
+  [37] 6
+=== 13:04:23.972 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 5
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 5
+=== 13:04:24.933 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 4
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 5
+=== 13:04:26.006 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 3
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 3
+=== 13:04:27.012 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 2
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 2
+=== 13:04:27.943 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 1
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 2
+=== 13:04:28.933 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 0
+  [20] ₹104 + ₹7
+  [21] *Includes taxes and fees
+  [22] Payment:
+  [23] COD
+  [24] Pickup:
+  [25] 1.11 km
+  [26] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [27] Drop:
+  [28] 13.21 km
+  [29] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [30] Choose Order
+  [31] 1
+=== 13:04:31.967 pkg=in.shadowfax.gandalf count=38 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] ₹59
+  [5] + ₹7
+  [6] ₹104
+  [7] + ₹7
+  [8] ₹59 + ₹7
+  [9] *Includes taxes and fees
+  [10] Payment:
+  [11] COD
+  [12] Pickup:
+  [13] 0.64 km
+  [14] B85 Block B, Mangalpuri II, Palam, New Delhi, Delhi
+  [15] Drop:
+  [16] 6.8 km
+  [17] Central Hospital A-142/1, A-142, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [18] Choose Order
+  [19] 0
+  [20] Payment:
+  [21] Prepaid
+  [22] Pickup:
+  [23] Drop:
+  [24] Accept Order
+  [25] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+  [26] ₹104 + ₹7
+  [27] *Includes taxes and fees
+  [28] Payment:
+  [29] COD
+  [30] Pickup:
+  [31] 1.11 km
+  [32] K-397 Sadh Nagar I, Sadh Nagar, Palam, Delhi
+  [33] Drop:
+  [34] 13.21 km
+  [35] Buds Automobile Roshan Vihar, Najafgarh, Delhi
+  [36] Choose Order
+  [37] 0
+=== 13:04:33.458 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 13:04:34.816 pkg=in.shadowfax.gandalf count=23 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.591891505718337,"longitude":77.08115151149728},"corners":[{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.581634750922117,"longitude":77.07211840799353},{"latitude":28.580386141886834,"longitude":77.08705508134695},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.603398225499337,"longitude":77.07524582203172}],"distance":895.0,"name":"BIKE TAXI:High Demand","unmet_demand":8}
+  [6] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3853.0,"name":"BIKE TAXI:High Demand","unmet_demand":108}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+  [22] No Internet.
+=== 13:04:35.056 pkg=in.shadowfax.gandalf count=23 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.591891505718337,"longitude":77.08115151149728},"corners":[{"latitude":28.59313982069635,"longitude":77.06621195094822},{"latitude":28.581634750922117,"longitude":77.07211840799353},{"latitude":28.580386141886834,"longitude":77.08705508134695},{"latitude":28.590641611631533,"longitude":77.09609002750558},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.603398225499337,"longitude":77.07524582203172}],"distance":895.0,"name":"BIKE TAXI:High Demand","unmet_demand":8}
+  [6] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3853.0,"name":"BIKE TAXI:High Demand","unmet_demand":108}
+  [7] Back to Home
+  [8] Scroll up
+  [9] Online on Bike Taxi
+  [10] Searching for bike taxi orders...
+  [11] Choose Your Orders
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+  [22] No Internet.
+=== 13:04:35.626 pkg=in.shadowfax.gandalf count=19 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Online on Bike Taxi
+  [7] Searching for bike taxi orders...
+  [8] Home
+  [9] Home
+  [10] Slots
+  [11] Slots
+  [12] Offers
+  [13] Offers
+  [14] Earnings
+  [15] Earnings
+  [16] History
+  [17] History
+  [18] No Internet.
+=== 13:04:36.109 pkg=in.shadowfax.gandalf count=1 ===
+  [0] Splash Logo
+=== 10:42:37.066 pkg=in.shadowfax.gandalf count=21 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Scroll up
+  [5] Get ₹7 extra per order
+  [6] On all Uber_MKT orders
+  [7] Go Online
+  [8] Click here to go online in Bike Taxi Mode & start ordering
+  [9] Go Online in Bike Taxi Mode
+  [10] Join Food Delivery
+  [11] Home
+  [12] Home
+  [13] Slots
+  [14] Slots
+  [15] Offers
+  [16] Offers
+  [17] Earnings
+  [18] Earnings
+  [19] History
+  [20] History
+=== 10:42:38.271 pkg=in.shadowfax.gandalf count=22 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Go Online
+  [9] Click here to go online in Bike Taxi Mode & start ordering
+  [10] Go Online in Bike Taxi Mode
+  [11] Join Food Delivery
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+=== 10:42:38.517 pkg=in.shadowfax.gandalf count=4 ===
+  [0] Back
+  [1] Align Your Face
+  [2] Bring your face to the center as shown and click photo to complete self verification
+  [3] Click Photo
+=== 10:42:42.223 pkg=in.shadowfax.gandalf count=3 ===
+  [0] Back
+  [1] Align Your Face
+  [2] Bring your face to the center as shown and click photo to complete self verification
+=== 10:42:43.448 pkg=in.shadowfax.gandalf count=3 ===
+  [0] Back
+  [1] Align Your Face
+  [2] Bring your face to the center as shown and click photo to complete self verification
+=== 10:42:44.628 pkg=in.shadowfax.gandalf count=21 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Scroll up
+  [5] Get ₹7 extra per order
+  [6] On all Uber_MKT orders
+  [7] Go Online
+  [8] Click here to go online in Bike Taxi Mode & start ordering
+  [9] Go Online in Bike Taxi Mode
+  [10] Join Food Delivery
+  [11] Home
+  [12] Home
+  [13] Slots
+  [14] Slots
+  [15] Offers
+  [16] Offers
+  [17] Earnings
+  [18] Earnings
+  [19] History
+  [20] History
+=== 10:42:45.057 pkg=in.shadowfax.gandalf count=22 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Go Online
+  [9] Click here to go online in Bike Taxi Mode & start ordering
+  [10] Go Online in Bike Taxi Mode
+  [11] Join Food Delivery
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+=== 10:42:48.213 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Choose Your Orders
+  [11] Extra Earnings
+  [12] Referrals this month
+  [13] 0
+  [14] 0
+  [15] Joined
+  [16] 50
+  [17] Earned
+  [18] 50000
+  [19] Refer and earn upto ₹50000/month
+  [20] 1 Referral = 500*
+  [21] REFER NOW
+  [22] Home
+  [23] Home
+  [24] Slots
+  [25] Slots
+  [26] Offers
+  [27] Offers
+  [28] Earnings
+  [29] Earnings
+  [30] History
+  [31] History
+=== 10:42:52.695 pkg=in.shadowfax.gandalf count=31 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Extra Earnings
+  [11] Referrals this month
+  [12] 0
+  [13] 0
+  [14] Joined
+  [15] 50
+  [16] Earned
+  [17] 50000
+  [18] Refer and earn upto ₹50000/month
+  [19] 1 Referral = 500*
+  [20] REFER NOW
+  [21] Home
+  [22] Home
+  [23] Slots
+  [24] Slots
+  [25] Offers
+  [26] Offers
+  [27] Earnings
+  [28] Earnings
+  [29] History
+  [30] History
+=== 10:42:52.966 pkg=in.shadowfax.gandalf count=32 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Choose Your Orders
+  [11] Extra Earnings
+  [12] Referrals this month
+  [13] 0
+  [14] 0
+  [15] Joined
+  [16] 50
+  [17] Earned
+  [18] 50000
+  [19] Refer and earn upto ₹50000/month
+  [20] 1 Referral = 500*
+  [21] REFER NOW
+  [22] Home
+  [23] Home
+  [24] Slots
+  [25] Slots
+  [26] Offers
+  [27] Offers
+  [28] Earnings
+  [29] Earnings
+  [30] History
+  [31] History
+=== 10:42:58.453 pkg=in.shadowfax.gandalf count=44 ===
+  [0] Jio True5G | Jio • airtel
+  [1] Performance profile
+  [2] Bluetooth on.
+  [3] Alarm
+  [4] Location requests active
+  [5] VoLTE
+  [6] Jio True5G-Jio, signal full.
+  [7] VoLTE
+  [8] airtel, one bar.
+  [9] Battery 41 per cent.
+  [10] 10:42
+  [11] 10:42 am
+  [12] Mon, 23 Mar
+  [13] Settings
+  [14] WiFi,
+  [15] Bluetooth,
+  [16] Switch to vibrate
+  [17] Portrait, Auto rotate
+  [18] Flight mode
+  [19] Torch
+  [20] Display brightness
+  [21] Display brightness
+  [22] Brightness settings panel
+  [23] Device control
+  [24] Media output
+  [25] Shadowfax Partner is displaying over other apps
+  [26] 10:42 am
+  [27] Expand
+  [28] Partner Online
+  [29] 10:42 am
+  [30] Shadowfax is monitoring your location
+  [31] Expand
+  [32] RideSmart Active
+  [33] 10:41 am
+  [34] Monitoring ride offers
+  [35] Expand
+  [36] USB for charging phone
+  [37] 10:39 am
+  [38] Tap for other USB options.
+  [39] Expand
+  [40] Notification settings
+  [41] Notification settings,Button
+  [42] Clear
+  [43] Clear,Button
+=== 10:43:10.631 pkg=in.shadowfax.gandalf count=11 ===
+  [0] ₹210.98
+  [1] Amount:
+  [2] Cash
+  [3] Pickup:
+  [4] 0.7 km
+  [5] Uber
+  [6] Sharma Box Maker Shop No: Wz 8..
+  [7] Drop:
+  [8] Chandan Hola
+  [9] Accept Order
+  [10] 12
+=== 10:43:10.929 pkg=in.shadowfax.gandalf count=11 ===
+  [0] ₹217.98
+  [1] Amount:
+  [2] Cash
+  [3] Pickup:
+  [4] 0.7 km
+  [5] Uber
+  [6] Sharma Box Maker Shop No: Wz 8..
+  [7] Drop:
+  [8] Chandan Hola
+  [9] Accept Order
+  [10] 12
+=== 10:43:11.257 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 11
+=== 10:43:12.236 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 10
+=== 10:43:13.360 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 9
+=== 10:43:14.436 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 8
+=== 10:43:15.152 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 7
+=== 10:43:16.147 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 6
+=== 10:43:17.453 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 5
+=== 10:43:18.105 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 4
+=== 10:43:19.339 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 3
+=== 10:43:20.321 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹217.98
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.74 km
+  [6] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 22.52 kms
+  [10] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [11] Accept Order
+  [12] 2
+=== 10:43:21.348 pkg=in.shadowfax.gandalf count=22 ===
+  [0] HL Orders
+  [1] Take A Break
+  [2] ACCEPT ORDER
+  [3] REJECT ORDER
+  [4] SF Order ID:
+  [5] Amount:
+  [6] Bike Taxi Pay
+  [7] ₹217.98
+  [8] (Uber_MKT)
+  [9] Sharma Box Maker Shop No: Wz 88, Ram Chowk, Sadh Nagar, Palam, New Delhi, Delhi
+  [10] Drop
+  [11] PRIA 42, Tughlakabad Institutional Area, Vayusenabad, New Delhi, Delhi
+  [12] Pickup Distance:
+  [13] Drop Distance:
+  [14] Click to Remove Order
+  [15] Accept this order before timer runs out
+  [16] Cash
+  [17] 849092098
+  [18] 0.74 km
+  [19] 22.53 kms
+  [20] 10:43 AM
+  [21] 1
+=== 10:43:22.633 pkg=in.shadowfax.gandalf count=30 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Back to Home
+  [5] Scroll up
+  [6] Online on Bike Taxi
+  [7] Searching for bike taxi orders...
+  [8] Choose Your Orders
+  [9] Extra Earnings
+  [10] Referrals this month
+  [11] 0
+  [12] 0
+  [13] Joined
+  [14] 50
+  [15] Earned
+  [16] 50000
+  [17] Refer and earn upto ₹50000/month
+  [18] 1 Referral = 500*
+  [19] REFER NOW
+  [20] Home
+  [21] Home
+  [22] Slots
+  [23] Slots
+  [24] Offers
+  [25] Offers
+  [26] Earnings
+  [27] Earnings
+  [28] History
+  [29] History
+=== 10:43:23.205 pkg=in.shadowfax.gandalf count=31 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Back to Home
+  [6] Scroll up
+  [7] Online on Bike Taxi
+  [8] Searching for bike taxi orders...
+  [9] Choose Your Orders
+  [10] Extra Earnings
+  [11] Referrals this month
+  [12] 0
+  [13] 0
+  [14] Joined
+  [15] 50
+  [16] Earned
+  [17] 50000
+  [18] Refer and earn upto ₹50000/month
+  [19] 1 Referral = 500*
+  [20] REFER NOW
+  [21] Home
+  [22] Home
+  [23] Slots
+  [24] Slots
+  [25] Offers
+  [26] Offers
+  [27] Earnings
+  [28] Earnings
+  [29] History
+  [30] History
+=== 10:43:24.554 pkg=in.shadowfax.gandalf count=6 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Back to Home
+=== 10:43:24.939 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 10:43:33.448 pkg=in.shadowfax.gandalf count=40 ===
+  [0] Kotak811
+  [1] Link to Windows
+  [2] Messages
+  [3] MyJio
+  [4] Namma Yatri Partner
+  [5] Notes
+  [6] Ola Partner
+  [7] OneDrive
+  [8] Onelap
+  [9] Paytm
+  [10] Phone
+  [11] PhonePe
+  [12] Play Console
+  [13] Play Store
+  [14] Rapido
+  [15] Rapido Captain
+  [16] Reminder
+  [17] ridesmart
+  [18] ridesmart, 1 notification
+  [19] RoadSync
+  [20] Samsung Pass
+  [21] SBI Card
+  [22] Secure Folder
+  [23] Settings
+  [24] Shadowfax Partner
+  [25] Shadowfax Partner, 1 notification
+  [26] Smart Switch
+  [27] Snapchat
+  [28] Spotify
+  [29] Store
+  [30] Studio
+  [31] Teams
+  [32] Telegram
+  [33] Tips
+  [34] Truecaller
+  [35] Uber
+  [36] Uber Driver
+  [37] UMANG
+  [38] Search
+  [39] More optionsButton
+=== 10:43:46.838 pkg=in.shadowfax.gandalf count=11 ===
+  [0] ₹109.39
+  [1] Amount:
+  [2] Cash
+  [3] Pickup:
+  [4] 0.8 km
+  [5] Uber
+  [6] Palam Metro Gate No. 3 H3QM+67..
+  [7] Drop:
+  [8] Central Ridge
+  [9] Accept Order
+  [10] 13
+=== 10:43:47.190 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 12
+=== 10:43:48.100 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 11
+=== 10:43:49.077 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 10
+=== 10:43:50.482 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 9
+=== 10:43:51.286 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 8
+=== 10:43:52.283 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 7
+=== 10:43:53.105 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 6
+=== 10:43:54.396 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 5
+=== 10:43:55.099 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 4
+=== 10:43:56.205 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 3
+=== 10:43:57.315 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹116.39
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.78 km
+  [6] Palam Metro Gate No. 3 H3QM+67F, Palam Police Station Rd, opp. Side of, Block J, Palam, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 12.26 kms
+  [10] Taj Palace, New Delhi 2, Sardar Patel Marg, Diplomatic Enclave, Chanakyapuri, New Delhi, Delhi
+  [11] Accept Order
+  [12] 2
+=== 10:44:12.491 pkg=in.shadowfax.gandalf count=11 ===
+  [0] ₹139.59
+  [1] Amount:
+  [2] Cash
+  [3] Pickup:
+  [4] 0.5 km
+  [5] Uber
+  [6] 17 A near Deep Parmarth Second..
+  [7] Drop:
+  [8] DEL_South Campus
+  [9] Accept Order
+  [10] 21
+=== 10:44:12.846 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 21
+=== 10:44:13.363 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 20
+=== 10:44:15.075 pkg=in.shadowfax.gandalf count=1 ===
+  [0] IGI Terminal 1
+=== 10:44:15.478 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 18
+=== 10:44:16.442 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 17
+=== 10:44:17.093 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 16
+=== 10:44:18.112 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 15
+=== 10:44:19.312 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 14
+=== 10:44:20.122 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 13
+=== 10:44:21.425 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 12
+=== 10:44:22.133 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 11
+=== 10:44:23.414 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 10
+=== 10:44:24.161 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 9
+=== 10:44:25.578 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 8
+=== 10:44:26.102 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 7
+=== 10:44:27.180 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 6
+=== 10:44:28.099 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹136.59
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.49 km
+  [6] 17 A near Deep Parmarth Secondary School, Block RZ, Raj Nagar I, Raj Nagar, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 14.07 kms
+  [10] 171, E St Block D, Mohammadpur, Rama Krishna Puram, New Delhi, Delhi
+  [11] Customer added ₹10.0 tip
+  [12] Accept Order
+  [13] 5
+=== 10:44:48.013 pkg=in.shadowfax.gandalf count=13 ===
+  [0] Minimize
+  [1] ₹67.16
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 2.2 km
+  [6] Uber
+  [7] R.M.Convent School, Kailash Pu..
+  [8] Drop:
+  [9] DEL_Janakpuri
+  [10] Choose Order
+  [11] 16
+  [12] 2+ More Bike Taxi Trips Available
+=== 10:44:48.637 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 15
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:49.263 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 14
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:50.082 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 13
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:51.320 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 12
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:52.399 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 11
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:53.332 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 10
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:54.623 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 9
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:55.747 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 8
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:56.515 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹74.16
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 2.19 kms
+  [6] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 6.22 kms
+  [10] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [11] Accept Order
+  [12] 12
+=== 10:44:56.833 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹194.54
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.97 km
+  [6] 2/43, Block RZ F, Dashrath Puri, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 20.26 kms
+  [10] Vertex Global Services Vertex Tower 70, Phase IV, Udyog Vihar, Sector 18, Gurugram, Haryana
+  [11] Accept Order
+  [12] 12
+=== 10:44:57.312 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹194.54
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.97 km
+  [6] 2/43, Block RZ F, Dashrath Puri, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 20.26 kms
+  [10] Vertex Global Services Vertex Tower 70, Phase IV, Udyog Vihar, Sector 18, Gurugram, Haryana
+  [11] Accept Order
+  [12] 11
+=== 10:44:58.363 pkg=in.shadowfax.gandalf count=13 ===
+  [0] ₹194.54
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 0.97 km
+  [6] 2/43, Block RZ F, Dashrath Puri, New Delhi, Delhi
+  [7] Low Wait Time
+  [8] Drop:
+  [9] 20.26 kms
+  [10] Vertex Global Services Vertex Tower 70, Phase IV, Udyog Vihar, Sector 18, Gurugram, Haryana
+  [11] Accept Order
+  [12] 10
+=== 10:44:59.047 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹67.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.2 km
+  [7] Uber
+  [8] Low Wait Time
+  [9] R.M.Convent School, Kailash Pu..
+  [10] Drop:
+  [11] DEL_Janakpuri
+  [12] Choose Order
+  [13] 5
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:59.361 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹67.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.2 km
+  [7] Uber
+  [8] Low Wait Time
+  [9] R.M.Convent School, Kailash Pu..
+  [10] Drop:
+  [11] DEL_Janakpuri
+  [12] Choose Order
+  [13] 4
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:44:59.569 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 4
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:45:00.198 pkg=in.shadowfax.gandalf count=15 ===
+  [0] Minimize
+  [1] ₹74.16
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 2.19 kms
+  [7] R.M.Convent School, Kailash Puri Extn. Rz-87, Gali No. 10, Indra Park Palam Colony, Kailash Puri, Palam, New Delhi, Delhi
+  [8] Low Wait Time
+  [9] Drop:
+  [10] 6.22 kms
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 3
+  [14] 2+ More Bike Taxi Trips Available
+=== 10:45:00.541 pkg=in.shadowfax.gandalf count=16 ===
+  [0] Minimize
+  [1] ₹78.43
+  [2] *Includes taxes and fees
+  [3] Amount:
+  [4] Cash
+  [5] Pickup:
+  [6] 1.8 km
+  [7] Uber
+  [8] Low Wait Time
+  [9] 26-P/35 Indra Park Palam Colon..
+  [10] Drop:
+  [11] Ghasipura
+  [12] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [13] Choose Order
+  [14] 3
+  [15] 1+ More Bike Taxi Trips Available
+=== 10:45:01.182 pkg=in.shadowfax.gandalf count=14 ===
+  [0] ₹64.28
+  [1] *Includes taxes and fees
+  [2] Amount:
+  [3] Cash
+  [4] Pickup:
+  [5] 2.0 km
+  [6] Uber
+  [7] Low Wait Time
+  [8] 884/10, Sadh Nagar I Block RZ,..
+  [9] Drop:
+  [10] DEL_Janakpuri
+  [11] Aggarwal Sweet Centre WZ-1A, Shop No - 13, Ganesh Nagar Chowk, Tilak Nagar, Ganesh Nagar, Tilak Nagar, New Delhi, Delhi
+  [12] Choose Order
+  [13] 2
+=== 10:45:03.260 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 10:45:03.421 pkg=in.shadowfax.gandalf count=10 ===
+  [0] Sort By:
+  [1] High Earnings
+  [2] Nearby Pickup
+  [3] Delivery Distance
+  [4] Payment:
+  [5] Prepaid
+  [6] Pickup:
+  [7] Drop:
+  [8] Accept Order
+  [9] Searching nearby Orders.
+
+We are searching nearby orders. For faster allocation, please move to a nearby high demand area.
+=== 10:45:04.715 pkg=in.shadowfax.gandalf count=21 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Choose Your Orders
+  [11] Home
+  [12] Home
+  [13] Slots
+  [14] Slots
+  [15] Offers
+  [16] Offers
+  [17] Earnings
+  [18] Earnings
+  [19] History
+  [20] History
+=== 10:45:04.993 pkg=in.shadowfax.gandalf count=21 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Choose Your Orders
+  [11] Home
+  [12] Home
+  [13] Slots
+  [14] Slots
+  [15] Offers
+  [16] Offers
+  [17] Earnings
+  [18] Earnings
+  [19] History
+  [20] History
+=== 10:45:05.595 pkg=in.shadowfax.gandalf count=21 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Back to Home
+  [7] Scroll up
+  [8] Online on Bike Taxi
+  [9] Searching for bike taxi orders...
+  [10] Choose Your Orders
+  [11] Home
+  [12] Home
+  [13] Slots
+  [14] Slots
+  [15] Offers
+  [16] Offers
+  [17] Earnings
+  [18] Earnings
+  [19] History
+  [20] History
+=== 10:45:06.087 pkg=in.shadowfax.gandalf count=19 ===
+  [0] Open navigation drawer
+  [1] Online
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] {"category":3,"center":{"latitude":28.613656994452324,"longitude":77.08428230554122},"corners":[{"latitude":28.61490630016585,"longitude":77.06933801193401},{"latitude":28.603398225499337,"longitude":77.07524582203172},{"latitude":28.602148625179613,"longitude":77.09018722644252},{"latitude":28.612406107850145,"longitude":77.09922555351218},{"latitude":28.623916126098823,"longitude":77.09332140216041},{"latitude":28.625166718385188,"longitude":77.07837526378509}],"distance":3852.0,"name":"BIKE TAXI:High Demand","unmet_demand":152}
+  [6] Scroll up
+  [7] Online on Bike Taxi
+  [8] Searching for bike taxi orders...
+  [9] Home
+  [10] Home
+  [11] Slots
+  [12] Slots
+  [13] Offers
+  [14] Offers
+  [15] Earnings
+  [16] Earnings
+  [17] History
+  [18] History
+=== 10:45:06.462 pkg=in.shadowfax.gandalf count=22 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Go Online
+  [9] Click here to go online in Bike Taxi Mode & start ordering
+  [10] Go Online in Bike Taxi Mode
+  [11] Join Food Delivery
+  [12] Home
+  [13] Home
+  [14] Slots
+  [15] Slots
+  [16] Offers
+  [17] Offers
+  [18] Earnings
+  [19] Earnings
+  [20] History
+  [21] History
+=== 10:45:13.168 pkg=in.shadowfax.gandalf count=24 ===
+  [0] Open navigation drawer
+  [1] Offline
+  [2] HELP
+  [3] Google Map
+  [4] Map Marker
+  [5] Scroll up
+  [6] Get ₹7 extra per order
+  [7] On all Uber_MKT orders
+  [8] Book Instamart Dedicated Slot Now
+  [9] Get only Short Distance IM Orders
+  [10] Go Online
+  [11] Click here to go online in Bike Taxi Mode & start ordering
+  [12] Go Online in Bike Taxi Mode
+  [13] Join Food Delivery
+  [14] Home
+  [15] Home
+  [16] Slots
+  [17] Slots
+  [18] Offers
+  [19] Offers
+  [20] Earnings
+  [21] Earnings
+  [22] History
+  [23] History
+=== 10:45:13.419 pkg=in.shadowfax.gandalf count=16 ===
+  [0] 3 active apps
+  [1] 3 items active in background
+  [2] More optionsButton
+  [3] Settings
+  [4] Rapido Captain
+  [5] Uber Driver
+  [6] ridesmart
+  [7] Advanced options, ridesmart, Button
+  [8] Shadowfax Partner
+  [9] Advanced options, Shadowfax Partner, Button
+  [10] Close all
+  [11] WA Business
+  [12] WA Business, 10 notifications
+  [13] Instagram
+  [14] WhatsApp
+  [15] Rapido Captain

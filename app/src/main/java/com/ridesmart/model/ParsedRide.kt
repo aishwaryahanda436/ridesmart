@@ -14,11 +14,9 @@ data class ParsedRide(
     val dropAddress: String = "",
     val riderRating: Double = 0.0,
     val paymentType: String = "",
-    // New fields for enhanced Uber parsing
+    // Uber pickup ETA (used to build fakeNodes in RideSmartService)
     val pickupTimeMin: Int = 0,
-    val rideTimeMin: Int = 0,
-    val bonus: Double = 0.0,
-    val fare: Double = 0.0,
     val vehicleType: VehicleType = VehicleType.UNKNOWN,
-    val screenState: ScreenState = ScreenState.OFFER_LOADED
+    val screenState: ScreenState = ScreenState.OFFER_LOADED,
+    val confidence: Float = 1.0f
 )

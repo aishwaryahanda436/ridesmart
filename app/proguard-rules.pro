@@ -1,21 +1,53 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ── ACCESSIBILITY SERVICE ─────────────────────────────────────────────────────
+-keep class com.ridesmart.service.RideSmartService { *; }
+-keep class com.ridesmart.receiver.BootReceiver { *; }
+-keep class com.ridesmart.ui.LockScreenWakeActivity { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── ROOM DATABASE ─────────────────────────────────────────────────────────────
+-keep class com.ridesmart.data.RideEntry { *; }
+-keep class com.ridesmart.data.RideDao { *; }
+-keep class com.ridesmart.data.RideDatabase { *; }
+-keep class com.ridesmart.data.Converters { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── MODELS & ENUMS ────────────────────────────────────────────────────────────
+-keep enum com.ridesmart.model.Signal { *; }
+-keep enum com.ridesmart.model.VehicleType { *; }
+-keep enum com.ridesmart.model.FuelType { *; }
+-keep class com.ridesmart.model.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── PARSERS (used via reflection in ParserFactory) ────────────────────────────
+-keep class com.ridesmart.parser.** { *; }
+
+# ── DATASTORE ─────────────────────────────────────────────────────────────────
+-keepclassmembers class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite {
+    <fields>;
+}
+
+# ── FIREBASE ─────────────────────────────────────────────────────────────────
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# ── ML KIT (OCR for Uber) ─────────────────────────────────────────────────────
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+
+# ── COROUTINES ────────────────────────────────────────────────────────────────
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# ── GENERAL KOTLIN ────────────────────────────────────────────────────────────
+-keep class kotlin.Metadata { *; }
+-dontwarn kotlin.**
+
+# ── LOGGING & DEBUGGING ───────────────────────────────────────────────────────
+# Prevent R8 from stripping any Log calls (useful if using proguard-android-optimize.txt)
+-keep class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+}
+
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

@@ -1,5 +1,8 @@
 package com.ridesmart.ui
 
+import android.content.Context
+import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -11,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,32 +22,57 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ridesmart.R
 import com.ridesmart.data.RideEntry
-import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.model.Signal
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun RideHistoryScreen(onBack: () -> Unit) {
+fun RideHistoryScreen(
+    onBack: () -> Unit,
+    viewModel: HistoryViewModel = viewModel()
+) {
     val context = LocalContext.current
-    val repo = remember { RideHistoryRepository(context) }
-    val scope = rememberCoroutineScope()
-    val history by repo.historyFlow.collectAsState(initial = emptyList())
+    val groupedHistory by viewModel.groupedHistory.collectAsStateWithLifecycle()
+    val isHistoryEmpty by viewModel.isHistoryEmpty.collectAsStateWithLifecycle()
+    
+    var showClearConfirm by remember { mutableStateOf(false) }
 
-    // Group rides by calendar date
-    val grouped = remember(history) {
-        history.groupBy { entry ->
-            val cal = Calendar.getInstance().apply { timeInMillis = entry.timestampMs }
-            Triple(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
-        }.toSortedMap(compareByDescending<Triple<Int,Int,Int>> { it.first }
-            .thenByDescending { it.second }
-            .thenByDescending { it.third })
+    BackHandler(onBack = onBack)
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text(stringResource(R.string.clear_history_title)) },
+            text = { Text(stringResource(R.string.clear_history_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearHistory()
+                        showClearConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
+                ) {
+                    Text(stringResource(R.string.clear))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF16161C),
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFF6B6B85)
+        )
     }
 
     Scaffold(
@@ -57,25 +86,35 @@ fun RideHistoryScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onBack) {
-                        Text("← Back", color = Color(0xFF3DDC84), fontSize = 15.sp)
+                        Text(stringResource(R.string.back), color = Color(0xFF3DDC84), fontSize = 15.sp)
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
-                        "Ride History",
+                        stringResource(R.string.ride_history),
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { scope.launch { repo.clearHistory() } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Clear", tint = Color(0xFF6B6B85))
+                    
+                    if (!isHistoryEmpty) {
+                        IconButton(onClick = { 
+                            val fullHistory = groupedHistory.values.flatten()
+                            shareHistory(context, fullHistory)
+                        }) {
+                            Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.share), tint = Color(0xFF3DDC84))
+                        }
+                    }
+                    
+                    IconButton(onClick = { showClearConfirm = true }) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete), tint = Color(0xFF6B6B85))
                     }
                 }
             }
         },
         containerColor = Color(0xFF0F0F13)
     ) { padding ->
-        if (history.isEmpty()) {
+        if (isHistoryEmpty) {
             EmptyHistoryState(Modifier.padding(padding))
         } else {
             LazyColumn(
@@ -86,11 +125,15 @@ fun RideHistoryScreen(onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                grouped.forEach { (dateKey, rides) ->
-                    item(key = "header_$dateKey") {
+                groupedHistory.forEach { (dateKey, rides) ->
+                    val headerKey = "header_${dateKey.first}_${dateKey.second}_${dateKey.third}"
+                    item(key = headerKey) {
                         DailySummaryHeader(rides = rides, dateKey = dateKey)
                     }
-                    items(rides.size, key = { index -> rides[index].timestampMs }) { index ->
+                    items(
+                        count = rides.size,
+                        key = { index -> "${rides[index].timestampMs}_${rides[index].packageName}_$index" }
+                    ) { index ->
                         RideRow(rides[index])
                     }
                     item {
@@ -100,6 +143,26 @@ fun RideHistoryScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun shareHistory(context: Context, history: List<RideEntry>) {
+    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    val csvHeader = "Timestamp,Platform,BaseFare,NetProfit,RideKm,PickupKm,TotalKm,Signal,PickupAddr,DropAddr\n"
+    
+    val csvContent = history.joinToString("\n") { e ->
+        val date = sdf.format(Date(e.timestampMs))
+        val pAddr = e.pickupAddress.replace(",", " ")
+        val dAddr = e.dropAddress.replace(",", " ")
+        "$date,${e.platform},${e.baseFare},${e.netProfit},${e.rideKm},${e.pickupKm},${e.totalKm},${e.signal.name},\"$pAddr\",\"$dAddr\""
+    }
+
+    val shareBody = csvHeader + csvContent
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "RideSmart History Export")
+        putExtra(Intent.EXTRA_TEXT, shareBody)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share History via"))
 }
 
 @Composable
@@ -117,7 +180,7 @@ fun EmptyHistoryState(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                "No rides recorded yet.\nRides are saved automatically\nwhen the overlay appears.",
+                stringResource(R.string.empty_history_message),
                 color = Color(0xFF555555),
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
@@ -138,13 +201,16 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
         dateKey.second == today.get(Calendar.MONTH) &&
         dateKey.third == today.get(Calendar.DAY_OF_MONTH)
     }
-    val label = if (isToday) "Today" else
-        SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(cal.time)
+    
+    val dateFormat = remember { SimpleDateFormat("EEE, d MMM", Locale.getDefault()) }
+    val label = remember(dateKey) {
+        if (isToday) "Today" else dateFormat.format(cal.time)
+    }
 
     val totalNet = rides.sumOf { it.netProfit }
     val totalFare = rides.sumOf { it.baseFare }
-    val avgPerKm = if (rides.sumOf { it.rideKm } > 0)
-        rides.sumOf { it.netProfit } / rides.sumOf { it.rideKm } else 0.0
+    val totalKmSum = rides.sumOf { it.totalKm }.takeIf { it > 0.0 } ?: 1.0
+    val avgPerKm   = rides.sumOf { it.netProfit } / totalKmSum
     val greenCount = rides.count { it.signal == Signal.GREEN }
 
     Card(
@@ -160,7 +226,8 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(label, color = Color(0xFF3DDC84), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                val displayLabel = if (label == "Today") stringResource(R.string.today) else label
+                Text(displayLabel, color = Color(0xFF3DDC84), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Surface(
                     color = Color(0xFF16A34A).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(100.dp)
@@ -176,9 +243,9 @@ fun DailySummaryHeader(rides: List<RideEntry>, dateKey: Triple<Int, Int, Int>) {
             }
             Spacer(Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                SummaryCell("GROSS FARE", "₹${"%.0f".format(totalFare)}", Modifier.weight(1f))
-                SummaryCell("NET PROFIT", "₹${"%.0f".format(totalNet)}", Modifier.weight(1f))
-                SummaryCell("AVG ₹/KM", "₹${"%.1f".format(avgPerKm)}", Modifier.weight(1f))
+                SummaryCell(stringResource(R.string.gross_fare), "₹${"%.0f".format(totalFare)}", Modifier.weight(1f))
+                SummaryCell(stringResource(R.string.net_profit), "₹${"%.0f".format(totalNet)}", Modifier.weight(1f))
+                SummaryCell(stringResource(R.string.avg_per_km), "₹${"%.1f".format(avgPerKm)}", Modifier.weight(1f))
             }
         }
     }
@@ -199,8 +266,9 @@ fun RideRow(entry: RideEntry) {
         Signal.YELLOW -> Pair(Color(0xFFCA8A04), "🟡")
         Signal.RED    -> Pair(Color(0xFFDC2626), "🔴")
     }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val timeStr = remember(entry.timestampMs) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(entry.timestampMs))
+        timeFormat.format(Date(entry.timestampMs))
     }
     var expanded by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (expanded) 180f else 0f)
@@ -255,36 +323,68 @@ fun RideRow(entry: RideEntry) {
                     Spacer(Modifier.height(12.dp))
 
                     if (entry.pickupAddress.isNotBlank()) {
-                        DetailRow("📍 Pickup", entry.pickupAddress)
+                        DetailRow(stringResource(R.string.label_pickup), entry.pickupAddress)
                     }
                     if (entry.dropAddress.isNotBlank()) {
-                        DetailRow("🏁 Drop", entry.dropAddress)
+                        DetailRow(stringResource(R.string.label_drop), entry.dropAddress)
                     }
 
                     Spacer(Modifier.height(8.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        if (entry.tipAmount > 0) MiniStat("TIP", "₹${"%.0f".format(entry.tipAmount)}")
-                        if (entry.premiumAmount > 0) MiniStat("PREMIUM", "₹${"%.0f".format(entry.premiumAmount)}")
-                        MiniStat("PAYOUT", "₹${"%.0f".format(entry.actualPayout)}")
-                        MiniStat("COST", "₹${"%.0f".format(entry.totalCost)}")
+                        if (entry.tipAmount > 0) MiniStat(stringResource(R.string.label_tip), "₹${"%.0f".format(entry.tipAmount)}")
+                        if (entry.premiumAmount > 0) MiniStat(stringResource(R.string.label_premium), "₹${"%.0f".format(entry.premiumAmount)}")
+                        MiniStat(stringResource(R.string.label_payout), "₹${"%.0f".format(entry.actualPayout)}")
+                        MiniStat(stringResource(R.string.label_cost), "₹${"%.0f".format(entry.totalCost)}")
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // ── CALCULATION BREAKDOWN SECTION ──
+                    Text(
+                        stringResource(R.string.label_breakdown),
+                        color = Color(0xFF3DDC84),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.05.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F13)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            CalculationLine(stringResource(R.string.label_fuel_cost), "- ₹${"%.1f".format(entry.fuelCost)}", Color(0xFF6B6B85))
+                            CalculationLine(stringResource(R.string.label_wear_cost), "- ₹${"%.1f".format(entry.wearCost)}", Color(0xFF6B6B85))
+                            Spacer(Modifier.height(4.dp))
+                            HorizontalDivider(color = Color(0xFF2A2A36), thickness = 0.5.dp)
+                            Spacer(Modifier.height(4.dp))
+                            CalculationLine(
+                                stringResource(R.string.label_net_formula), 
+                                "₹${"%.1f".format(entry.netProfit)}", 
+                                signalColor, 
+                                isBold = true
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        MiniStat(stringResource(R.string.label_per_km_stat), "₹${"%.1f".format(entry.earningPerKm)}")
+                        if (entry.earningPerHour > 0) MiniStat(stringResource(R.string.label_per_hr_stat), "₹${"%.0f".format(entry.earningPerHour)}")
+                        if (entry.estimatedDurationMin > 0) MiniStat(stringResource(R.string.label_duration), "${entry.estimatedDurationMin}m")
+                        MiniStat(stringResource(R.string.label_pickup_pct), "${entry.pickupRatioPct}%")
                     }
 
                     Spacer(Modifier.height(12.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        MiniStat("₹/KM", "₹${"%.1f".format(entry.earningPerKm)}")
-                        if (entry.earningPerHour > 0) MiniStat("₹/HR", "₹${"%.0f".format(entry.earningPerHour)}")
-                        if (entry.estimatedDurationMin > 0) MiniStat("DURATION", "${entry.estimatedDurationMin}m")
-                        MiniStat("PICKUP%", "${entry.pickupRatioPct}%")
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        if (entry.riderRating > 0) MiniStat("RATING", "⭐ ${"%.2f".format(entry.riderRating)}")
-                        if (entry.paymentType.isNotBlank()) MiniStat("PAYMENT", entry.paymentType)
-                        MiniStat("SCORE", "₹${"%.1f".format(entry.smartScore)}")
+                        if (entry.riderRating > 0) MiniStat(stringResource(R.string.label_rating), "⭐ ${"%.2f".format(entry.riderRating)}")
+                        if (entry.paymentType.isNotBlank()) MiniStat(stringResource(R.string.label_payment), entry.paymentType)
+                        MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.smartScore)}")
                     }
 
                     if (entry.failedChecks.isNotBlank()) {
@@ -303,6 +403,19 @@ fun RideRow(entry: RideEntry) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CalculationLine(label: String, value: String, color: Color, isBold: Boolean = false) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Color(0xFF6B6B85), fontSize = 11.sp)
+        Text(
+            value, 
+            color = color, 
+            fontSize = 11.sp, 
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
 

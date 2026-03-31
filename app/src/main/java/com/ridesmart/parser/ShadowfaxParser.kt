@@ -2,6 +2,7 @@ package com.ridesmart.parser
 
 import android.util.Log
 import com.ridesmart.model.ParsedRide
+import com.ridesmart.model.ParseResult
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
 
@@ -9,219 +10,208 @@ class ShadowfaxParser : IPlatformParser {
 
     companion object {
         private const val TAG = "RideSmart"
-        private const val PACKAGE = "in.shadowfax.gandalf"
 
-        // Fare: "₹166.01" — plain amount, may include decimals
-        private val FARE_REGEX = Regex(
-            """₹\s*(\d+(?:\.\d{1,2})?)"""
-        )
+        private val FARE_REGEX  = Regex("""₹\s*(\d+(?:\.\d{1,2})?)""")
+        private val KM_REGEX    = Regex("""(\d+(?:\.\d{1,2})?)\s*km[s]?""", RegexOption.IGNORE_CASE)
+        private val MIN_REGEX   = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
+        private val BOOST_REGEX = Regex("""\+\s*₹\s*(\d+(?:\.\d{1,2})?)""")
 
-        // Pickup distance: "Pickup: 0.2 km" or "Pickup: 0.2 kms"
-        private val PICKUP_KM_REGEX = Regex(
-            """(?i)pickup\s*[:\-]?\s*(\d+(?:\.\d{1,2})?)\s*kms?"""
-        )
-
-        // Drop distance: "Drop: 14.94 kms" or "Drop: 14.94 km"
-        private val DROP_KM_REGEX = Regex(
-            """(?i)drop\s*[:\-]?\s*(\d+(?:\.\d{1,2})?)\s*kms?"""
-        )
-
-        // Generic km fallback if labels not found
-        private val KM_REGEX = Regex(
-            """(\d+(?:\.\d{1,2})?)\s*kms?""",
-            RegexOption.IGNORE_CASE
-        )
-
-        // Duration: "12 min"
-        private val MIN_REGEX = Regex(
-            """(\d+)\s*min""",
-            RegexOption.IGNORE_CASE
-        )
-
-        // Payment type: "Amount: Cash" or "Amount: Online"
-        private val PAYMENT_REGEX = Regex(
-            """(?i)amount\s*[:\-]?\s*(\w+)"""
-        )
-
-        // ── IDLE screen keywords ──────────────────────────────────
-        private val IDLE_KEYWORDS = listOf(
-            "searching nearby orders",
-            "searching nearby",
-            "move to a nearby",
-            "high demand area",
-            "no orders",
-            "you are offline",
-            "go online"
-        )
-
-        // ── ACTIVE ride keywords ──────────────────────────────────
-        private val ACTIVE_RIDE_KEYWORDS = listOf(
-            "task completed",
-            "delivered",
-            "picked",
-            "cancelled",
-            "otp",
-            "reached",
-            "complete delivery",
-            "delivery started",
-            "order journey"
-        )
-
-        // ── Offer screen action keyword ───────────────────────────
-        private val OFFER_ACTION_KEYWORDS = listOf(
-            "accept order"
+        private val ACTIVE_KEYWORDS = listOf(
+            "otp", "start delivery", "picked up", "delivered",
+            "arrived at pickup", "navigate to drop", "trip started"
         )
     }
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
 
-        // Check idle first
-        if (IDLE_KEYWORDS.any { combined.contains(it) }) {
-            Log.d(TAG, "🚫 Shadowfax: IDLE screen detected")
-            return ScreenState.IDLE
-        }
+        if (ACTIVE_KEYWORDS.any { combined.contains(it) }) return ScreenState.ACTIVE_RIDE
 
-        // Check active ride
-        if (ACTIVE_RIDE_KEYWORDS.any { combined.contains(it) }) {
-            Log.d(TAG, "🚫 Shadowfax: ACTIVE_RIDE detected — suppressing overlay")
-            return ScreenState.ACTIVE_RIDE
-        }
-
-        val hasAction = OFFER_ACTION_KEYWORDS.any { combined.contains(it) }
-        val hasFare   = FARE_REGEX.containsMatchIn(combined)
-        val hasKm     = KM_REGEX.containsMatchIn(combined)
+        val hasFare   = combined.contains("₹")
+        val hasAccept = combined.contains("accept") || combined.contains("choose order")
+        val hasKm     = combined.contains("km")
 
         return when {
-            hasAction && hasFare && hasKm  -> ScreenState.OFFER_LOADED
-            hasAction && hasFare && !hasKm -> ScreenState.OFFER_LOADING
-            else                           -> ScreenState.IDLE
+            hasFare && hasAccept && hasKm -> ScreenState.OFFER_LOADED
+            hasFare && hasKm             -> ScreenState.OFFER_LOADING
+            hasFare                      -> ScreenState.OFFER_LOADING
+            else                         -> ScreenState.IDLE
         }
     }
 
-    override fun parseAll(nodes: List<String>, packageName: String): List<ParsedRide> {
-        val active = nodes.filter { it.isNotBlank() }
-        if (detectScreenState(active) != ScreenState.OFFER_LOADED) return emptyList()
+    override fun parseAll(nodes: List<String>, packageName: String): ParseResult {
+        val screenState = detectScreenState(nodes)
+        if (screenState == ScreenState.IDLE) return ParseResult.Idle
+        if (screenState == ScreenState.ACTIVE_RIDE) return ParseResult.Failure("Active ride in progress")
 
-        // STRATEGY 1: labeled extraction (Pickup:/Drop: present)
-        val labeledRide = parseLabeledNodes(active)
-        if (labeledRide != null) {
-            Log.d(TAG, "✅ Shadowfax LABELED strategy succeeded")
-            return listOf(labeledRide)
+        val isDelivery = nodes.any { it.equals("Choose Order", ignoreCase = true) } ||
+                         nodes.any { it.contains("Sort By:", ignoreCase = true) } ||
+                         nodes.any { it.contains("Package", ignoreCase = true) }
+
+        val ride = if (isDelivery) {
+            parseDelivery(nodes, packageName, screenState)
+        } else {
+            parseBikeTaxi(nodes, packageName, screenState)
         }
 
-        // STRATEGY 2: merged Compose node fallback
-        val combined = active.joinToString(" · ")
-        val mergedRide = parseMergedText(combined, active)
-        if (mergedRide != null) {
-            Log.d(TAG, "✅ Shadowfax MERGED strategy succeeded")
-            return listOf(mergedRide)
+        return if (ride != null) {
+            ParseResult.Success(listOf(ride))
+        } else {
+            ParseResult.Failure("Shadowfax: No rides parsed", confidence = 0.3f)
         }
-
-        Log.d(TAG, "⚠️ Shadowfax: both strategies failed for nodes: $active")
-        return emptyList()
     }
 
-    private fun parseLabeledNodes(nodes: List<String>): ParsedRide? {
-        val combined = nodes.joinToString(" ")
+    private fun parseBikeTaxi(
+        nodes: List<String>,
+        packageName: String,
+        screenState: ScreenState
+    ): ParsedRide? {
+        val combinedLower = nodes.joinToString(" ").lowercase()
 
-        // Extract fare — take the FIRST ₹ amount (top of card)
-        val allFares = FARE_REGEX.findAll(combined)
-            .mapNotNull { it.groupValues[1].toDoubleOrNull() }
-            .filter { it > 10.0 }
-            .toList()
-        val baseFare = allFares.firstOrNull() ?: return null
-
-        // Extract labeled distances
-        val pickupKm = PICKUP_KM_REGEX.find(combined)
-            ?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-        val dropKm = DROP_KM_REGEX.find(combined)
-            ?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-
-        // Must have at least drop distance to proceed
-        if (dropKm == 0.0 && pickupKm == 0.0) return null
-
-        // Payment type
-        val paymentType = PAYMENT_REGEX.find(combined)
-            ?.groupValues?.get(1)?.lowercase() ?: ""
-
-        // Duration
-        val durationMin = MIN_REGEX.find(combined)
-            ?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-        // Addresses — node after "Pickup:" label and after "Drop:" label
-        var pickupAddress = ""
-        var dropAddress   = ""
-        for (i in nodes.indices) {
-            val n = nodes[i]
-            if (n.contains("Pickup", ignoreCase = true) &&
-                KM_REGEX.containsMatchIn(n)) {
-                pickupAddress = nodes.getOrElse(i + 1) { "" }
+        var fare = 0.0
+        var boost = 0.0
+        for (node in nodes) {
+            val trimmed = node.trim()
+            if (trimmed.startsWith("+")) {
+                val b = BOOST_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (b > 0.0 && boost == 0.0) boost = b
+                continue
             }
-            if (n.contains("Drop", ignoreCase = true) &&
-                KM_REGEX.containsMatchIn(n)) {
-                dropAddress = nodes.getOrElse(i + 1) { "" }
+            if (trimmed.startsWith("*") && trimmed.contains("₹", ignoreCase = false)) {
+                val b = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (b > 0.0 && boost == 0.0) boost = b
+                continue
             }
+            if (trimmed.contains("+")) continue
+            if (trimmed.length > 15) continue
+            val v = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+            if (v > 5.0 && fare == 0.0) fare = v
+        }
+        if (fare == 0.0) return null
+
+        val kmValues = nodes.mapNotNull { node ->
+            val t = node.trim()
+            if (t.startsWith("+")) return@mapNotNull null
+            if (t.contains("+")) return@mapNotNull null
+            KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
+        }
+        val pickupKm = if (kmValues.size >= 2) kmValues[0] else 0.0
+        val rideKm   = if (kmValues.size >= 2) kmValues[1] else kmValues.firstOrNull() ?: 0.0
+        if (rideKm <= 0.0) return null
+
+        val durationMin = nodes.mapNotNull { MIN_REGEX.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+            .firstOrNull() ?: 0
+
+        val vehicleType = when {
+            combinedLower.contains("bike") -> VehicleType.BIKE
+            combinedLower.contains("auto") -> VehicleType.AUTO
+            else                           -> VehicleType.BIKE
         }
 
-        Log.d(TAG, "🔍 Shadowfax LABELED: fare=₹$baseFare " +
-            "pickup=${pickupKm}km drop=${dropKm}km payment=$paymentType")
+        val addressCandidates = nodes.filter { n ->
+            n.length > 15 &&
+            !n.contains("₹") &&
+            !n.contains("km", ignoreCase = true) &&
+            !n.contains("min", ignoreCase = true) &&
+            !n.contains("+") &&
+            !n.equals("Accept", ignoreCase = true) &&
+            !n.equals("Reject", ignoreCase = true) &&
+            !n.equals("Go To", ignoreCase = true) &&
+            !n.equals("Bike", ignoreCase = true) &&
+            !n.equals("Auto", ignoreCase = true) &&
+            !n.equals("Home", ignoreCase = true) &&
+            !n.equals("Orders", ignoreCase = true) &&
+            !n.contains("OFF", ignoreCase = true)
+        }
+        val pickupAddress = addressCandidates.getOrElse(0) { "" }
+        val dropAddress   = addressCandidates.getOrElse(1) { "" }
 
         return ParsedRide(
-            baseFare             = baseFare,
-            premiumAmount        = 0.0,
-            tipAmount            = 0.0,
-            rideDistanceKm       = dropKm,
-            pickupDistanceKm     = pickupKm,
-            estimatedDurationMin = durationMin,
-            platform             = "Shadowfax",
-            packageName          = PACKAGE,
-            rawTextNodes         = nodes,
-            pickupAddress        = pickupAddress,
-            dropAddress          = dropAddress,
-            paymentType          = paymentType,
-            vehicleType          = VehicleType.DELIVERY,
-            screenState          = ScreenState.OFFER_LOADED
+            baseFare = fare, premiumAmount = boost, tipAmount = 0.0,
+            rideDistanceKm = rideKm, pickupDistanceKm = pickupKm,
+            estimatedDurationMin = durationMin, platform = "Shadowfax",
+            packageName = packageName, vehicleType = vehicleType,
+            paymentType = "cash", pickupAddress = pickupAddress,
+            dropAddress = dropAddress, screenState = screenState, rawTextNodes = nodes
         )
     }
 
-    private fun parseMergedText(combined: String, raw: List<String>): ParsedRide? {
-        val baseFare = FARE_REGEX.findAll(combined)
-            .mapNotNull { it.groupValues[1].toDoubleOrNull() }
-            .filter { it > 10.0 }
-            .firstOrNull() ?: return null
+    private fun parseDelivery(
+        nodes: List<String>,
+        packageName: String,
+        screenState: ScreenState
+    ): ParsedRide? {
+        val combinedLower = nodes.joinToString(" ").lowercase()
 
-        val allKm = KM_REGEX.findAll(combined)
-            .mapNotNull { it.groupValues[1].toDoubleOrNull() }
-            .toList()
+        var fare = 0.0
+        var boost = 0.0
+        for (node in nodes) {
+            val trimmed = node.trim()
+            if (trimmed.startsWith("+")) {
+                val b = BOOST_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (b > 0.0 && boost == 0.0) boost = b
+                continue
+            }
+            if (trimmed.startsWith("*") && trimmed.contains("₹", ignoreCase = false)) {
+                val b = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (b > 0.0 && boost == 0.0) boost = b
+                continue
+            }
+            if (trimmed.contains("taxes", ignoreCase = true)) continue
+            val v = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+            if (v > 5.0 && fare == 0.0) fare = v
+        }
+        if (fare == 0.0) return null
 
-        if (allKm.isEmpty()) return null
+        var pickupKm = 0.0
+        var dropKm   = 0.0
+        var pickupAddress = ""
+        var dropAddress   = ""
 
-        val pickupKm = if (allKm.size >= 2) allKm.first() else 0.0
-        val dropKm   = if (allKm.size >= 2) allKm.last() else allKm.first()
+        for (i in nodes.indices) {
+            when {
+                nodes[i].contains("Pickup", ignoreCase = true) && (nodes[i].contains(":") || nodes.getOrNull(i+1)?.contains("km", true) == true) -> {
+                    pickupKm = nodes.getOrNull(i + 1)?.let {
+                        KM_REGEX.find(it)?.groupValues?.get(1)?.toDoubleOrNull()
+                    } ?: 0.0
+                    val next = nodes.getOrElse(i + 2) { "" }
+                    pickupAddress = if (next.equals("Low Wait Time", ignoreCase = true))
+                        nodes.getOrElse(i + 3) { "" } else next
+                }
+                nodes[i].contains("Drop", ignoreCase = true) && (nodes[i].contains(":") || nodes.getOrNull(i+1)?.contains("km", true) == true) -> {
+                    dropKm = nodes.getOrNull(i + 1)?.let {
+                        KM_REGEX.find(it)?.groupValues?.get(1)?.toDoubleOrNull()
+                    } ?: 0.0
+                    dropAddress = nodes.getOrElse(i + 2) { "" }
+                }
+            }
+        }
 
-        val paymentType = PAYMENT_REGEX.find(combined)
-            ?.groupValues?.get(1)?.lowercase() ?: ""
+        if (pickupKm == 0.0 && dropKm == 0.0) {
+            val allKm = KM_REGEX.findAll(nodes.joinToString(" "))
+                .mapNotNull { it.groupValues[1].toDoubleOrNull() }
+                .filter { it > 0.0 }.toList()
+            pickupKm = allKm.minOrNull() ?: 0.0
+            dropKm   = allKm.maxOrNull() ?: 0.0
+        }
 
-        val durationMin = MIN_REGEX.find(combined)
-            ?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val rideKm = dropKm
+        if (rideKm <= 0.0) return null
 
-        Log.d(TAG, "🔍 Shadowfax MERGED: fare=₹$baseFare " +
-            "pickup=${pickupKm}km drop=${dropKm}km")
+        val paymentType = when {
+            combinedLower.contains("cod")     -> "cash"
+            combinedLower.contains("prepaid") -> "digital"
+            combinedLower.contains("cash")    -> "cash"
+            else                              -> "digital"
+        }
 
         return ParsedRide(
-            baseFare             = baseFare,
-            premiumAmount        = 0.0,
-            tipAmount            = 0.0,
-            rideDistanceKm       = dropKm,
-            pickupDistanceKm     = pickupKm,
-            estimatedDurationMin = durationMin,
-            platform             = "Shadowfax",
-            packageName          = PACKAGE,
-            rawTextNodes         = raw,
-            paymentType          = paymentType,
-            vehicleType          = VehicleType.DELIVERY,
-            screenState          = ScreenState.OFFER_LOADED
+            baseFare = fare, premiumAmount = boost, tipAmount = 0.0,
+            rideDistanceKm = rideKm, pickupDistanceKm = pickupKm,
+            estimatedDurationMin = 0, platform = "Shadowfax",
+            packageName = packageName, vehicleType = VehicleType.DELIVERY,
+            paymentType = paymentType, pickupAddress = pickupAddress,
+            dropAddress = dropAddress, screenState = screenState, rawTextNodes = nodes
         )
     }
 }

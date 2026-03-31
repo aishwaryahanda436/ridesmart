@@ -1,0 +1,690 @@
+You are working on RideSmart (package: com.ridesmart). Kotlin + Compose.
+Phases 0, 1, and 2 are complete.
+
+Phase 3 builds the Profit Dashboard — the end-of-day settlement screen
+where pass costs are finally deducted and incentives are unlocked only
+when the target is actually met.
+
+The key rule: real-time overlay shows operating profit.
+Dashboard shows settled final profit after pass and incentives.
+
+Work through each TASK in order. Confirm file and compile after each.
+
+══════════════════════════════════════════════════════════════
+TASK 1 — Add daily settlement queries to RideDao
+File: app/src/main/java/com/ridesmart/data/RideDao.kt
+══════════════════════════════════════════════════════════════
+
+Add these queries (skip any that already exist):
+
+    @Query("""
+        SELECT platform, COUNT(*) as rideCount,
+               SUM(baseFare) as grossEarnings,
+               SUM(netProfit) as operatingProfit,
+               SUM(totalKm) as totalKm,
+               SUM(fuelCost) as fuelCost,
+               SUM(wearCost) as wearCost
+        FROM ride_history
+        WHERE timestampMs >= :startMs AND timestampMs < :endMs
+        GROUP BY platform
+    """)
+    fun getDailyPlatformSummary(startMs: Long, endMs: Long):
+        Flow<List<DailyPlatformRow>>
+
+    @Query("SELECT * FROM ride_history WHERE timestampMs >= :startMs AND timestampMs < :endMs ORDER BY timestampMs DESC")
+    fun getRidesInRange(startMs: Long, endMs: Long): Flow<List<RideEntry>>
+
+STEP A — Create the DailyPlatformRow data class in the same file
+(or in a new file data/DailyPlatformRow.kt):
+
+    data class DailyPlatformRow(
+        val platform: String,
+        val rideCount: Int,
+        val grossEarnings: Double,
+        val operatingProfit: Double,
+        val totalKm: Double,
+        val fuelCost: Double,
+        val wearCost: Double
+    )
+
+Confirm: queries and data class exist. File compiles.
+
+══════════════════════════════════════════════════════════════
+TASK 2 — Expose settlement data from RideHistoryRepository
+File: app/src/main/java/com/ridesmart/data/RideHistoryRepository.kt
+══════════════════════════════════════════════════════════════
+
+Add:
+
+    fun getDailyPlatformSummary(startMs: Long, endMs: Long) =
+        rideDao.getDailyPlatformSummary(startMs, endMs)
+
+    fun getRidesInRange(startMs: Long, endMs: Long) =
+        rideDao.getRidesInRange(startMs, endMs)
+
+Confirm: two new functions added. File compiles.
+
+══════════════════════════════════════════════════════════════
+TASK 3 — Create DashboardViewModel
+New file: app/src/main/java/com/ridesmart/ui/DashboardViewModel.kt
+══════════════════════════════════════════════════════════════
+
+Create this file with exactly this content:
+
+    package com.ridesmart.ui
+
+    import android.app.Application
+    import androidx.lifecycle.AndroidViewModel
+    import androidx.lifecycle.viewModelScope
+    import com.ridesmart.data.DailyPlatformRow
+    import com.ridesmart.data.RideHistoryRepository
+    import com.ridesmart.data.ProfileRepository
+    import com.ridesmart.model.IncentiveProfile
+    import com.ridesmart.model.PlatformPlan
+    import com.ridesmart.model.PlanType
+    import com.ridesmart.model.RiderProfile
+    import kotlinx.coroutines.flow.*
+    import java.util.Calendar
+
+    class DashboardViewModel(application: Application) : AndroidViewModel(application) {
+
+        private val rideRepo    = RideHistoryRepository(application)
+        private val profileRepo = ProfileRepository(application)
+
+        // ── Today's date range ──────────────────────────────────────────
+        private fun startOfDayMs(): Long {
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        private fun endOfDayMs() = startOfDayMs() + 24 * 60 * 60 * 1000L - 1
+
+        // ── Rider profile ───────────────────────────────────────────────
+        val profile: StateFlow<RiderProfile> = profileRepo.profileFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RiderProfile())
+
+        // ── Today's platform rows (from Room) ───────────────────────────
+        val platformRows: StateFlow<List<DailyPlatformRow>> =
+            rideRepo.getDailyPlatformSummary(startOfDayMs(), endOfDayMs())
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+        // ── Settled day profit (with pass deduction + incentive unlock) ─
+        val settledSummary: StateFlow<SettledDaySummary> = combine(
+            platformRows, profile
+        ) { rows, prof ->
+            computeSettledSummary(rows, prof)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettledDaySummary())
+
+        private fun computeSettledSummary(
+            rows: List<DailyPlatformRow>,
+            profile: RiderProfile
+        ): SettledDaySummary {
+            var totalGross       = 0.0
+            var totalRideCost    = 0.0   // fuel + wear across all rides
+            var totalCommission  = 0.0
+            var totalPassCost    = 0.0
+            var totalIncentive   = 0.0
+            var totalRides       = 0
+            val platformDetails  = mutableListOf<SettledPlatformDetail>()
+
+            for (row in rows) {
+                val plan      = profile.platformPlans[row.platform] ?: PlatformPlan()
+                val incentive = profile.incentiveProfiles[row.platform] ?: IncentiveProfile()
+
+                // Commission already deducted from operatingProfit in ProfitCalculator
+                // So operatingProfit = fare_after_commission - ride_costs
+                // We need to reconstruct gross earnings and commission separately
+                // grossEarnings is the raw fare sum from RideEntry.baseFare
+                val commissionDeducted = if (plan.planType == PlanType.COMMISSION) {
+                    row.grossEarnings * (plan.commissionPercent / 100.0)
+                } else 0.0
+
+                // Pass cost: one-time deduction for the platform's pass
+                val passCost = if (plan.planType == PlanType.PASS && plan.passAmount > 0.0) {
+                    // Daily share of the pass cost
+                    plan.passAmount / plan.passDurationDays.coerceAtLeast(1).toDouble()
+                } else 0.0
+
+                // Incentive: add only when target is met
+                val incentiveEarned = if (
+                    incentive.enabled &&
+                    incentive.targetRides > 0 &&
+                    incentive.completedToday >= incentive.targetRides
+                ) incentive.rewardAmount else 0.0
+
+                // Platform operating profit = sum of per-ride net profits
+                // (already correct: commission deducted per ride, ride costs deducted)
+                val operatingProfit = row.operatingProfit
+
+                // Platform final settled profit
+                val settledProfit = operatingProfit - passCost + incentiveEarned
+
+                platformDetails.add(
+                    SettledPlatformDetail(
+                        platform         = row.platform,
+                        rides            = row.rideCount,
+                        grossEarnings    = row.grossEarnings,
+                        rideOperatingProfit = operatingProfit,
+                        commissionDeducted  = commissionDeducted,
+                        passCost         = passCost,
+                        incentiveEarned  = incentiveEarned,
+                        settledProfit    = settledProfit,
+                        totalKm          = row.totalKm,
+                        incentiveProgress= incentive.completedToday to incentive.targetRides,
+                        incentiveTarget  = incentive.rewardAmount
+                    )
+                )
+
+                totalGross      += row.grossEarnings
+                totalRideCost   += row.fuelCost + row.wearCost
+                totalCommission += commissionDeducted
+                totalPassCost   += passCost
+                totalIncentive  += incentiveEarned
+                totalRides      += row.rideCount
+            }
+
+            val totalOperating = totalGross - totalRideCost - totalCommission
+            val totalSettled   = totalOperating - totalPassCost + totalIncentive
+
+            return SettledDaySummary(
+                totalRides          = totalRides,
+                grossEarnings       = totalGross,
+                totalRideCost       = totalRideCost,
+                totalCommission     = totalCommission,
+                totalPassCost       = totalPassCost,
+                totalIncentive      = totalIncentive,
+                totalOperatingProfit= totalOperating,
+                totalSettledProfit  = totalSettled,
+                platforms           = platformDetails
+            )
+        }
+
+        fun updateIncentiveProgress(platform: String, completed: Int) {
+            viewModelScope.launch {
+                profileRepo.updateIncentiveProgress(platform, completed)
+            }
+        }
+    }
+
+    // ── Result data classes ─────────────────────────────────────────────
+
+    data class SettledDaySummary(
+        val totalRides:           Int    = 0,
+        val grossEarnings:        Double = 0.0,
+        val totalRideCost:        Double = 0.0,
+        val totalCommission:      Double = 0.0,
+        val totalPassCost:        Double = 0.0,
+        val totalIncentive:       Double = 0.0,
+        val totalOperatingProfit: Double = 0.0,
+        val totalSettledProfit:   Double = 0.0,
+        val platforms:            List<SettledPlatformDetail> = emptyList()
+    )
+
+    data class SettledPlatformDetail(
+        val platform:              String,
+        val rides:                 Int,
+        val grossEarnings:         Double,
+        val rideOperatingProfit:   Double,
+        val commissionDeducted:    Double,
+        val passCost:              Double,
+        val incentiveEarned:       Double,
+        val settledProfit:         Double,
+        val totalKm:               Double,
+        val incentiveProgress:     Pair<Int, Int>,   // completed to target
+        val incentiveTarget:       Double             // reward ₹
+    )
+
+Confirm: new file created, compiles.
+
+══════════════════════════════════════════════════════════════
+TASK 4 — Create ProfitDashboardScreen composable
+New file: app/src/main/java/com/ridesmart/ui/ProfitDashboardScreen.kt
+══════════════════════════════════════════════════════════════
+
+Create this file with the content below. This is the main dashboard UI.
+
+    package com.ridesmart.ui
+
+    import androidx.activity.compose.BackHandler
+    import androidx.compose.foundation.background
+    import androidx.compose.foundation.layout.*
+    import androidx.compose.foundation.lazy.LazyColumn
+    import androidx.compose.foundation.lazy.items
+    import androidx.compose.foundation.shape.RoundedCornerShape
+    import androidx.compose.material3.*
+    import androidx.compose.runtime.*
+    import androidx.compose.ui.Alignment
+    import androidx.compose.ui.Modifier
+    import androidx.compose.ui.graphics.Color
+    import androidx.compose.ui.text.font.FontWeight
+    import androidx.compose.ui.unit.dp
+    import androidx.compose.ui.unit.sp
+    import androidx.lifecycle.compose.collectAsStateWithLifecycle
+    import androidx.lifecycle.viewmodel.compose.viewModel
+
+    @Composable
+    fun ProfitDashboardScreen(
+        onBack: () -> Unit,
+        viewModel: DashboardViewModel = viewModel()
+    ) {
+        val summary by viewModel.settledSummary.collectAsStateWithLifecycle()
+        val bgColor = Color(0xFF0F0F13)
+        val cardBg  = Color(0xFF16161C)
+        val green   = Color(0xFF3DDC84)
+
+        BackHandler(onBack = onBack)
+
+        Scaffold(
+            topBar = {
+                Column(modifier = Modifier.background(bgColor)) {
+                    Spacer(Modifier.height(48.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = onBack) {
+                            Text("← Back", color = green, fontSize = 15.sp)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "Today's Profit",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Box(Modifier.width(72.dp))
+                    }
+                }
+            },
+            containerColor = bgColor
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
+                item {
+                    Spacer(Modifier.height(4.dp))
+                    DaySummaryCard(summary = summary, green = green, cardBg = cardBg)
+                }
+
+                item {
+                    Text(
+                        "PLATFORM BREAKDOWN",
+                        color = Color(0xFF6B6B85),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+
+                items(summary.platforms) { detail ->
+                    PlatformDayCard(
+                        detail = detail,
+                        cardBg = cardBg,
+                        green  = green,
+                        onUpdateProgress = { completed ->
+                            viewModel.updateIncentiveProgress(detail.platform, completed)
+                        }
+                    )
+                }
+
+                if (summary.platforms.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No rides recorded today.\nRides appear here automatically.",
+                                color = Color(0xFF555555),
+                                fontSize = 14.sp,
+                                lineHeight = 22.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    SettlementExplainerCard(cardBg = cardBg)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun DaySummaryCard(
+        summary: SettledDaySummary,
+        green: Color,
+        cardBg: Color
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors   = CardDefaults.cardColors(containerColor = cardBg),
+            shape    = RoundedCornerShape(20.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Settled profit", color = Color(0xFF6B6B85), fontSize = 12.sp)
+                        Text(
+                            "₹${"%.0f".format(summary.totalSettledProfit)}",
+                            color = green,
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("${summary.totalRides} rides", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Operating ₹${"%.0f".format(summary.totalOperatingProfit)}", color = Color(0xFF6B6B85), fontSize = 12.sp)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0xFF2A2A36), thickness = 0.5.dp)
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    DashStat("Gross", "₹${"%.0f".format(summary.grossEarnings)}")
+                    DashStat("Ride cost", "-₹${"%.0f".format(summary.totalRideCost)}")
+                    DashStat("Commission", "-₹${"%.0f".format(summary.totalCommission)}")
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    DashStat("Pass cost", "-₹${"%.0f".format(summary.totalPassCost)}", color = Color(0xFFCA8A04))
+                    DashStat("Incentives", "+₹${"%.0f".format(summary.totalIncentive)}", color = green)
+                    DashStat("Final", "₹${"%.0f".format(summary.totalSettledProfit)}", color = green)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun DashStat(label: String, value: String, color: Color = Color.White) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, color = Color(0xFF6B6B85), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+            Text(value, color = color, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+
+    @Composable
+    private fun PlatformDayCard(
+        detail: SettledPlatformDetail,
+        cardBg: Color,
+        green: Color,
+        onUpdateProgress: (Int) -> Unit
+    ) {
+        var showProgressEdit by remember { mutableStateOf(false) }
+        var progressInput by remember { mutableStateOf(detail.incentiveProgress.first.toString()) }
+        val isPassPlatform = detail.passCost > 0.0
+        val hasIncentive   = detail.incentiveTarget > 0.0
+        val incentiveComplete = detail.incentiveProgress.first >= detail.incentiveProgress.second
+                                && detail.incentiveProgress.second > 0
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors   = CardDefaults.cardColors(containerColor = cardBg),
+            shape    = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(detail.platform, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (isPassPlatform) {
+                            Surface(
+                                color = Color(0x33EF9F27),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    "PASS",
+                                    color    = Color(0xFFEF9F27),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        "₹${"%.0f".format(detail.settledProfit)}",
+                        color = if (detail.settledProfit >= 0) green else Color(0xFFDC2626),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    MiniStat("Rides", "${detail.rides}")
+                    MiniStat("Gross", "₹${"%.0f".format(detail.grossEarnings)}")
+                    MiniStat("Ride cost", "₹${"%.0f".format(detail.rideOperatingProfit)}")
+                }
+                if (isPassPlatform || detail.commissionDeducted > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = Color(0xFF2A2A36), thickness = 0.5.dp)
+                    Spacer(Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        if (detail.commissionDeducted > 0)
+                            MiniStat("Commission", "-₹${"%.0f".format(detail.commissionDeducted)}", color = Color(0xFFCA8A04))
+                        if (isPassPlatform)
+                            MiniStat("Pass deducted", "-₹${"%.0f".format(detail.passCost)}", color = Color(0xFFCA8A04))
+                    }
+                }
+                if (hasIncentive) {
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = Color(0xFF2A2A36), thickness = 0.5.dp)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            val (done, target) = detail.incentiveProgress
+                            Text(
+                                if (incentiveComplete)
+                                    "Incentive unlocked +₹${"%.0f".format(detail.incentiveTarget)}"
+                                else
+                                    "$done / $target rides — ₹${"%.0f".format(detail.incentiveTarget)} target",
+                                color = if (incentiveComplete) green else Color(0xFF6B6B85),
+                                fontSize = 12.sp
+                            )
+                        }
+                        TextButton(onClick = { showProgressEdit = !showProgressEdit }) {
+                            Text("Update", color = green, fontSize = 12.sp)
+                        }
+                    }
+                    if (showProgressEdit) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value         = progressInput,
+                                onValueChange = { progressInput = it },
+                                modifier      = Modifier.weight(1f),
+                                singleLine    = true,
+                                label         = { Text("Rides completed") },
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor   = green,
+                                    unfocusedBorderColor = Color(0xFF2A2A36),
+                                    focusedTextColor     = Color.White,
+                                    unfocusedTextColor   = Color.White
+                                )
+                            )
+                            Button(
+                                onClick = {
+                                    progressInput.toIntOrNull()?.let {
+                                        onUpdateProgress(it)
+                                        showProgressEdit = false
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = green)
+                            ) {
+                                Text("Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun SettlementExplainerCard(cardBg: Color) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors   = CardDefaults.cardColors(containerColor = cardBg),
+            shape    = RoundedCornerShape(12.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text("How this works", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Commission is deducted per ride in real time.\n" +
+                    "Pass costs are deducted once here at end of day.\n" +
+                    "Incentives are added only when the target is met.\n" +
+                    "This is your true settled profit for today.",
+                    color    = Color(0xFF6B6B85),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+
+Confirm: new file created, compiles.
+
+══════════════════════════════════════════════════════════════
+TASK 5 — Add dashboard route to MainActivity navigation
+File: app/src/main/java/com/ridesmart/MainActivity.kt
+══════════════════════════════════════════════════════════════
+
+STEP A — Find the NavHost block inside PermissionSetupScreen or
+wherever the navigation graph is defined. It currently has routes for
+"permissions", "profile", and "history".
+
+Add a new route for "dashboard":
+
+    composable("dashboard") {
+        ProfitDashboardScreen(onBack = { navController.popBackStack() })
+    }
+
+STEP B — Find the QuickActionButton for "View Ride History":
+
+    QuickActionButton(text = stringResource(R.string.view_ride_history),
+                      icon = "chart", onClick = onViewHistory)
+
+After it, add a new button for the dashboard. First, add a new
+parameter to PermissionSetupScreen:
+
+    onViewDashboard: () -> Unit
+
+Then add the button:
+
+    Spacer(Modifier.height(12.dp))
+    QuickActionButton(
+        text    = stringResource(R.string.view_profit_dashboard),
+        icon    = "money",
+        onClick = onViewDashboard
+    )
+
+STEP C — In the NavHost where PermissionSetupScreen is called, add
+the new callback:
+
+    PermissionSetupScreen(
+        repository      = repository,
+        onEditProfile   = { navController.navigate("profile") },
+        onViewHistory   = { navController.navigate("history") },
+        onViewDashboard = { navController.navigate("dashboard") }
+    )
+
+STEP D — Add the required imports:
+    import com.ridesmart.ui.ProfitDashboardScreen
+
+Confirm: navigation route added, dashboard reachable from main screen.
+File compiles.
+
+══════════════════════════════════════════════════════════════
+TASK 6 — Add string resources for dashboard
+File: app/src/main/res/values/strings.xml
+══════════════════════════════════════════════════════════════
+
+Add inside <resources>:
+
+    <string name="view_profit_dashboard">Today\'s Profit Dashboard</string>
+    <string name="dashboard_title">Today\'s Profit</string>
+    <string name="settled_profit">Settled profit</string>
+    <string name="operating_profit">Operating profit</string>
+    <string name="gross_earnings">Gross earnings</string>
+    <string name="pass_deducted">Pass deducted</string>
+    <string name="incentive_earned">Incentive earned</string>
+    <string name="commission_deducted">Commission</string>
+    <string name="incentive_target_met">Target met</string>
+    <string name="incentive_progress">%1$d / %2$d rides</string>
+    <string name="no_rides_today">No rides recorded today.</string>
+
+Confirm: valid XML, no duplicates.
+
+══════════════════════════════════════════════════════════════
+TASK 7 — Run and verify Phase 3
+══════════════════════════════════════════════════════════════
+
+Run:
+    ./gradlew compileDebugKotlin
+
+Expected: zero errors.
+
+Run:
+    ./gradlew testDebugUnitTest
+
+Expected: all tests still pass.
+
+Manual check:
+1. "Today's Profit Dashboard" button appears on main screen
+2. Dashboard shows today's rides grouped by platform
+3. Rapido shows PASS badge + daily pass cost deducted
+4. Commission platforms show exact commission deducted
+5. Incentive shows progress (X / Y rides) with Update button
+6. Tapping Update, entering a number, and saving changes
+   the incentive earned row immediately
+
+══════════════════════════════════════════════════════════════
+FILES CHANGED IN PHASE 3 — summary
+══════════════════════════════════════════════════════════════
+
+New files:
+  DashboardViewModel.kt       — settlement logic, per-platform breakdown
+  ProfitDashboardScreen.kt    — full dashboard UI
+
+Modified:
+  RideDao.kt                  — getDailyPlatformSummary, getRidesInRange
+  RideHistoryRepository.kt    — expose new queries
+  MainActivity.kt             — dashboard nav route + button
+  strings.xml                 — new string resources
+
+DO NOT TOUCH:
+  ProfitCalculator.kt, OverlayManager.kt, RideSmartService.kt,
+  ProfileRepository.kt, PlatformConfig.kt, RideEntity.kt,
+  RideDatabase.kt, any parser files, Signal.kt, VehicleType.kt

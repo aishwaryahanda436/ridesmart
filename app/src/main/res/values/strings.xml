@@ -1,4 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ridesmart</string>
-    <string name="accessibility_service_description">RideSmart reads ride offer details shown on your screen to instantly calculate net profit. It does not control other apps, perform automatic actions, or collect personal data. All calculations happen locally on your device.</string>
+    <string name="app_name">RideSmart</string>
+    <string name="accessibility_service_description">
+        RideSmart uses Accessibility Service to help drivers with visual, cognitive,
+        or motor impairments instantly evaluate ride offer data — reading fare,
+        distance, and duration aloud through audio cues, and providing a
+        high-contrast, large-text visual signal — eliminating the need to manually
+        read multiple data fields while driving.
+    </string>
+
+    <!-- General UI -->
+    <string name="back">← Back</string>
+    <string name="save_and_apply">Save &amp; Apply Settings</string>
+    <string name="settings_saved">Settings saved successfully</string>
+    <string name="cancel">Cancel</string>
+    <string name="clear">Clear</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
+    <string name="agree_continue">Agree &amp; Continue</string>
+    <string name="no_exit_app">No, Exit App</string>
+    <string name="go_online">Go Online</string>
+    <string name="go_offline">Go Offline</string>
+
+    <!-- Profile Setup -->
+    <string name="earning_targets">Earning Targets</string>
+    <string name="profile_config_desc">Configure your costs and targets to get accurate GREEN/RED signals.</string>
+    <string name="group_vehicle_fuel">Vehicle &amp; Fuel</string>
+    <string name="group_running_costs">Running Costs</string>
+    <string name="group_earning_goals">Earning Goals</string>
+    <string name="group_platform">Platform</string>
+
+    <string name="group_platform_plans">Platform Plans</string>
+    <string name="label_plan_commission">Commission</string>
+    <string name="label_plan_pass">Pass / Subscription</string>
+    <string name="label_pass_amount">Pass Amount (₹)</string>
+    <string name="label_pass_days">Pass Duration (days)</string>
+    <string name="label_incentive_bonus">Incentive / Bonus</string>
+    <string name="label_incentive_target">Target rides</string>
+    <string name="label_incentive_reward">Reward (₹)</string>
+    <string name="label_incentive_completed">Rides completed today</string>
+    <string name="pass_per_ride_estimate">Est. %1$s per ride (at 15 rides/day)</string>
+    <string name="incentive_complete">Target complete — %1$s earned</string>
+    <string name="incentive_remaining">%1$d rides to unlock %2$s</string>
+
+    <string name="label_mileage">Bike Mileage (km/L)</string>
+    <string name="label_petrol">Petrol Price (₹/L)</string>
+    <string name="label_cng">CNG Price (₹/kg)</string>
+    <string name="label_maintenance">Maintenance (₹/km)</string>
+    <string name="label_depreciation">Depreciation (₹/km)</string>
+    <string name="label_min_profit">Min Profit / Ride (₹)</string>
+    <string name="label_min_per_km">Min Net ₹/km</string>
+    <string name="label_target_per_hour">Target ₹/hour</string>
+    <string name="label_commission">Commission (%)</string>
+
+    <!-- Validation Errors -->
+    <string name="error_mileage">Mileage must be between 5 and 100 km/L</string>
+    <string name="error_fuel_price">Petrol price seems unrealistic (80-150)</string>
+    <string name="error_cng_price">CNG price seems unrealistic (50-120)</string>
+    <string name="error_maintenance">Maintenance cost should be 0-10 ₹/km</string>
+    <string name="error_depreciation">Depreciation should be 0-10 ₹/km</string>
+    <string name="error_min_profit">Min profit per ride: 0-1000</string>
+    <string name="error_min_km">Min ₹/km goal: 0-50</string>
+    <string name="error_target_hour">Target ₹/hour goal: 0-2000</string>
+    <string name="error_commission">Commission should be 0-50%</string>
+
+    <!-- History Screen -->
+    <string name="ride_history">Ride History</string>
+    <string name="clear_history_title">Clear History?</string>
+    <string name="clear_history_message">This will permanently delete all recorded rides. This action cannot be undone.</string>
+    <string name="empty_history_message">No rides recorded yet.\nRides are saved automatically\nwhen the overlay appears.</string>
+    <string name="today">Today</string>
+    <string name="gross_fare">GROSS FARE</string>
+    <string name="net_profit">NET PROFIT</string>
+    <string name="avg_per_km">AVG ₹/KM</string>
+
+    <string name="label_pickup">📍 Pickup</string>
+    <string name="label_drop">🏁 Drop</string>
+    <string name="label_tip">TIP</string>
+    <string name="label_premium">PREMIUM</string>
+    <string name="label_payout">PAYOUT</string>
+    <string name="label_cost">COST</string>
+    <string name="label_per_km_stat">₹/KM</string>
+    <string name="label_per_hr_stat">₹/HR</string>
+    <string name="label_duration">DURATION</string>
+    <string name="label_pickup_pct">PICKUP%</string>
+    <string name="label_rating">RATING</string>
+    <string name="label_payment">PAYMENT</string>
+    <string name="label_score">SCORE</string>
+
+    <string name="label_breakdown">PROFIT CALCULATION BREAKDOWN</string>
+    <string name="label_fuel_cost">Fuel Cost</string>
+    <string name="label_wear_cost">Wear &amp; Tear</string>
+    <string name="label_net_formula">Payout - Costs = Profit</string>
+
+    <!-- Permission Screen -->
+    <string name="system_ready">System Ready</string>
+    <string name="setup_required">Setup Required</string>
+    <string name="monitoring_active">Monitoring for ride offers...</string>
+    <string name="monitoring_inactive">Grant permissions to begin monitoring</string>
+    <string name="monitoring_paused">Monitoring is paused (Offline)</string>
+    <string name="required_permissions">REQUIRED PERMISSIONS</string>
+    <string name="perm_overlay_title">Overlay Window</string>
+    <string name="perm_accessibility_title">Accessibility Service</string>
+    <string name="perm_notifications_title">Notifications</string>
+    <string name="perm_battery_title">Battery Optimization</string>
+    <string name="active">Active</string>
+    <string name="required">Required</string>
+    <string name="optimized">Optimized</string>
+    <string name="action_required">Action Required</string>
+    <string name="edit_earning_targets">Edit Earning Targets</string>
+    <string name="view_ride_history">View Ride History</string>
+    <string name="perm_required_desc">Permissions required first</string>
+    <string name="monitoring_active_desc">App is actively monitoring</string>
+    <string name="monitoring_paused_desc">Monitoring is paused</string>
+    <string name="battery_guide_samsung">Samsung: Settings → Battery → Background usage → Never sleeping apps → Add RideSmart</string>
+    <string name="battery_guide_xiaomi">Xiaomi: Settings → Apps → RideSmart → Battery Saver → No Restrictions</string>
+    <string name="battery_guide_generic">Battery: Settings → Apps → RideSmart → Battery → Unrestricted</string>
+    <string name="restricted_settings_title">If Accessibility is greyed out:</string>
+    <string name="restricted_settings_step1">1. Open Settings → Apps → RideSmart</string>
+    <string name="restricted_settings_step2">2. Tap ⋮ (three dots) in top right corner</string>
+    <string name="restricted_settings_step3">3. Tap \'Allow restricted settings\'</string>
+    <string name="restricted_settings_step4">4. Now enable Accessibility Service</string>
+
+    <!-- Disclosure Screen -->
+    <string name="disclosure_title">Accessibility Disclosure</string>
+    <string name="disclosure_main_text">RideSmart uses the Accessibility Service API to analyze ride offer cards shown by apps like Uber, Ola, and Rapido to help you make safer driving decisions.</string>
+    <string name="why_need_title">Why we need it</string>
+    <string name="why_need_desc">To automatically read fare and distance details so you can stay focused on the road. This reduces the need to manually calculate profits while driving, enhancing your safety and concentration.</string>
+    <string name="privacy_title">Data Privacy</string>
+    <string name="privacy_desc">All screen reading happens locally on your device. We do not store, upload, or share your personal data or screen content with any external servers.</string>
+    <string name="no_automation_title">No Automation</string>
+    <string name="no_automation_desc">RideSmart does not click buttons, perform actions, or interfere with other apps. It only monitors and overlays profit information.</string>
+
+    <!-- Dashboard -->
+    <string name="view_profit_dashboard">Today\'s Profit Dashboard</string>
+    <string name="dashboard_title">Today\'s Profit</string>
+    <string name="settled_profit">Settled profit</string>
+    <string name="operating_profit">Operating profit</string>
+    <string name="gross_earnings">Gross earnings</string>
+    <string name="pass_deducted">Pass deducted</string>
+    <string name="incentive_earned">Incentive earned</string>
+    <string name="commission_deducted">Commission</string>
+    <string name="incentive_target_met">Target met</string>
+    <string name="incentive_progress">%1$d / %2$d rides</string>
+    <string name="no_rides_today">No rides recorded today.</string>
 </resources>

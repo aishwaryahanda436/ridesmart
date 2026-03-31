@@ -1,261 +1,76 @@
 package com.ridesmart.service
 
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.ridesmart.model.ParsedRide
-import com.ridesmart.model.ScreenState
-import com.ridesmart.parser.IPlatformParser
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
- * Uber OCR text parser — reverse engineered from GigU v1.0.55 USUberSanitizer.
- * Adapted for India (₹ currency and km distance).
+ * Uber OCR Engine — optimized for isolating the bottom offer card.
  */
-class UberOcrEngine : IPlatformParser {
+class UberOcrEngine {
 
     companion object {
         private const val TAG = "RideSmart"
         private const val OCR_TIMEOUT_MS = 3000L
-
-        // Screen-level rejection phrases (not an offer card)
-        private val SCREEN_REJECT = listOf(
-            "you're online", "you are online", "finding trips", "you're offline", "you are offline",
-            "going offline", "no requests", "waybill", "trip planner", "driving time"
-        )
-
-        // ── GigU clinit blacklist ─────────────────────────────────────────────
-        private val SCREEN_BLACKLIST = listOf(
-            "copied to", 
-            "all caught", "we'll let", "toward your", "let's go",
-            "long trip", "multiple stops", "reservation",
-            "get priority", "press & hold"
-        )
-
-        // ── GigU method_89611 line blacklist ──────────────────────────────────
-        private val FARE_LINE_SKIP = listOf(
-            "gigu", "aigu", "uber", "comfort",
-            "premier", "auto", "moto", "connect",
-            "pool", "intercity", "hourly"
-        )
-
-        // ── GigU method_89614 boost/extra line blacklist ──────────────────────
-        private val EXTRA_LINE_SKIP = listOf(
-            "active hr", "est.", "est,",
-            "verified", "included", "boost", "bost+", "t+", "destination"
-        )
-
-        // ── GigU AbstractC3844b address keywords ─────────────────────────
-        private val ADDRESS_KEYWORDS = listOf(
-            "st", "street", "ave", "avenue", "rd", "road", "blvd", "boulevard",
-            "dr", "drive", "ln", "lane", "cir", "circle", "ct", "court",
-            "pl", "place", "sq", "square", "pkwy", "parkway", "ter", "terrace",
-            "hwy", "highway", "expy", "expressway", "fwy", "freeway",
-            "route", "trail", "loop", "mall", "crescent", "crossing",
-            "hospital", "school", "college", "university", "church", "temple",
-            "mosque", "synagogue", "park", "garden", "zoo", "museum",
-            "library", "theater", "cinema", "stadium", "arena", "gym",
-            "beach", "lake", "river", "airport", "hotel", "metro", "train",
-            "nagar", "colony", "sector", "phase", "block", "marg",
-            "chowk", "bazar", "bazaar", "market", "complex", "enclave", 
-            "vihar", "puram", "ganj", "bagh", "road no", "main road", 
-            "cross", "layout", "extension", "town", "city", "air", "trl", "pt", "inn"
-        )
-
-        private val ADDRESS_SKIP = listOf(
-            "girl", "tools", "tap", "paid", "after", "boost", "near", "not", 
-            "well let", "know when", "caught", "uber", "lyft", "busy", "your", 
-            "request", "drop-off", "preferences", "become", "available", "are not", 
-            "battery", "connecting", "accept", "decline", "km", "min", "away", "$"
-        )
+        
+        // Uber offer popups are always at the bottom.
+        // CROP_TOP_FRACTION = 0.55 means we remove the top 60% (Map + status bar).
+        // CROP_BOTTOM_FRACTION = 0.08 means we remove the bottom 8% (System navigation bar).
+        private const val CROP_TOP_FRACTION = 0.55f
+        private const val CROP_BOTTOM_FRACTION = 0.08f
     }
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    override fun detectScreenState(nodes: List<String>): ScreenState {
-        val combined = nodes.joinToString(" ").lowercase()
-        if (SCREEN_REJECT.any { combined.contains(it) }) return ScreenState.IDLE
-        
-        val hasFare = Regex("""(?:₹|Rs\.?)\s*(\d+)""").containsMatchIn(combined)
-        val hasButton = combined.contains("match") || combined.contains("confirm")
-        
-        return if (hasFare && hasButton) ScreenState.OFFER_LOADED else ScreenState.IDLE
-    }
-
-    override fun parseAll(nodes: List<String>, packageName: String): List<ParsedRide> {
-        // UberOcrEngine's primary entry point is parse(Bitmap), 
-        // but it can implement parseAll for compatibility.
-        val ride = parseFromNodes(nodes) ?: return emptyList()
-        return listOf(ride)
-    }
-
-    fun parseFromNodes(lines: List<String>): ParsedRide? {
-        if (lines.isEmpty()) return null
-        val combinedRaw = lines.joinToString(" ").lowercase()
-        
-        // STEP 1: Blacklist Check
-        for (line in lines) {
-            val lower = line.lowercase()
-            if (SCREEN_BLACKLIST.any { if (it == "accept") lower == it else lower.contains(it) }) return null
-        }
-
-        val identifiers = listOf("uber", "requests", "match", "incentive", "premium", "upfront", "confirm", "cash payment")
-        if (identifiers.none { combinedRaw.contains(it) }) return null
-
-        val fare = extractFare(lines) ?: return null
-        val bonus = extractBonus(lines)
-        val effectiveFare = fare + bonus
-        val (rideDistKm, pickupDistKm, durationMin) = extractTimeAndDistance(lines)
-        val (pickupAddr, dropAddr) = extractAddresses(lines)
-        val rating = extractRating(lines)
-
-        return ParsedRide(
-            baseFare             = effectiveFare,
-            rideDistanceKm       = rideDistKm,
-            pickupDistanceKm     = pickupDistKm,
-            estimatedDurationMin = durationMin,
-            platform             = "Uber",
-            packageName          = "com.ubercab.driver",
-            rawTextNodes          = lines,
-            pickupAddress        = pickupAddr,
-            dropAddress          = dropAddr,
-            riderRating          = rating,
-            paymentType          = if (combinedRaw.contains("cash")) "cash" else "digital",
-            premiumAmount        = bonus,
-            bonus                = bonus,
-            fare                 = effectiveFare
-        )
-    }
-
-    suspend fun parse(bitmap: Bitmap): ParsedRide? {
-        val rawText = extractText(bitmap) ?: return null
-        if (rawText.isBlank()) return null
-        val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }
-        return parseFromNodes(lines)
-    }
-
-    private fun extractFare(lines: List<String>): Double? {
-        for (rawLine in lines) {
-            if (rawLine.trimStart().startsWith("+")) continue
-            var line = rawLine
-            val lower = line.lowercase()
-            if (FARE_LINE_SKIP.any { lower.contains(it) }) continue
-
-            line = line.replace(Regex("""(?<![A-Za-z])[TtFf](?=\d)"""), "₹")
-                       .replace(Regex("""(?<![A-Za-z])[TtFf]\s+(?=\d)"""), "₹")
-                       .replace(",", ".")
-                       .replace(Regex("""(?<=\d)[lI]$"""), "")
-
-            if ((line.lowercase().contains("min") || line.lowercase().contains("km") || line.lowercase().contains("away")) && !line.contains("₹")) continue
-
-            val fareRegex = Regex("""(?:₹|Rs\.?)\s*(\d{1,5}(?:\.\d{1,2})?)""")
-            val value = fareRegex.find(line)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
-            if (value in 25.0..9999.0) return value
-        }
-        return null
-    }
-
-    private fun extractBonus(lines: List<String>): Double {
-        val bonusRegex = Regex("""(?:\s|^)\+\s*[₹\u20b9TtFf]?\s*(\d+(?:\.\d{1,2})?)""")
-        for (line in lines) {
-            val fixedLine = line.replace(",", ".")
-            val m = bonusRegex.find(fixedLine) ?: continue
-            val v = m.groupValues[1].toDoubleOrNull() ?: continue
-            if (v > 0) return v
-        }
-        return 0.0
-    }
-
-    private fun extractTimeAndDistance(lines: List<String>): Triple<Double, Double, Int> {
-        var rideDist = 0.0; var pickupDist = 0.0
-        var rideDuration = 0
-        var foundFirst = false
-
-        val pattern = Regex(
-            """(\d+)\s*min[s]?\s*[(\[]\s*([0-9]+(?:\.[0-9]+)?)\s*km""",
-            RegexOption.IGNORE_CASE
-        )
-
-        for (rawLine in lines) {
-            val line = fixOcrErrors(rawLine)
-            val lower = line.lowercase()
-            if (EXTRA_LINE_SKIP.any { lower.contains(it) }) continue
-
-            pattern.find(line)?.let { m ->
-                val t = m.groupValues[1].toIntOrNull() ?: 0
-                val d = m.groupValues[2].toDoubleOrNull() ?: 0.0
-                if (!foundFirst) {
-                    pickupDist = d
-                    foundFirst = true
-                } else {
-                    rideDuration = t
-                    rideDist = d
-                }
-            }
-
-            if (lower.contains("away") && pickupDist == 0.0) {
-                Regex("""([0-9]+(?:\.[0-9]+)?)\s*km""").find(line)?.let {
-                    pickupDist = it.groupValues[1].toDoubleOrNull() ?: pickupDist
-                }
+    suspend fun extractLines(bitmap: Bitmap, cardBounds: Rect? = null): List<String> {
+        val cropRect: Rect = if (cardBounds != null && isValidBounds(cardBounds, bitmap)) {
+            Log.d(TAG, "UberOCR: precise crop to card bounds $cardBounds")
+            cardBounds
+        } else {
+            // Optimized crop for bottom popup:
+            val top = (bitmap.height * CROP_TOP_FRACTION).toInt()
+            val bottomLimit = (bitmap.height * (1.0f - CROP_BOTTOM_FRACTION)).toInt()
+            
+            Rect(0, top, bitmap.width, bottomLimit).also {
+                Log.d(TAG, "UberOCR: optimized bottom-crop top=${top}px")
             }
         }
-        return Triple(rideDist, pickupDist, rideDuration)
-    }
 
-    private fun extractRating(lines: List<String>): Double {
-        val ratingRegex = Regex("""([1-5][.,][0-9]{1,2})""")
-        for (line in lines) {
-            val fixed = if (line.contains("★") || line.length <= 8) {
-                line.lowercase().replace('i', '1').replace('l', '1').replace('a', '4').replace('o', '0').replace('g', '6').replace('&', '8').replace(',', '.')
-            } else {
-                line.lowercase()
-            }
-            ratingRegex.find(fixed)?.let { return it.groupValues[1].toDoubleOrNull()?.takeIf { v -> v in 1.0..5.0 } ?: 0.0 }
+        val cropped: Bitmap = try {
+            Bitmap.createBitmap(bitmap, cropRect.left, cropRect.top, cropRect.width(), cropRect.height())
+        } catch (e: Exception) {
+            Log.e(TAG, "UberOCR: crop failed: ${e.message}")
+            bitmap
         }
-        return 0.0
+
+        val rawText = extractText(cropped)
+        if (cropped !== bitmap) cropped.recycle()
+
+        if (rawText.isNullOrBlank()) return emptyList()
+        return rawText.lines().map { it.trim() }.filter { it.isNotBlank() }
     }
 
-    private fun extractAddresses(lines: List<String>): Pair<String, String> {
-        var firstFound = ""; var secondFound = ""
-        for (line in lines.reversed()) {
-            val lower = line.lowercase()
-            if (ADDRESS_SKIP.any { lower.contains(it) } || line.length < 6 || line.all { it.isDigit() || it in "., " }) continue
-            if (ADDRESS_KEYWORDS.any { lower.contains(Regex("\\b${Regex.escape(it)}\\b")) } || line.length >= 15) {
-                if (firstFound.isEmpty()) firstFound = line 
-                else if (secondFound.isEmpty()) secondFound = line 
-                else secondFound = "$line $secondFound"
-                if (firstFound.isNotEmpty() && secondFound.length > 20) break
-            }
-        }
-        return Pair(secondFound, firstFound)
+    private fun isValidBounds(rect: Rect, bitmap: Bitmap): Boolean {
+        return rect.left >= 0 && rect.top >= 0 &&
+               rect.right <= bitmap.width && rect.bottom <= bitmap.height &&
+               rect.width() > 100 && rect.height() > 100
     }
-
-    private fun fixOcrErrors(line: String): String = line
-        .replace("krn", "km")
-        .replace("knn", "km")
-        .replace("lmin", "1min")
-        .replace("l min", "1 min")
-        .replace("mnin", "min")
-        .replace("rmin", "min")
-        .replace(Regex("""(?<=\d)l(?=\d)"""), "1")
-        .replace(Regex("""(?<=\d)l(?=\s*min)"""), "1")
-        .replace(Regex("""(?<=\d)O(?=\d)"""), "0")
-        .replace(Regex("""(?<=\d)A(?=\d)"""), "4")
-        .replace(Regex("""^\.\s*([89])\s*km"""), "0.$1 km")
-        .replace(Regex("""\(\.\s*([0-9])\s*km\)"""), "(0.$1 km)")
-        .replace(Regex("""\s{2,}"""), " ")
-
 
     private suspend fun extractText(bitmap: Bitmap): String? = withTimeoutOrNull(OCR_TIMEOUT_MS) {
         suspendCancellableCoroutine { cont ->
             val image = InputImage.fromBitmap(bitmap, 0)
             recognizer.process(image)
                 .addOnSuccessListener { cont.resume(it.text) }
-                .addOnFailureListener { cont.resume(null) }
+                .addOnFailureListener { 
+                    Log.e(TAG, "OCR Failed: ${it.message}")
+                    cont.resume(null) 
+                }
         }
     }
 }

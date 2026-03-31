@@ -1,0 +1,1402 @@
+=== 11:55:25.035 pkg=com.rapido.rider count=16 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] performance icon
+  [6] Storyly Bar
+  [7] Only for you
+  [8] Portrait Image Card
+  [9] Portrait Image Card
+  [10] Quick actions
+  [11] Drag handle
+  [12] OFF DUTY
+  [13] 9+
+  [14] Home
+  [15] Orders
+=== 11:55:25.055 pkg=com.rapido.rider count=11 ===
+  [0] Storyly Bar
+  [1] Only for you
+  [2] Portrait Image Card
+  [3] Portrait Image Card
+  [4] Quick actions
+  [5] Change <br/>Language
+  [6] Drag handle
+  [7] OFF DUTY
+  [8] 9+
+  [9] Home
+  [10] Orders
+=== 11:55:25.650 pkg=com.rapido.rider count=1 ===
+  [0] Going ON-Duty. Please wait…
+=== 11:55:26.266 pkg=com.rapido.rider count=14 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] performance icon
+  [5] Storyly Bar
+  [6] Only for you
+  [7] Portrait Image Card
+  [8] Portrait Image Card
+  [9] Drag handle
+  [10] ON DUTY
+  [11] 9+
+  [12] Home
+  [13] Orders
+=== 11:55:26.466 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 11:55:26.743 pkg=com.rapido.rider count=19 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Portrait Image Card
+  [14] Drag handle
+  [15] ON DUTY
+  [16] 9+
+  [17] Home
+  [18] Orders
+=== 11:55:26.809 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 11:57:53.879 pkg=com.rapido.rider count=8 ===
+  [0] Bike Boost
+  [1] ₹97
+  [2] 1 Km
+  [3] Palam - 112, Block H, Block F, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [4] 14.9 Km
+  [5] Airport Area - Terminal 2, Indira Gandhi International Airport, Delhi
+  [6] Accept
+  [7] Reject
+=== 12:01:05.071 pkg=com.rapido.rider count=14 ===
+  [0] ₹211
+  [1] Go To
+  [2] Bike Boost
+  [3] ₹211
+  [4] 0.2 Km
+  [5] Palam - Rz-632 A, near pillar no 48, Palam Colony, Raj Nagar I, Raj Nagar, Delhi, 110077
+  [6] 31.4 Km
+  [7] Sector 55 Noida  - Radisson Hotel Noida, Block C, Block B, Sector 55, Noida
+  [8] Accept
+  [9] Reject
+  [10] 1 Order
+  [11] OFF
+  [12] Home
+  [13] Orders
+=== 12:01:06.813 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:07.037 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:07.542 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:08.030 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:08.545 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:09.044 pkg=com.rapido.rider count=7 ===
+  [0] Missed
+  [1] Go To
+  [2] You missed the order
+  [3] Sorry, this order was accepted by another captain.
+  [4] 1 Order
+  [5] Home
+  [6] Orders
+=== 12:01:09.622 pkg=com.rapido.rider count=5 ===
+  [0] Go To
+  [1] Searching for orders...
+  [2] 0 Orders
+  [3] Home
+  [4] Orders
+=== 12:01:09.905 pkg=com.rapido.rider count=5 ===
+  [0] Go To
+  [1] Searching for orders...
+  [2] 0 Orders
+  [3] Home
+  [4] Orders
+=== 12:01:13.642 pkg=com.rapido.rider count=6 ===
+  [0] Go To
+  [1] Searching for orders...
+  [2] Refresh
+  [3] 0 Orders
+  [4] Home
+  [5] Orders
+=== 12:02:03.370 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 12:02:04.148 pkg=com.rapido.rider count=1 ===
+  [0] Please wait...
+=== 12:02:04.397 pkg=com.rapido.rider count=1 ===
+  [0] Going OFF-Duty. Please wait…
+=== 12:02:04.673 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Morning
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] OFF DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 12:29:36.215 pkg=com.rapido.rider count=15 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] performance icon
+  [5] Storyly Bar
+  [6] Only for you
+  [7] Portrait Image Card
+  [8] Portrait Image Card
+  [9] Quick actions
+  [10] Drag handle
+  [11] OFF DUTY
+  [12] 9+
+  [13] Home
+  [14] Orders
+=== 12:29:36.213 pkg=com.rapido.rider count=12 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Storyly Bar
+  [3] Only for you
+  [4] Portrait Image Card
+  [5] Portrait Image Card
+  [6] Quick actions
+  [7] Drag handle
+  [8] OFF DUTY
+  [9] 9+
+  [10] Home
+  [11] Orders
+=== 12:29:36.248 pkg=com.rapido.rider count=11 ===
+  [0] Storyly Bar
+  [1] Only for you
+  [2] Portrait Image Card
+  [3] Portrait Image Card
+  [4] Quick actions
+  [5] Change <br/>Language
+  [6] Drag handle
+  [7] OFF DUTY
+  [8] 9+
+  [9] Home
+  [10] Orders
+=== 12:29:37.134 pkg=com.rapido.rider count=1 ===
+  [0] Going ON-Duty. Please wait…
+=== 12:29:38.070 pkg=com.rapido.rider count=15 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] performance icon
+  [6] Storyly Bar
+  [7] Only for you
+  [8] Portrait Image Card
+  [9] Portrait Image Card
+  [10] Drag handle
+  [11] ON DUTY
+  [12] 9+
+  [13] Home
+  [14] Orders
+=== 12:29:38.314 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 12:29:38.583 pkg=com.rapido.rider count=19 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Portrait Image Card
+  [14] Drag handle
+  [15] ON DUTY
+  [16] 9+
+  [17] Home
+  [18] Orders
+=== 12:29:38.632 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 13:00:08.847 pkg=com.rapido.rider count=10 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Afternoon
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+=== 13:00:08.838 pkg=com.rapido.rider count=9 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Afternoon
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+=== 13:00:09.585 pkg=com.rapido.rider count=17 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Afternoon
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Drag handle
+  [13] OFF DUTY
+  [14] 9+
+  [15] Home
+  [16] Orders
+=== 13:00:10.467 pkg=com.rapido.rider count=9 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Afternoon
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+=== 13:00:10.512 pkg=com.rapido.rider count=1 ===
+  [0] Going ON-Duty. Please wait…
+=== 13:00:11.252 pkg=com.rapido.rider count=16 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Storyly Bar
+  [8] Only for you
+  [9] Portrait Image Card
+  [10] Portrait Image Card
+  [11] Drag handle
+  [12] ON DUTY
+  [13] 9+
+  [14] Home
+  [15] Orders
+=== 13:00:11.783 pkg=com.rapido.rider count=19 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Surge
+  [8] High Demand
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Portrait Image Card
+  [14] Drag handle
+  [15] ON DUTY
+  [16] 9+
+  [17] Home
+  [18] Orders
+=== 13:00:11.871 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Surge
+  [8] High Demand
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 13:00:12.089 pkg=com.rapido.rider count=16 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Work Zone
+  [8] Storyly Bar
+  [9] Only for you
+  [10] Portrait Image Card
+  [11] Drag handle
+  [12] ON DUTY
+  [13] 9+
+  [14] Home
+  [15] Orders
+=== 13:00:12.784 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 13:04:36.207 pkg=com.rapido.rider count=1 ===
+  [0] Splash Logo
+=== 13:04:39.663 pkg=com.rapido.rider count=16 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Work Zone
+  [8] Storyly Bar
+  [9] Only for you
+  [10] Portrait Image Card
+  [11] Drag handle
+  [12] ON DUTY
+  [13] 9+
+  [14] Home
+  [15] Orders
+=== 13:04:40.233 pkg=com.rapido.rider count=8 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Work Zone
+=== 13:04:40.285 pkg=com.rapido.rider count=1 ===
+  [0] Please wait...
+=== 13:04:41.598 pkg=com.rapido.rider count=9 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Afternoon
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+=== 10:39:55.014 pkg=com.rapido.rider count=2 ===
+  [0] Splash Logo
+  [1] Please Wait, getting your location
+=== 10:39:56.933 pkg=com.rapido.rider count=2 ===
+  [0] Splash Logo
+  [1] Please Wait, getting your location
+=== 10:40:01.516 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Morning
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] OFF DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 10:40:03.706 pkg=com.rapido.rider count=11 ===
+  [0] Storyly Bar
+  [1] Only for you
+  [2] Portrait Image Card
+  [3] Portrait Image Card
+  [4] Quick actions
+  [5] Change <br/>Language
+  [6] Drag handle
+  [7] OFF DUTY
+  [8] 9+
+  [9] Home
+  [10] Orders
+=== 10:40:04.012 pkg=com.rapido.rider count=11 ===
+  [0] Storyly Bar
+  [1] Only for you
+  [2] Portrait Image Card
+  [3] Portrait Image Card
+  [4] Quick actions
+  [5] Change <br/>Language
+  [6] Drag handle
+  [7] OFF DUTY
+  [8] 9+
+  [9] Home
+  [10] Orders
+=== 10:40:04.749 pkg=com.rapido.rider count=11 ===
+  [0] Storyly Bar
+  [1] Only for you
+  [2] Portrait Image Card
+  [3] Portrait Image Card
+  [4] Quick actions
+  [5] Change <br/>Language
+  [6] Drag handle
+  [7] OFF DUTY
+  [8] 9+
+  [9] Home
+  [10] Orders
+=== 10:40:04.900 pkg=com.rapido.rider count=1 ===
+  [0] Going ON-Duty. Please wait…
+=== 10:40:05.713 pkg=com.rapido.rider count=2 ===
+  [0] Close sheet
+  [1] close icon
+=== 10:40:05.746 pkg=com.rapido.rider count=8 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] leading icon
+  [3] Right on track
+  [4] 4 Completed Orders
+  [5] Know more
+  [6] performance icon
+  [7] Storyly Bar
+=== 10:40:06.152 pkg=com.rapido.rider count=8 ===
+  [0] Close sheet
+  [1] close icon
+  [2] banner_workzone_trial_explainer
+  [3] You have entered West Delhi Bike Work Zone
+  [4] Get back to back orders
+  [5] Work zone captains earn more than others
+  [6] Work Zone Active till 10 pm
+  [7] Join for 1 day
+=== 10:40:06.318 pkg=com.rapido.rider count=8 ===
+  [0] Close sheet
+  [1] close icon
+  [2] banner_workzone_trial_explainer
+  [3] You have entered West Delhi Bike Work Zone
+  [4] Get back to back orders
+  [5] Work zone captains earn more than others
+  [6] Work Zone Active till 10 pm
+  [7] Join for 1 day
+=== 10:40:07.534 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 10:40:43.540 pkg=com.rapido.rider count=2 ===
+  [0] Home
+  [1] Orders
+=== 10:40:43.739 pkg=com.rapido.rider count=20 ===
+  [0] ₹24
+  [1] +₹2
+  [2] ₹24
+  [3] Go To
+  [4] Bike Boost
+  [5] ₹24 + ₹2
+  [6] 0.4 Km
+  [7] Palam - WZ134, Old Mehrauli Rd, Block WZ, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [8] 2.4 Km
+  [9] Dwarka_Sector_8 - Shiksha Bharati Global School, Sector 8 Dwarka, Dwarka, New Delhi, Delhi
+  [10] Accept
+  [11] Reject
+  [12] Bike Metro
+  [13] ₹24
+  [14] 0.9 Km
+  [15] Reject
+  [16] 2 Orders
+  [17] OFF
+  [18] Home
+  [19] Orders
+=== 10:40:45.240 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] +₹2
+  [2] ₹24
+  [3] Go To
+  [4] Palam - WZ134, Old Mehrauli Rd, Block WZ, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [5] 2.4 Km
+  [6] Dwarka_Sector_8 - Shiksha Bharati Global School, Sector 8 Dwarka, Dwarka, New Delhi, Delhi
+  [7] Accept
+  [8] Bike Metro
+  [9] ₹24
+  [10] 0.9 Km
+  [11] Palam_Metro - Gate no-3, Palam Metro Station,Palam Metro Gate No. 3, Palam Police Station Road, opp. Side of, Block J, Palam, Delhi
+  [12] 1.9 Km
+  [13] Reject
+  [14] 2 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:45.463 pkg=com.rapido.rider count=21 ===
+  [0] ₹24
+  [1] +₹2
+  [2] ₹24
+  [3] Go To
+  [4] Palam - WZ134, Old Mehrauli Rd, Block WZ, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [5] 2.4 Km
+  [6] Dwarka_Sector_8 - Shiksha Bharati Global School, Sector 8 Dwarka, Dwarka, New Delhi, Delhi
+  [7] Accept
+  [8] Bike Metro
+  [9] ₹24
+  [10] 0.9 Km
+  [11] Palam_Metro - Gate no-3, Palam Metro Station,Palam Metro Gate No. 3, Palam Police Station Road, opp. Side of, Block J, Palam, Delhi
+  [12] 1.9 Km
+  [13] Reject
+  [14] Bike Boost
+  [15] ₹61 + ₹4
+  [16] Reject
+  [17] 3 Orders
+  [18] OFF
+  [19] Home
+  [20] Orders
+=== 10:40:45.474 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] +₹2
+  [2] ₹24
+  [3] ₹61
+  [4] +₹4
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹61 + ₹4
+  [8] 1 Km
+  [9] Palam - RZ207, Block H, Block F, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [10] 8.8 Km
+  [11] Dwarka27_West - CN-3695, Dhul Siras, Dwarka, New Delhi, Delhi, 110077
+  [12] Accept
+  [13] Reject
+  [14] 3 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:49.518 pkg=com.rapido.rider count=16 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] Go To
+  [4] Bike Boost
+  [5] ₹61 + ₹4
+  [6] 1 Km
+  [7] Palam - RZ207, Block H, Block F, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [8] 8.8 Km
+  [9] Dwarka27_West - CN-3695, Dhul Siras, Dwarka, New Delhi, Delhi, 110077
+  [10] Accept
+  [11] Reject
+  [12] 2 Orders
+  [13] OFF
+  [14] Home
+  [15] Orders
+=== 10:40:53.432 pkg=com.rapido.rider count=23 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹61 + ₹4
+  [8] 1 Km
+  [9] Palam - RZ207, Block H, Block F, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [10] 8.8 Km
+  [11] Dwarka27_West - CN-3695, Dhul Siras, Dwarka, New Delhi, Delhi, 110077
+  [12] Accept
+  [13] Reject
+  [14] Bike Boost
+  [15] ₹34 + ₹5
+  [16] 1.5 Km
+  [17] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [18] Reject
+  [19] 3 Orders
+  [20] OFF
+  [21] Home
+  [22] Orders
+=== 10:40:54.783 pkg=com.rapido.rider count=19 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Accept
+  [7] Bike Boost
+  [8] ₹34 + ₹5
+  [9] 1.5 Km
+  [10] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [11] 3.9 Km
+  [12] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [13] Accept
+  [14] Reject
+  [15] 3 Orders
+  [16] OFF
+  [17] Home
+  [18] Orders
+=== 10:40:54.786 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹34 + ₹5
+  [8] 1.5 Km
+  [9] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [10] 3.9 Km
+  [11] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] 3 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:54.787 pkg=com.rapido.rider count=19 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Accept
+  [7] Bike Boost
+  [8] ₹34 + ₹5
+  [9] 1.5 Km
+  [10] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [11] 3.9 Km
+  [12] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [13] Accept
+  [14] Reject
+  [15] 3 Orders
+  [16] OFF
+  [17] Home
+  [18] Orders
+=== 10:40:54.791 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹34 + ₹5
+  [8] 1.5 Km
+  [9] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [10] 3.9 Km
+  [11] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] 3 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:54.783 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹34 + ₹5
+  [8] 1.5 Km
+  [9] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [10] 3.9 Km
+  [11] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] 3 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:54.793 pkg=com.rapido.rider count=20 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Dwarka27_West - CN-3695, Dhul Siras, Dwarka, New Delhi, Delhi, 110077
+  [7] Accept
+  [8] Bike Boost
+  [9] ₹34 + ₹5
+  [10] 1.5 Km
+  [11] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [12] 3.9 Km
+  [13] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [14] Accept
+  [15] Reject
+  [16] 3 Orders
+  [17] OFF
+  [18] Home
+  [19] Orders
+=== 10:40:54.798 pkg=com.rapido.rider count=18 ===
+  [0] ₹24
+  [1] ₹61
+  [2] +₹4
+  [3] ₹34
+  [4] +₹5
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹34 + ₹5
+  [8] 1.5 Km
+  [9] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [10] 3.9 Km
+  [11] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] 3 Orders
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:40:57.391 pkg=com.rapido.rider count=17 ===
+  [0] ₹61
+  [1] +₹4
+  [2] ₹34
+  [3] +₹5
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹34 + ₹5
+  [7] 1.5 Km
+  [8] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [9] 3.9 Km
+  [10] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [11] Accept
+  [12] Reject
+  [13] 2 Orders
+  [14] OFF
+  [15] Home
+  [16] Orders
+=== 10:40:59.758 pkg=com.rapido.rider count=22 ===
+  [0] ₹61
+  [1] +₹4
+  [2] ₹34
+  [3] +₹5
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹61 + ₹4
+  [7] 1 Km
+  [8] Palam - RZ207, Block H, Block F, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [9] 8.8 Km
+  [10] Dwarka27_West - CN-3695, Dhul Siras, Dwarka, New Delhi, Delhi, 110077
+  [11] Accept
+  [12] Reject
+  [13] Bike Boost
+  [14] ₹34 + ₹5
+  [15] 1.5 Km
+  [16] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [17] Reject
+  [18] 2 Orders
+  [19] OFF
+  [20] Home
+  [21] Orders
+=== 10:41:01.026 pkg=com.rapido.rider count=15 ===
+  [0] ₹34
+  [1] +₹5
+  [2] Go To
+  [3] Bike Boost
+  [4] ₹34 + ₹5
+  [5] 1.5 Km
+  [6] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [7] 3.9 Km
+  [8] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [9] Accept
+  [10] Reject
+  [11] 1 Order
+  [12] OFF
+  [13] Home
+  [14] Orders
+=== 10:41:01.047 pkg=com.rapido.rider count=18 ===
+  [0] ₹34
+  [1] +₹5
+  [2] Go To
+  [3] Bike Boost
+  [4] ₹34 + ₹5
+  [5] 1.5 Km
+  [6] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [7] 3.9 Km
+  [8] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [9] Accept
+  [10] Reject
+  [11] Bike Boost
+  [12] ₹25 + ₹4
+  [13] Reject
+  [14] 1 Order
+  [15] OFF
+  [16] Home
+  [17] Orders
+=== 10:41:01.078 pkg=com.rapido.rider count=20 ===
+  [0] ₹34
+  [1] +₹5
+  [2] ₹25
+  [3] +₹4
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹34 + ₹5
+  [7] 1.5 Km
+  [8] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [9] 3.9 Km
+  [10] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [11] Accept
+  [12] Reject
+  [13] Bike Boost
+  [14] ₹25 + ₹4
+  [15] Reject
+  [16] 2 Orders
+  [17] OFF
+  [18] Home
+  [19] Orders
+=== 10:41:06.205 pkg=com.rapido.rider count=21 ===
+  [0] ₹34
+  [1] +₹5
+  [2] ₹25
+  [3] +₹4
+  [4] ₹90
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹34 + ₹5
+  [8] 1.5 Km
+  [9] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [10] 3.9 Km
+  [11] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] Bike Boost
+  [15] ₹25 + ₹4
+  [16] Reject
+  [17] 3 Orders
+  [18] OFF
+  [19] Home
+  [20] Orders
+=== 10:41:09.355 pkg=com.rapido.rider count=19 ===
+  [0] ₹25
+  [1] +₹4
+  [2] ₹90
+  [3] Go To
+  [4] Bike Boost
+  [5] ₹25 + ₹4
+  [6] 1.6 Km
+  [7] Palam - Rzh-656 B, Gali number 16, Block G, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [8] 2.2 Km
+  [9] Mahavir Enclave - ARL Printing Studio, Gali Number 5, Mahavir Enclave Part 1, Mahavir Enclave, New Delhi, Delhi
+  [10] Accept
+  [11] Reject
+  [12] Bike Boost
+  [13] ₹90
+  [14] Reject
+  [15] 2 Orders
+  [16] OFF
+  [17] Home
+  [18] Orders
+=== 10:41:12.999 pkg=com.rapido.rider count=21 ===
+  [0] ₹25
+  [1] +₹4
+  [2] ₹90
+  [3] ₹37
+  [4] +₹1
+  [5] Go To
+  [6] Bike Boost
+  [7] ₹25 + ₹4
+  [8] 1.6 Km
+  [9] Palam - Rzh-656 B, Gali number 16, Block G, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [10] 2.2 Km
+  [11] Mahavir Enclave - ARL Printing Studio, Gali Number 5, Mahavir Enclave Part 1, Mahavir Enclave, New Delhi, Delhi
+  [12] Accept
+  [13] Reject
+  [14] Bike Boost
+  [15] ₹90
+  [16] Reject
+  [17] 3 Orders
+  [18] OFF
+  [19] Home
+  [20] Orders
+=== 10:41:16.588 pkg=com.rapido.rider count=21 ===
+  [0] ₹90
+  [1] ₹37
+  [2] +₹1
+  [3] Go To
+  [4] Bike Boost
+  [5] ₹90
+  [6] 0.9 Km
+  [7] Palam_Metro - 1/315, Block RZ, F, Dashrath Puri, New Delhi, Delhi 110045
+  [8] 12.8 Km
+  [9] Rajokri_Del - Yawantika Colony, Rangpuri, New Delhi, Delhi 110038
+  [10] Accept
+  [11] Reject
+  [12] Bike Boost
+  [13] ₹37 + ₹1
+  [14] 2 Km
+  [15] Palam - RZ/26P/13, Sagarpur Palam Rd, Kailashpuri Main, Kailashpuri East, Pocket B, Palam, New Delhi, Delhi, 110045
+  [16] Reject
+  [17] 2 Orders
+  [18] OFF
+  [19] Home
+  [20] Orders
+=== 10:41:20.798 pkg=com.rapido.rider count=22 ===
+  [0] ₹90
+  [1] ₹37
+  [2] +₹1
+  [3] ₹23
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹90
+  [7] 0.9 Km
+  [8] Palam_Metro - 1/315, Block RZ, F, Dashrath Puri, New Delhi, Delhi 110045
+  [9] 12.8 Km
+  [10] Rajokri_Del - Yawantika Colony, Rangpuri, New Delhi, Delhi 110038
+  [11] Accept
+  [12] Reject
+  [13] Bike Boost
+  [14] ₹37 + ₹1
+  [15] 2 Km
+  [16] Palam - RZ/26P/13, Sagarpur Palam Rd, Kailashpuri Main, Kailashpuri East, Pocket B, Palam, New Delhi, Delhi, 110045
+  [17] Reject
+  [18] 3 Orders
+  [19] OFF
+  [20] Home
+  [21] Orders
+=== 10:41:34.385 pkg=com.rapido.rider count=20 ===
+  [0] ₹23
+  [1] ₹61
+  [2] +₹4
+  [3] ₹25
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹23
+  [7] 0.7 Km
+  [8] Palam_Metro - Sarvodaya Bal Vidyalaya 9 Metro Station Palam, Block J, Palam, New Delhi, Delhi, 110045
+  [9] 2.1 Km
+  [10] Sector 6 Dwarka - M L Khanna DAV Public School, Sector 6 Dwarka, Dwarka, New Delhi, Delhi
+  [11] Accept
+  [12] Reject
+  [13] Bike Boost
+  [14] ₹61 + ₹4
+  [15] Reject
+  [16] 3 Orders
+  [17] OFF
+  [18] Home
+  [19] Orders
+=== 10:41:34.626 pkg=com.rapido.rider count=21 ===
+  [0] ₹23
+  [1] ₹61
+  [2] +₹4
+  [3] ₹25
+  [4] Go To
+  [5] Bike Boost
+  [6] ₹23
+  [7] 0.7 Km
+  [8] Palam_Metro - Sarvodaya Bal Vidyalaya 9 Metro Station Palam, Block J, Palam, New Delhi, Delhi, 110045
+  [9] 2.1 Km
+  [10] Sector 6 Dwarka - M L Khanna DAV Public School, Sector 6 Dwarka, Dwarka, New Delhi, Delhi
+  [11] Accept
+  [12] Reject
+  [13] Bike Boost
+  [14] ₹61 + ₹4
+  [15] 1 Km
+  [16] Reject
+  [17] 3 Orders
+  [18] OFF
+  [19] Home
+  [20] Orders
+=== 10:41:43.130 pkg=com.rapido.rider count=9 ===
+  [0] Bike Metro
+  [1] ₹25
+  [2] 0.9 Km
+  [3] Palam_Metro - Gate no-3, Palam Metro Station,Palam Metro Gate No. 3, Palam Police Station Road, opp. Side of, Block J, Palam, Delhi
+  [4] 2.1 Km
+  [5] Dwarka_Sector_7 - Mahasiddhanta, Block D, Sector 7 Dwarka, Dwarka, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 1 more orders
+=== 10:41:44.214 pkg=com.rapido.rider count=9 ===
+  [0] Bike Metro
+  [1] ₹25
+  [2] 0.9 Km
+  [3] Palam_Metro - Gate no-3, Palam Metro Station,Palam Metro Gate No. 3, Palam Police Station Road, opp. Side of, Block J, Palam, Delhi
+  [4] 2.1 Km
+  [5] Dwarka_Sector_7 - Mahasiddhanta, Block D, Sector 7 Dwarka, Dwarka, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 2 more orders
+=== 10:41:45.338 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹90
+  [2] 0.9 Km
+  [3] Palam_Metro - 1/315, Block RZ, F, Dashrath Puri, New Delhi, Delhi 110045
+  [4] 12.8 Km
+  [5] Rajokri_Del - Yawantika Colony, Rangpuri, New Delhi, Delhi 110038
+  [6] Accept
+  [7] Reject
+  [8] See 1 more orders
+=== 10:41:48.505 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹90
+  [2] 0.9 Km
+  [3] Palam_Metro - 1/315, Block RZ, F, Dashrath Puri, New Delhi, Delhi 110045
+  [4] 12.8 Km
+  [5] Rajokri_Del - Yawantika Colony, Rangpuri, New Delhi, Delhi 110038
+  [6] Accept
+  [7] Reject
+  [8] See 2 more orders
+=== 10:41:49.655 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹34 + ₹5
+  [2] 1.5 Km
+  [3] Mahavir Enclave - Gate, Bal Vihar Orphanage,H, 2/100, Kali Nagar, Block RZ, Sector 2 Dwarka, Mahavir Enclave, Delhi, 110045
+  [4] 3.9 Km
+  [5] Sagarpur - Saraswati Aanchal School, Gali Number 2, Sant Mohalla, Main, Sagar Pur, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 1 more orders
+=== 10:41:59.667 pkg=com.rapido.rider count=19 ===
+  [0] ₹28
+  [1] ₹23
+  [2] Go To
+  [3] Bike Metro
+  [4] ₹28
+  [5] 0.4 Km
+  [6] Palam - WZ134, Old Mehrauli Rd, Block WZ, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [7] 2.7 Km
+  [8] Dashrathpuri_Metro - Metro Station Dashrathpuri, Ch Harphool Singh Market, Mahavir Enclave, Delhi
+  [9] Accept
+  [10] Reject
+  [11] Bike Boost
+  [12] ₹23
+  [13] 0.7 Km
+  [14] Reject
+  [15] 2 Orders
+  [16] OFF
+  [17] Home
+  [18] Orders
+=== 10:42:11.787 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹23
+  [2] 0.7 Km
+  [3] Palam_Metro - Sarvodaya Bal Vidyalaya 9 Metro Station Palam, Block J, Palam, New Delhi, Delhi, 110045
+  [4] 2.1 Km
+  [5] Sector 6 Dwarka - M L Khanna DAV Public School, Sector 6 Dwarka, Dwarka, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 2 more orders
+=== 10:42:12.706 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹23
+  [2] 0.7 Km
+  [3] Palam_Metro - Sarvodaya Bal Vidyalaya 9 Metro Station Palam, Block J, Palam, New Delhi, Delhi, 110045
+  [4] 2.1 Km
+  [5] Sector 6 Dwarka - M L Khanna DAV Public School, Sector 6 Dwarka, Dwarka, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 2 more orders
+=== 10:42:14.812 pkg=com.rapido.rider count=9 ===
+  [0] Bike Metro
+  [1] ₹24
+  [2] 0.9 Km
+  [3] Palam_Metro - Gate no-3, Palam Metro Station,Palam Metro Gate No. 3, Palam Police Station Road, opp. Side of, Block J, Palam, Delhi
+  [4] 1.9 Km
+  [5] Dwarka_Sector_8 - ICMR-National Institute of Malaria Research, National Institute of Malaria Road, Block P, Sector 8 Dwarka, Dwarka, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 1 more orders
+=== 10:42:17.713 pkg=com.rapido.rider count=8 ===
+  [0] Bike Boost
+  [1] ₹62
+  [2] 1 Km
+  [3] Palam_Metro - Dwarka Crossing / Maharaja Agrasen Hospital, Palam Village, Palam, Delhi, 110045
+  [4] 9.4 Km
+  [5] Dwarka27_West - Community centre Dada Mota Mandir, Bharthal, Sector 26, Dwarka, Delhi
+  [6] Accept
+  [7] Reject
+=== 10:42:24.704 pkg=com.rapido.rider count=9 ===
+  [0] Bike Boost
+  [1] ₹62
+  [2] 1 Km
+  [3] Palam_Metro - Dwarka Crossing / Maharaja Agrasen Hospital, Palam Village, Palam, Delhi, 110045
+  [4] 9.4 Km
+  [5] Dwarka27_West - Community centre Dada Mota Mandir, Bharthal, Sector 26, Dwarka, Delhi
+  [6] Accept
+  [7] Reject
+  [8] See 1 more orders
+=== 10:42:25.741 pkg=com.rapido.rider count=7 ===
+  [0] Bike Boost
+  [1] ₹62
+  [2] 1 Km
+  [3] Palam_Metro - Dwarka Crossing / Maharaja Agrasen Hospital, Palam Village, Palam, Delhi, 110045
+  [4] 9.4 Km
+  [5] Dwarka27_West - Community centre Dada Mota Mandir, Bharthal, Sector 26, Dwarka, Delhi
+  [6] Reject
+=== 10:42:26.636 pkg=com.rapido.rider count=8 ===
+  [0] Bike Boost
+  [1] ₹74 + ₹6
+  [2] 0.7 Km
+  [3] Palam - Deep Parmarth Vidyalaya,49, DDA Park Rd, Block H, Palam Colony, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [4] 11.3 Km
+  [5] Vasant Kunj_Del - BSES Rajdhani Customer Service, C-9, Pocket 9, Sector C, Vasant Kunj, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+=== 10:42:27.618 pkg=com.rapido.rider count=15 ===
+  [0] ₹74
+  [1] +₹6
+  [2] Go To
+  [3] Bike Boost
+  [4] ₹74 + ₹6
+  [5] 0.7 Km
+  [6] Palam - Deep Parmarth Vidyalaya,49, DDA Park Rd, Block H, Palam Colony, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [7] 11.3 Km
+  [8] Vasant Kunj_Del - BSES Rajdhani Customer Service, C-9, Pocket 9, Sector C, Vasant Kunj, New Delhi, Delhi
+  [9] Accept
+  [10] Reject
+  [11] 1 Order
+  [12] OFF
+  [13] Home
+  [14] Orders
+=== 10:42:29.970 pkg=com.rapido.rider count=10 ===
+  [0] ₹74
+  [1] +₹6
+  [2] Go To
+  [3] Bike Boost
+  [4] ₹74 + ₹6
+  [5] 0.7 Km
+  [6] Palam - Deep Parmarth Vidyalaya,49, DDA Park Rd, Block H, Palam Colony, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [7] 11.3 Km
+  [8] Vasant Kunj_Del - BSES Rajdhani Customer Service, C-9, Pocket 9, Sector C, Vasant Kunj, New Delhi, Delhi
+  [9] Accept
+=== 10:42:30.223 pkg=com.rapido.rider count=19 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] 1
+  [18] Orders
+=== 10:42:30.305 pkg=com.rapido.rider count=8 ===
+  [0] Bike Boost
+  [1] ₹74 + ₹6
+  [2] 0.7 Km
+  [3] Palam - Deep Parmarth Vidyalaya,49, DDA Park Rd, Block H, Palam Colony, Raj Nagar II Extension, Raj Nagar, New Delhi, Delhi, 110077
+  [4] 11.3 Km
+  [5] Vasant Kunj_Del - BSES Rajdhani Customer Service, C-9, Pocket 9, Sector C, Vasant Kunj, New Delhi, Delhi
+  [6] Accept
+  [7] Reject
+=== 10:42:31.036 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Work Zone
+  [10] Storyly Bar
+  [11] Only for you
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] ON DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
+=== 10:42:31.887 pkg=com.rapido.rider count=1 ===
+  [0] Please wait...
+=== 10:42:32.181 pkg=com.rapido.rider count=9 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Google Map
+  [3] Map Marker
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+=== 10:42:32.649 pkg=com.rapido.rider count=18 ===
+  [0] Today’s Earnings
+  [1] ₹0
+  [2] Hi RAJAT Saraswath
+  [3] Good Morning
+  [4] leading icon
+  [5] Right on track
+  [6] 4 Completed Orders
+  [7] Know more
+  [8] performance icon
+  [9] Storyly Bar
+  [10] Only for you
+  [11] Portrait Image Card
+  [12] Portrait Image Card
+  [13] Drag handle
+  [14] OFF DUTY
+  [15] 9+
+  [16] Home
+  [17] Orders
