@@ -77,7 +77,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         val pDailyTarget = dailyTarget.toDoubleOrNull() ?: 0.0
 
         val error = when {
-            pMileage !in 5.0..100.0 -> getApplication<Application>().getString(R.string.error_mileage)
+            // FIXED Bug 6: mileage validation tightened
+            pMileage !in 10.0..100.0 -> getApplication<Application>().getString(R.string.error_mileage)
             pFuel !in 80.0..150.0 -> getApplication<Application>().getString(R.string.error_fuel_price)
             pCng !in 50.0..120.0 -> getApplication<Application>().getString(R.string.error_cng_price)
             pMaint !in 0.0..10.0 -> getApplication<Application>().getString(R.string.error_maintenance)

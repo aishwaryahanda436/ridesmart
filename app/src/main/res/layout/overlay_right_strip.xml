@@ -248,6 +248,15 @@
                 android:visibility="gone"/>
 
             <TextView
+                android:id="@+id/rs_best_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="9sp"
+                android:textColor="#FFCA8A04"
+                android:visibility="gone"
+                android:maxLines="2" />
+
+            <TextView
                 android:id="@+id/rs_today"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

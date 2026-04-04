@@ -9,10 +9,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -29,13 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -133,7 +131,7 @@ fun PermissionSetupScreen(
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val lifecycleOwner = LocalLifecycleOwner.current
-    
+
     var refreshTrigger by remember { mutableIntStateOf(0) }
     val isOnline by repository.isOnline.collectAsState(initial = true)
 
@@ -153,7 +151,7 @@ fun PermissionSetupScreen(
     val isAccessibilityGranted = remember(refreshTrigger) { isAccessibilityServiceEnabled(context) }
     val isNotificationListenerGranted = remember(refreshTrigger) { isNotificationListenerEnabled(context) }
     val isBatteryOptimized = remember(refreshTrigger) { isBatteryOptimizationIgnored(context) }
-    
+
     val allGranted = isOverlayGranted && isAccessibilityGranted && isNotificationListenerGranted && isBatteryOptimized
 
     Column(
@@ -355,8 +353,8 @@ fun HeaderSection(isReady: Boolean, isOnline: Boolean) {
             text = if (!isReady) stringResource(R.string.monitoring_inactive)
                    else if (isOnline) stringResource(R.string.monitoring_active)
                    else stringResource(R.string.monitoring_paused),
-            color = if (!isReady) Color(0xFF6B6B85) 
-                    else if (isOnline) Color(0xFF3DDC84) 
+            color = if (!isReady) Color(0xFF6B6B85)
+                    else if (isOnline) Color(0xFF3DDC84)
                     else Color(0xFFEAB308),
             fontSize = 14.sp
         )

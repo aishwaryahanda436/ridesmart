@@ -14,11 +14,17 @@ class ProfitCalculator {
 
     companion object {
         private const val MIN_STABLE_KM            = 0.1
-        private const val ESTIMATED_RIDES_FLOOR    = 12.0
-        private const val EXPECTED_REMAINING_RIDES = 8
         private const val BONUS_CAP_RATIO          = 0.35
     }
 
+    /**
+     * PASS COST PHILOSOPHY:
+     * - Per-ride: pass cost = 0 (ignored at decision time).
+     *   We don't deduct pass costs per ride because it unfairly penalizes the first few
+     *   rides of the day and relies on an unknown "total rides" denominator.
+     * - Dashboard: The full daily pass amount is deducted from the platform's daily 
+     *   total during end-of-day settlement/reporting.
+     */
     fun calculate(
         ride: ParsedRide,
         profile: RiderProfile,
@@ -41,25 +47,14 @@ class ProfitCalculator {
         val actualPayout = effectiveBaseFare + ride.tipAmount + ride.premiumAmount
 
         // STEP 2: BONUS CAP — bonus cannot exceed 35% of real payout
-        // Prevents a distant streak from making a ₹10 ride look like ₹210
         val bMargCapped = bMarg.coerceAtMost(actualPayout * BONUS_CAP_RATIO)
 
-        // STEP 3: SUBSCRIPTION COST — dynamic, not fixed 15 rides
-        val expectedRidesToday = maxOf(
-            todayRideCount + EXPECTED_REMAINING_RIDES.toDouble(),
-            ESTIMATED_RIDES_FLOOR
-        )
-        val subscriptionCostPerRide = when {
-            perPlatformPlan?.planType == PlanType.PASS && perPlatformPlan.passAmount > 0.0 ->
-                perPlatformPlan.passAmount / expectedRidesToday
-            else -> {
-                val p = PlatformConfig.get(ride.packageName)
-                if (p.subscriptionDailyCost > 0.0) p.subscriptionDailyCost / expectedRidesToday
-                else 0.0
-            }
-        }
+        // STEP 3: SUBSCRIPTION COST — FIXED Bug 1
+        // PASS platforms: cost is settled ONCE in dashboard, never per ride.
+        // COMMISSION platforms: commission already handled in effectiveBaseFare.
+        val subscriptionCostPerRide = 0.0
 
-        // STEP 4: COSTS on TOTAL distance (pickup + ride) — unchanged, already correct
+        // STEP 4: COSTS on TOTAL distance (pickup + ride)
         val totalDistanceKm = ride.pickupDistanceKm + ride.rideDistanceKm
         val effectiveMileage = if (
             ride.vehicleType != VehicleType.UNKNOWN &&
@@ -68,7 +63,8 @@ class ProfitCalculator {
             profile.mileageKmPerLitre == RiderProfile.DEFAULT_MILEAGE
         ) ride.vehicleType.defaultMileageKmPerLitre else profile.mileageKmPerLitre
 
-        val fuelUnitsUsed = if (effectiveMileage > 0.0) totalDistanceKm / effectiveMileage else 0.0
+        // FIX Bug 6: Guard against zero/low mileage
+        val fuelUnitsUsed = if (effectiveMileage > 0.5) totalDistanceKm / effectiveMileage else 0.0
         val fuelCost = when (ride.vehicleType.fuelType) {
             FuelType.ELECTRIC -> 0.0
             FuelType.CNG      -> fuelUnitsUsed * profile.cngPricePerKg
@@ -79,7 +75,7 @@ class ProfitCalculator {
         val depreciationCost  = totalDistanceKm * profile.depreciationPerKm * vehicleMultiplier
         val wearCost          = maintenanceCost + depreciationCost
 
-        // STEP 5: PROFIT — bMarg is capped
+        // STEP 5: PROFIT
         val netProfitCash = actualPayout + bMargCapped - fuelCost - maintenanceCost - subscriptionCostPerRide
         val netProfit     = actualPayout + bMargCapped - fuelCost - wearCost        - subscriptionCostPerRide
 
@@ -93,13 +89,11 @@ class ProfitCalculator {
         }
 
         // STEP 7: PRIMARY EFFICIENCY METRIC
-        // FIX Bug 1 + Bug 2: use totalDistanceKm, no quadratic penalty
-        // Pickup is naturally penalized — it adds to denominator without adding to payout
         val efficiencyPerKm = if (totalDistanceKm > MIN_STABLE_KM)
             netProfit / totalDistanceKm
         else 0.0
 
-        // STEP 8: DISPLAY-ONLY — earningPerHour shown but never used for ranking
+        // STEP 8: DISPLAY-ONLY
         val earningPerHour = if (ride.estimatedDurationMin > 0)
             netProfit / (ride.estimatedDurationMin.toDouble() / 60.0)
         else 0.0
@@ -108,14 +102,22 @@ class ProfitCalculator {
             ride.pickupDistanceKm / totalDistanceKm
         else 0.0
 
-        // STEP 9: SIGNAL — composite from rider's OWN targets, no fixed numbers
-        // FIX Bug 3: normalize at 1.0 = threshold met, 2.0 = double target (cap)
-        val profitRatio = (netProfit / profile.minAcceptableNetProfit.coerceAtLeast(1.0))
+        // STEP 9: SIGNAL — FIXED Bug 2: scale min profit with distance
+        val distanceBasedMin = profile.minAcceptablePerKm * ride.rideDistanceKm
+        val effectiveMinProfit = if (ride.rideDistanceKm < 3.0) {
+            // Short ride: efficiency matters more than absolute profit floor.
+            // Use distance-based minimum only, ignore hard floor to avoid 
+            // rejecting high-efficiency short hops.
+            distanceBasedMin.coerceAtLeast(5.0) // never reject if profit > ₹5
+        } else {
+            maxOf(profile.minAcceptableNetProfit, distanceBasedMin)
+        }
+
+        val profitRatio = (netProfit / effectiveMinProfit.coerceAtLeast(1.0))
             .coerceIn(0.0, 2.0)
         val kmRatio = (efficiencyPerKm / profile.minAcceptablePerKm.coerceAtLeast(0.1))
             .coerceIn(0.0, 2.0)
 
-        // FIX Bug 4: no free 1.0 bonus when time is missing
         val hasTime = earningPerHour > 0.0 && profile.targetEarningPerHour > 0.0
         val hourRatio = if (hasTime)
             (earningPerHour / profile.targetEarningPerHour).coerceIn(0.0, 2.0)
@@ -124,21 +126,19 @@ class ProfitCalculator {
         val composite = if (hourRatio != null)
             profitRatio * 0.50 + kmRatio * 0.35 + hourRatio * 0.15
         else
-            profitRatio * 0.55 + kmRatio * 0.45   // reweight when no time data
+            profitRatio * 0.55 + kmRatio * 0.45
 
-        // FIX Bug 5: hard reject always RED, composite only used when no hard reject
         val signal = when {
             hardRejectReason != null -> Signal.RED
-            composite >= 1.0         -> Signal.GREEN   // both targets met
-            composite >= 0.65        -> Signal.YELLOW  // close but not there
+            composite >= 1.0         -> Signal.GREEN
+            composite >= 0.65        -> Signal.YELLOW
             else                     -> Signal.RED
         }
 
-        // STEP 10: DECISION SCORE for ranking — relative to rider's targets
-        // FIX Bug 3: 1.0 = at target, 2.0 = double target. × 50 gives 0–100.
+        // STEP 10: DECISION SCORE for ranking
         val effScore  = (efficiencyPerKm / profile.minAcceptablePerKm.coerceAtLeast(0.1))
             .coerceIn(0.0, 2.0)
-        val profScore = (netProfit / profile.minAcceptableNetProfit.coerceAtLeast(1.0))
+        val profScore = (netProfit / effectiveMinProfit.coerceAtLeast(1.0))
             .coerceIn(0.0, 2.0)
 
         val decisionScore = if (hardRejectReason != null) 0.0
@@ -149,8 +149,13 @@ class ProfitCalculator {
         if (hardRejectReason != null) {
             failedChecks.add(hardRejectReason)
         } else {
-            if (netProfit < profile.minAcceptableNetProfit)
-                failedChecks.add("Profit ₹${netProfit.toInt()} — need ₹${profile.minAcceptableNetProfit.toInt()}")
+            // FIX Bug 6: Alert if mileage is missing for fuel-based vehicles
+            if (ride.vehicleType.fuelType != FuelType.ELECTRIC && effectiveMileage <= 0.5) {
+                failedChecks.add("Set mileage in profile")
+            }
+
+            if (netProfit < effectiveMinProfit)
+                failedChecks.add("Profit ₹${netProfit.toInt()} — need ₹${effectiveMinProfit.toInt()}")
             if (efficiencyPerKm < profile.minAcceptablePerKm)
                 failedChecks.add("₹/km ₹${"%.1f".format(efficiencyPerKm)} — need ₹${"%.1f".format(profile.minAcceptablePerKm)}")
             if (hasTime && earningPerHour < profile.targetEarningPerHour)
@@ -176,9 +181,6 @@ class ProfitCalculator {
         )
     }
 
-    /**
-     * Proportional share × urgency premium
-     */
     fun marginalBonusValue(inc: IncentiveProfile): Double {
         if (!inc.enabled || inc.targetRides <= 0 || inc.rewardAmount <= 0.0) return 0.0
         val remaining = (inc.targetRides - inc.completedToday).coerceAtLeast(0)

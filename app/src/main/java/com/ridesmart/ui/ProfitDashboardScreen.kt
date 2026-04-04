@@ -254,7 +254,8 @@ private fun PlatformDayCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 MiniStat("Rides", "${detail.rides}")
                 MiniStat("Gross", "₹${"%.0f".format(detail.grossEarnings)}")
-                MiniStat("Ride cost", "₹${"%.0f".format(detail.rideOperatingProfit)}")
+                // FIXED Bug 7: label changed to Ride profit
+                MiniStat("Ride profit", "₹${"%.0f".format(detail.rideOperatingProfit)}")
             }
             if (isPassPlatform || detail.commissionDeducted > 0) {
                 Spacer(Modifier.height(8.dp))

@@ -1,5 +1,6 @@
 package com.ridesmart.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.ridesmart.model.Signal
@@ -40,7 +41,10 @@ data class RideEntry(
 
     // ── PROFIT ────────────────────────────────────────
     val netProfit: Double,
-    val earningPerKm: Double,
+
+    @ColumnInfo(name = "earningPerKm")
+    val efficiencyPerKm: Double,
+
     val pickupPenaltyPct: Double = 0.0,
     // Penalty that was applied to this ride's ₹/km efficiency.
     // Stored for history analysis — lets the captain see which saved
@@ -51,7 +55,9 @@ data class RideEntry(
     // ── DECISION ──────────────────────────────────────
     val signal: Signal,
     val failedChecks: String,
-    val smartScore: Double,
+
+    @ColumnInfo(name = "smartScore")
+    val decisionScore: Double,
 
     // ── PII (Should be encrypted or handled carefully) ──
     val pickupAddress: String = "",

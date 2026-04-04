@@ -24,5 +24,6 @@ data class RideResult(
     val totalCardsSeen:     Int = 1,
     val todayEarnings:      Double = 0.0,
     val dailyTargetAmount:  Double = 0.0,
-    val decisionScore:      Double = 0.0   // replaces smartScore
+    val decisionScore:      Double = 0.0,  // replaces smartScore
+    val bestSeenNote:       String? = null
 )

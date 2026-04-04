@@ -373,7 +373,7 @@ fun RideRow(entry: RideEntry) {
                     Spacer(Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        MiniStat(stringResource(R.string.label_per_km_stat), "₹${"%.1f".format(entry.earningPerKm)}")
+                        MiniStat(stringResource(R.string.label_per_km_stat), "₹${"%.1f".format(entry.efficiencyPerKm)}")
                         if (entry.earningPerHour > 0) MiniStat(stringResource(R.string.label_per_hr_stat), "₹${"%.0f".format(entry.earningPerHour)}")
                         if (entry.estimatedDurationMin > 0) MiniStat(stringResource(R.string.label_duration), "${entry.estimatedDurationMin}m")
                         MiniStat(stringResource(R.string.label_pickup_pct), "${entry.pickupRatioPct}%")
@@ -384,7 +384,7 @@ fun RideRow(entry: RideEntry) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         if (entry.riderRating > 0) MiniStat(stringResource(R.string.label_rating), "⭐ ${"%.2f".format(entry.riderRating)}")
                         if (entry.paymentType.isNotBlank()) MiniStat(stringResource(R.string.label_payment), entry.paymentType)
-                        MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.smartScore)}")
+                        MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.decisionScore)}")
                     }
 
                     if (entry.failedChecks.isNotBlank()) {

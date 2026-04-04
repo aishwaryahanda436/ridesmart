@@ -72,29 +72,27 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         rows: List<DailyPlatformRow>,
         profile: RiderProfile
     ): SettledDaySummary {
-        var totalGross       = 0.0
-        var totalRideCost    = 0.0   // fuel + wear across all rides
-        var totalCommission  = 0.0
-        var totalPassCost    = 0.0
-        var totalIncentive   = 0.0
-        var totalRides       = 0
-        val platformDetails  = mutableListOf<SettledPlatformDetail>()
+        var totalGross           = 0.0
+        var totalRideCost        = 0.0   // fuel + wear across all rides
+        var totalCommission      = 0.0
+        var totalPassCost        = 0.0
+        var totalIncentive       = 0.0
+        var totalRides           = 0
+        var totalOperatingProfit = 0.0
+        val platformDetails      = mutableListOf<SettledPlatformDetail>()
 
         for (row in rows) {
             val plan      = profile.platformPlans[row.platform] ?: PlatformPlan()
             val incentive = profile.incentiveProfiles[row.platform] ?: IncentiveProfile()
 
             // Commission already deducted from operatingProfit in ProfitCalculator
-            // So operatingProfit = fare_after_commission - ride_costs
-            // We need to reconstruct gross earnings and commission separately
-            // grossEarnings is the raw fare sum from RideEntry.baseFare
+            // Reconstruction for UI only
             val commissionDeducted = if (plan.planType == PlanType.COMMISSION) {
                 row.grossEarnings * (plan.commissionPercent / 100.0)
             } else 0.0
 
             // Pass cost: one-time deduction for the platform's pass
             val passCost = if (plan.planType == PlanType.PASS && plan.passAmount > 0.0) {
-                // Daily share of the pass cost
                 plan.passAmount / plan.passDurationDays.coerceAtLeast(1).toDouble()
             } else 0.0
 
@@ -105,8 +103,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 incentive.completedToday >= incentive.targetRides
             ) incentive.rewardAmount else 0.0
 
-            // Platform operating profit = sum of per-ride net profits
-            // (already correct: commission deducted per ride, ride costs deducted)
+            // FIXED Bug 4: use direct sum from stored netProfit
             val operatingProfit = row.operatingProfit
 
             // Platform final settled profit
@@ -128,16 +125,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             )
 
-            totalGross      += row.grossEarnings
-            totalRideCost   += row.fuelCost + row.wearCost
-            totalCommission += commissionDeducted
-            totalPassCost   += passCost
-            totalIncentive  += incentiveEarned
-            totalRides      += row.rideCount
+            totalGross           += row.grossEarnings
+            totalRideCost        += row.fuelCost + row.wearCost
+            totalCommission      += commissionDeducted
+            totalPassCost        += passCost
+            totalIncentive       += incentiveEarned
+            totalRides           += row.rideCount
+            totalOperatingProfit += operatingProfit
         }
 
-        val totalOperating = totalGross - totalRideCost - totalCommission
-        val totalSettled   = totalOperating - totalPassCost + totalIncentive
+        val totalSettled = totalOperatingProfit - totalPassCost + totalIncentive
 
         return SettledDaySummary(
             totalRides          = totalRides,
@@ -146,7 +143,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             totalCommission     = totalCommission,
             totalPassCost       = totalPassCost,
             totalIncentive      = totalIncentive,
-            totalOperatingProfit= totalOperating,
+            totalOperatingProfit= totalOperatingProfit,
             totalSettledProfit  = totalSettled,
             platforms           = platformDetails
         )

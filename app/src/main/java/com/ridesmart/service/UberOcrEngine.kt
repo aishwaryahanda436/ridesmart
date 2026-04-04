@@ -20,10 +20,10 @@ class UberOcrEngine {
         private const val OCR_TIMEOUT_MS = 3000L
         
         // Uber offer popups are always at the bottom.
-        // CROP_TOP_FRACTION = 0.55 means we remove the top 60% (Map + status bar).
-        // CROP_BOTTOM_FRACTION = 0.08 means we remove the bottom 8% (System navigation bar).
-        private const val CROP_TOP_FRACTION = 0.55f
-        private const val CROP_BOTTOM_FRACTION = 0.08f
+        // Reduced CROP_TOP_FRACTION from 0.55 to 0.40 to ensure the fare (often at the top of the card) is included.
+        // Reduced CROP_BOTTOM_FRACTION from 0.08 to 0.02 to capture the full button area if needed.
+        private const val CROP_TOP_FRACTION = 0.40f
+        private const val CROP_BOTTOM_FRACTION = 0.02f
     }
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)

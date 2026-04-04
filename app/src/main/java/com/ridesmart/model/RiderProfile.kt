@@ -31,8 +31,9 @@ data class RiderProfile(
     // Conservative estimate for 150cc bike
 
     // ── EARNING TARGETS ──
-    val minAcceptableNetProfit: Double = 30.0,
-    // Rider will not accept a ride if net profit is below this (₹)
+    val minAcceptableNetProfit: Double = 0.0,
+    // FIXED Bug 2: 0 = use only the ₹/km scaled minimum.
+    // Rider sets a hard floor if they want (e.g. ₹5 = never accept below ₹5 even on 0.5km rides)
 
     val minAcceptablePerKm: Double = 3.50,
     // ₹3.50 net profit per km is the correct threshold

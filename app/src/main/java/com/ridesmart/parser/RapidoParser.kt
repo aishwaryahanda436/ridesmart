@@ -5,6 +5,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ParseResult
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.service.RapidoNodeBundle
 
 class RapidoParser : IPlatformParser {
 
@@ -21,6 +22,15 @@ class RapidoParser : IPlatformParser {
             "start ride", "otp to start", "you are on a trip"
         )
 
+        private val HOME_SCREEN_KEYWORDS = listOf(
+            "performance icon", "right on track", "quick actions",
+            "choose your earning plan", "view rate card", "view all plans",
+            "select your next plan", "on-ride booking", "incentives and more",
+            "portrait image card", "terms and conditions", "plan is active",
+            "hi rajat", "good morning", "good afternoon", "good evening",
+            "weekly earnings", "daily earnings target", "rides completed"
+        )
+
         private val ADDRESS_BLACKLIST = listOf(
             "Accept", "Match", "Go To", "See", "Includes", "Demand", "Ride for you", 
             "Customer added", "Tip", "Earnings", "Order", "History", "Support"
@@ -31,6 +41,11 @@ class RapidoParser : IPlatformParser {
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
+
+        // Home/dashboard screen detection — return IDLE immediately
+        if (HOME_SCREEN_KEYWORDS.any { combined.contains(it) }) {
+            return ScreenState.IDLE
+        }
 
         if (ACTIVE_RIDE_KEYWORDS.any { combined.contains(it) }) {
             return ScreenState.IDLE
@@ -47,6 +62,21 @@ class RapidoParser : IPlatformParser {
             hasFare && hasKm && !hasAccept   -> ScreenState.OFFER_LOADING
             hasFare && !hasKm && !hasAccept  -> ScreenState.OFFER_LOADING
             else                             -> ScreenState.IDLE
+        }
+    }
+
+    private fun parseVehicleTypeFromServiceName(text: String): VehicleType {
+        return when {
+            text.contains("Bike Boost", ignoreCase = true) -> VehicleType.BIKE_BOOST
+            text.contains("CNG Auto",   ignoreCase = true) -> VehicleType.CNG_AUTO
+            text.contains("e-Bike",     ignoreCase = true) -> VehicleType.EBIKE
+            text.contains("Bike Taxi",  ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Bike Metro", ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Bike",       ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Auto",       ignoreCase = true) -> VehicleType.AUTO
+            text.contains("Car",        ignoreCase = true) -> VehicleType.CAR
+            text.contains("Prime",      ignoreCase = true) -> VehicleType.CAR
+            else                                           -> VehicleType.UNKNOWN
         }
     }
 
@@ -189,6 +219,98 @@ class RapidoParser : IPlatformParser {
             vehicleType          = vehicleType,
             screenState          = screenState
         )
+    }
+
+    fun parseFromBundle(bundle: RapidoNodeBundle, packageName: String): ParseResult {
+        // ── FARE ────────────────────────────────────────────────────────
+        var baseFare = 0.0
+        if (bundle.fare.isNotBlank()) {
+            baseFare = FARE_REGEX.find(bundle.fare)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        }
+        // Fallback: scan allTextNodes using existing logic
+        if (baseFare == 0.0) {
+            for (node in bundle.allTextNodes) {
+                val trimmed = node.trim()
+                if (trimmed.startsWith("+")) continue
+                val v = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (v > 5.0) { baseFare = v; break }
+            }
+        }
+        if (baseFare == 0.0) return ParseResult.Failure("RapidoBundle: no fare", confidence = 0.2f)
+
+        // ── VEHICLE TYPE ─────────────────────────────────────────────────
+        val vehicleType = if (bundle.vehicleType.isNotBlank())
+            parseVehicleTypeFromServiceName(bundle.vehicleType)
+        else
+            detectVehicleType(bundle.allTextNodes)
+
+        // ── PICKUP DISTANCE ──────────────────────────────────────────────
+        var pickupDistanceKm = 0.0
+        if (bundle.pickupDistanceText.isNotBlank()) {
+            pickupDistanceKm = KM_REGEX.find(bundle.pickupDistanceText)
+                ?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        }
+
+        // ── ADDRESSES ────────────────────────────────────────────────────
+        val pickupAddress = bundle.pickupAddress.ifBlank {
+            bundle.allTextNodes.firstOrNull { n ->
+                n.length > 12 && !KM_REGEX.containsMatchIn(n) &&
+                !n.contains("₹") &&
+                ADDRESS_BLACKLIST.none { n.contains(it, ignoreCase = true) }
+            } ?: ""
+        }
+        val dropAddress = bundle.dropAddress.ifBlank {
+            bundle.allTextNodes.firstOrNull { n ->
+                n.length > 12 && !KM_REGEX.containsMatchIn(n) &&
+                !n.contains("₹") && n != pickupAddress &&
+                ADDRESS_BLACKLIST.none { n.contains(it, ignoreCase = true) }
+            } ?: ""
+        }
+
+        // ── OFFER AGE → CONFIDENCE ───────────────────────────────────────
+        val offerAgeSeconds = if (bundle.offerAgeText.isNotBlank())
+            Regex("""(\d+)\s*s""").find(bundle.offerAgeText)
+                ?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        else 0
+        val confidence = if (offerAgeSeconds >= 12) 0.5f else 1.0f
+
+        // ── RIDE DISTANCE + DURATION via existing multi-card logic ────────
+        // Run the full parseAll on allTextNodes to get rideDistanceKm,
+        // premiumAmount, tipAmount, durationMin, and catch extra cards.
+        val fullResult = parseAll(bundle.allTextNodes, packageName)
+
+        return when (fullResult) {
+            is ParseResult.Success -> {
+                // Enrich the first parsed ride with bundle-sourced fields
+                val enriched = fullResult.rides.mapIndexed { i, ride ->
+                    if (i == 0) ride.copy(
+                        pickupDistanceKm = if (pickupDistanceKm > 0.0) pickupDistanceKm else ride.pickupDistanceKm,
+                        vehicleType      = if (vehicleType != VehicleType.UNKNOWN) vehicleType else ride.vehicleType,
+                        pickupAddress    = pickupAddress.ifBlank { ride.pickupAddress },
+                        dropAddress      = dropAddress.ifBlank  { ride.dropAddress  },
+                        confidence       = confidence
+                    ) else ride
+                }
+                ParseResult.Success(enriched)
+            }
+            else -> {
+                // fullResult failed but we have a fare — build a minimal ride
+                ParseResult.Success(listOf(
+                    ParsedRide(
+                        baseFare             = baseFare,
+                        rideDistanceKm       = 0.0,
+                        pickupDistanceKm     = pickupDistanceKm,
+                        platform             = "Rapido",
+                        packageName          = packageName,
+                        vehicleType          = vehicleType,
+                        pickupAddress        = pickupAddress,
+                        dropAddress          = dropAddress,
+                        rawTextNodes         = bundle.allTextNodes,
+                        confidence           = confidence
+                    )
+                ))
+            }
+        }
     }
 
     override fun parseAll(nodes: List<String>, packageName: String): ParseResult {

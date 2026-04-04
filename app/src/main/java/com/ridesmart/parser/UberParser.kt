@@ -38,7 +38,8 @@ class UberParser : IPlatformParser {
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
         // Broaden fare detection to include common OCR artifacts and '+' prefix
-        val hasFareQuick = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|F|Tt|r|[+])\s*\d+""").containsMatchIn(combined)
+        // FIX: Removed 'F' and 'r' which caused false positives on words like 'For' or 'Airport'
+        val hasFareQuick = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|[+])\s*\d+""").containsMatchIn(combined)
         
         if (SCREEN_REJECT.any { combined.contains(it) } && !hasFareQuick) return ScreenState.IDLE
         
@@ -115,7 +116,8 @@ class UberParser : IPlatformParser {
 
     private fun extractTotalFare(lines: List<String>): Double? {
         // Updated regex with negative lookbehind to avoid matching 'r' in words like 'Uber' or 'Airport'
-        val fareRegex = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|Ff|F|r|[+])\s*(\d{1,5}(?:\.\d{1,2})?)""")
+        // FIX: Removed 'F', 'Ff', and 'r' as standalone currency symbols to prevent false positives
+        val fareRegex = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|[+])\s*(\d{1,5}(?:\.\d{1,2})?)""")
         var total = 0.0
         var found = false
 
@@ -226,6 +228,6 @@ class UberParser : IPlatformParser {
 
     private fun fixOcrErrors(line: String): String = line.replace("krn", "km").replace("knn", "km")
         .replace("lmin", "1min").replace("l min", "1 min")
-        .replace("Tt", "₹").replace("F", "₹")
+        .replace("Tt", "₹")
         .replace(",", ".")
 }

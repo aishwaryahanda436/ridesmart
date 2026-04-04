@@ -76,9 +76,9 @@ fun RideComparisonScreen(
 
     val sorted = remember(rides, sort) {
         when (sort) {
-            CompareSort.SCORE  -> rides.sortedByDescending { it.smartScore }
+            CompareSort.SCORE  -> rides.sortedByDescending { it.decisionScore }
             CompareSort.PROFIT -> rides.sortedByDescending { it.netProfit }
-            CompareSort.PER_KM -> rides.sortedByDescending { it.earningPerKm }
+            CompareSort.PER_KM -> rides.sortedByDescending { it.efficiencyPerKm }
             CompareSort.PICKUP -> rides.sortedBy { it.pickupKm }
         }
     }
@@ -186,8 +186,8 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
         Signal.RED    -> Color(0xFFDC2626)
     }
     val scoreColor = when {
-        ride.smartScore >= 75.0 -> Color(0xFF16A34A)
-        ride.smartScore >= 45.0 -> Color(0xFFCA8A04)
+        ride.decisionScore >= 75.0 -> Color(0xFF16A34A)
+        ride.decisionScore >= 45.0 -> Color(0xFFCA8A04)
         else                   -> Color(0xFFDC2626)
     }
     val timeStr = remember(ride.timestampMs) {
@@ -230,13 +230,13 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
                     Text(timeStr, color = Color(0xFF555555), fontSize = 12.sp)
                 }
                 // SmartScore badge
-                if (ride.smartScore > 0.0) {
+                if (ride.decisionScore > 0.0) {
                     Surface(
                         color = scoreColor.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            "S:${ride.smartScore.toInt()}",
+                            "S:${ride.decisionScore.toInt()}",
                             color      = scoreColor,
                             fontSize   = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -255,7 +255,7 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
             ) {
                 CompStat("Net profit", "₹${"%.0f".format(ride.netProfit)}", green)
                 CompStat("Fare", "₹${"%.0f".format(ride.baseFare)}")
-                CompStat("₹/km", "₹${"%.1f".format(ride.earningPerKm)}")
+                CompStat("₹/km", "₹${"%.1f".format(ride.efficiencyPerKm)}")
                 CompStat("Pickup", "${"%.1f".format(ride.pickupKm)}km",
                     if (ride.pickupKm > 2.5) Color(0xFFDC2626)
                     else if (ride.pickupKm > 1.0) Color(0xFFCA8A04)
@@ -273,12 +273,18 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
                 CompStat("Ride km", "${"%.1f".format(ride.rideKm)} km")
                 CompStat("Total km", "${"%.1f".format(ride.totalKm)} km")
                 CompStat("Cost", "₹${"%.0f".format(ride.totalCost)}")
-                if (ride.pickupPenaltyPct > 0.0) {
-                    CompStat("Penalty", "${ride.pickupPenaltyPct.toInt()}%",
-                        Color(0xFFCA8A04))
-                } else {
-                    CompStat("Penalty", "None", Color(0xFF3DDC84))
-                }
+
+                // FIXED Bug 5: Replace penalty with pickup ratio
+                val pickupPct = if (ride.totalKm > 0)
+                    (ride.pickupKm / ride.totalKm * 100).toInt() else 0
+                CompStat(
+                    "Pkup%", "${pickupPct}%",
+                    when {
+                        pickupPct > 35 -> Color(0xFFDC2626)
+                        pickupPct > 20 -> Color(0xFFCA8A04)
+                        else           -> Color(0xFF3DDC84)
+                    }
+                )
             }
 
             // Failed checks (compact)

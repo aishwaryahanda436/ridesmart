@@ -445,7 +445,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import com.ridesmart.model.Signal
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(entities = [RideEntry::class], version = 2, exportSchema = true)
 @TypeConverters(Converters::class)
@@ -456,6 +457,20 @@ abstract class RideDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: RideDatabase? = null
 
+        /**
+         * Migration from version 1 to version 2.
+         * Version 1 did not have pickupPenaltyPct, riderRating, and paymentType columns.
+         * These are added in version 2 to support detailed ride history analysis and 
+         * better profit tracking metrics.
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ride_history ADD COLUMN pickupPenaltyPct REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE ride_history ADD COLUMN riderRating REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE ride_history ADD COLUMN paymentType TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context): RideDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -463,7 +478,7 @@ abstract class RideDatabase : RoomDatabase() {
                     RideDatabase::class.java,
                     "ride_history_db"
                 )
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance
@@ -477,6 +492,7 @@ FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\rides
 ========================================
 package com.ridesmart.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.ridesmart.model.Signal
@@ -517,7 +533,10 @@ data class RideEntry(
 
     // ── PROFIT ────────────────────────────────────────
     val netProfit: Double,
-    val earningPerKm: Double,
+
+    @ColumnInfo(name = "earningPerKm")
+    val efficiencyPerKm: Double,
+
     val pickupPenaltyPct: Double = 0.0,
     // Penalty that was applied to this ride's ₹/km efficiency.
     // Stored for history analysis — lets the captain see which saved
@@ -528,7 +547,9 @@ data class RideEntry(
     // ── DECISION ──────────────────────────────────────
     val signal: Signal,
     val failedChecks: String,
-    val smartScore: Double,
+
+    @ColumnInfo(name = "smartScore")
+    val decisionScore: Double,
 
     // ── PII (Should be encrypted or handled carefully) ──
     val pickupAddress: String = "",
@@ -575,6 +596,88 @@ class RideHistoryRepository(context: Context) {
 }
 
 ========================================
+FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\engine\CrossPlatformRanker.kt
+========================================
+package com.ridesmart.engine
+
+import com.ridesmart.model.RideResult
+import com.ridesmart.model.Signal
+import kotlin.math.abs
+
+object CrossPlatformRanker {
+
+    private const val SCORE_GAP_THRESHOLD = 5.0
+
+    enum class Tier { SIGNAL, SCORE, EFFICIENCY }
+
+    data class RankingOutput(
+        val ranked: List<RideResult>,
+        val winner: RideResult,
+        val runnerUp: RideResult?,
+        val profitDelta: Double,
+        val efficiencyDelta: Double,
+        val tierWon: Tier,
+        val summaryLine: String
+    )
+
+    private fun signalRank(signal: Signal) = when (signal) {
+        Signal.GREEN  -> 3
+        Signal.YELLOW -> 2
+        Signal.RED    -> 1
+    }
+
+    private val comparator = Comparator<RideResult> { a, b ->
+        val sigDiff = signalRank(b.signal) - signalRank(a.signal)
+        if (sigDiff != 0) return@Comparator sigDiff
+        val scoreDiff = a.decisionScore - b.decisionScore
+        if (abs(scoreDiff) >= SCORE_GAP_THRESHOLD)
+            return@Comparator if (scoreDiff > 0) -1 else 1
+        val effDiff = a.efficiencyPerKm - b.efficiencyPerKm
+        if (effDiff > 0) -1 else if (effDiff < 0) 1 else 0
+    }
+
+    private fun buildSummaryLine(
+        winner: RideResult, runnerUp: RideResult,
+        profitDelta: Double, efficiencyDelta: Double, tier: Tier
+    ): String {
+        val wp = winner.parsedRide.platform.uppercase()
+        val rp = runnerUp.parsedRide.platform.uppercase()
+        return when (tier) {
+            Tier.SIGNAL     ->
+                "★ $wp  ${winner.signal.name} vs ${runnerUp.signal.name} $rp"
+            Tier.SCORE      ->
+                "★ $wp  S:${winner.decisionScore.toInt()} vs S:${runnerUp.decisionScore.toInt()} $rp"
+            Tier.EFFICIENCY -> {
+                val delta = if (profitDelta >= 0) "(+₹${profitDelta.toInt()})"
+                            else "(-₹${(-profitDelta).toInt()})"
+                "★ $wp  ₹${"%.1f".format(winner.efficiencyPerKm)}/km vs ₹${"%.1f".format(runnerUp.efficiencyPerKm)}/km $rp $delta"
+            }
+        }
+    }
+
+    fun rank(results: List<RideResult>): RankingOutput {
+        require(results.isNotEmpty())
+        if (results.size == 1) {
+            val only = results[0]
+            return RankingOutput(results, only, null, 0.0, 0.0, Tier.SIGNAL,
+                "★ ${only.parsedRide.platform.uppercase()}")
+        }
+        val sorted   = results.sortedWith(comparator)
+        val winner   = sorted[0]
+        val runnerUp = sorted[1]
+        val tier = when {
+            signalRank(winner.signal) != signalRank(runnerUp.signal) -> Tier.SIGNAL
+            abs(winner.decisionScore - runnerUp.decisionScore) >= SCORE_GAP_THRESHOLD -> Tier.SCORE
+            else -> Tier.EFFICIENCY
+        }
+        val profitDelta     = winner.netProfit - runnerUp.netProfit
+        val efficiencyDelta = winner.efficiencyPerKm - runnerUp.efficiencyPerKm
+        return RankingOutput(sorted, winner, runnerUp, profitDelta, efficiencyDelta,
+            tier, buildSummaryLine(winner, runnerUp, profitDelta, efficiencyDelta, tier))
+    }
+}
+
+========================================
 FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\engine\ProfitCalculator.kt
 ========================================
 package com.ridesmart.engine
@@ -593,11 +696,17 @@ class ProfitCalculator {
 
     companion object {
         private const val MIN_STABLE_KM            = 0.1
-        private const val ESTIMATED_RIDES_FLOOR    = 12.0
-        private const val EXPECTED_REMAINING_RIDES = 8
         private const val BONUS_CAP_RATIO          = 0.35
     }
 
+    /**
+     * PASS COST PHILOSOPHY:
+     * - Per-ride: pass cost = 0 (ignored at decision time).
+     *   We don't deduct pass costs per ride because it unfairly penalizes the first few
+     *   rides of the day and relies on an unknown "total rides" denominator.
+     * - Dashboard: The full daily pass amount is deducted from the platform's daily 
+     *   total during end-of-day settlement/reporting.
+     */
     fun calculate(
         ride: ParsedRide,
         profile: RiderProfile,
@@ -620,25 +729,14 @@ class ProfitCalculator {
         val actualPayout = effectiveBaseFare + ride.tipAmount + ride.premiumAmount
 
         // STEP 2: BONUS CAP — bonus cannot exceed 35% of real payout
-        // Prevents a distant streak from making a ₹10 ride look like ₹210
         val bMargCapped = bMarg.coerceAtMost(actualPayout * BONUS_CAP_RATIO)
 
-        // STEP 3: SUBSCRIPTION COST — dynamic, not fixed 15 rides
-        val expectedRidesToday = maxOf(
-            todayRideCount + EXPECTED_REMAINING_RIDES.toDouble(),
-            ESTIMATED_RIDES_FLOOR
-        )
-        val subscriptionCostPerRide = when {
-            perPlatformPlan?.planType == PlanType.PASS && perPlatformPlan.passAmount > 0.0 ->
-                perPlatformPlan.passAmount / expectedRidesToday
-            else -> {
-                val p = PlatformConfig.get(ride.packageName)
-                if (p.subscriptionDailyCost > 0.0) p.subscriptionDailyCost / expectedRidesToday
-                else 0.0
-            }
-        }
+        // STEP 3: SUBSCRIPTION COST — FIXED Bug 1
+        // PASS platforms: cost is settled ONCE in dashboard, never per ride.
+        // COMMISSION platforms: commission already handled in effectiveBaseFare.
+        val subscriptionCostPerRide = 0.0
 
-        // STEP 4: COSTS on TOTAL distance (pickup + ride) — unchanged, already correct
+        // STEP 4: COSTS on TOTAL distance (pickup + ride)
         val totalDistanceKm = ride.pickupDistanceKm + ride.rideDistanceKm
         val effectiveMileage = if (
             ride.vehicleType != VehicleType.UNKNOWN &&
@@ -647,7 +745,8 @@ class ProfitCalculator {
             profile.mileageKmPerLitre == RiderProfile.DEFAULT_MILEAGE
         ) ride.vehicleType.defaultMileageKmPerLitre else profile.mileageKmPerLitre
 
-        val fuelUnitsUsed = if (effectiveMileage > 0.0) totalDistanceKm / effectiveMileage else 0.0
+        // FIX Bug 6: Guard against zero/low mileage
+        val fuelUnitsUsed = if (effectiveMileage > 0.5) totalDistanceKm / effectiveMileage else 0.0
         val fuelCost = when (ride.vehicleType.fuelType) {
             FuelType.ELECTRIC -> 0.0
             FuelType.CNG      -> fuelUnitsUsed * profile.cngPricePerKg
@@ -658,7 +757,7 @@ class ProfitCalculator {
         val depreciationCost  = totalDistanceKm * profile.depreciationPerKm * vehicleMultiplier
         val wearCost          = maintenanceCost + depreciationCost
 
-        // STEP 5: PROFIT — bMarg is capped
+        // STEP 5: PROFIT
         val netProfitCash = actualPayout + bMargCapped - fuelCost - maintenanceCost - subscriptionCostPerRide
         val netProfit     = actualPayout + bMargCapped - fuelCost - wearCost        - subscriptionCostPerRide
 
@@ -672,13 +771,11 @@ class ProfitCalculator {
         }
 
         // STEP 7: PRIMARY EFFICIENCY METRIC
-        // FIX Bug 1 + Bug 2: use totalDistanceKm, no quadratic penalty
-        // Pickup is naturally penalized — it adds to denominator without adding to payout
         val efficiencyPerKm = if (totalDistanceKm > MIN_STABLE_KM)
             netProfit / totalDistanceKm
         else 0.0
 
-        // STEP 8: DISPLAY-ONLY — earningPerHour shown but never used for ranking
+        // STEP 8: DISPLAY-ONLY
         val earningPerHour = if (ride.estimatedDurationMin > 0)
             netProfit / (ride.estimatedDurationMin.toDouble() / 60.0)
         else 0.0
@@ -687,14 +784,22 @@ class ProfitCalculator {
             ride.pickupDistanceKm / totalDistanceKm
         else 0.0
 
-        // STEP 9: SIGNAL — composite from rider's OWN targets, no fixed numbers
-        // FIX Bug 3: normalize at 1.0 = threshold met, 2.0 = double target (cap)
-        val profitRatio = (netProfit / profile.minAcceptableNetProfit.coerceAtLeast(1.0))
+        // STEP 9: SIGNAL — FIXED Bug 2: scale min profit with distance
+        val distanceBasedMin = profile.minAcceptablePerKm * ride.rideDistanceKm
+        val effectiveMinProfit = if (ride.rideDistanceKm < 3.0) {
+            // Short ride: efficiency matters more than absolute profit floor.
+            // Use distance-based minimum only, ignore hard floor to avoid 
+            // rejecting high-efficiency short hops.
+            distanceBasedMin.coerceAtLeast(5.0) // never reject if profit > ₹5
+        } else {
+            maxOf(profile.minAcceptableNetProfit, distanceBasedMin)
+        }
+
+        val profitRatio = (netProfit / effectiveMinProfit.coerceAtLeast(1.0))
             .coerceIn(0.0, 2.0)
         val kmRatio = (efficiencyPerKm / profile.minAcceptablePerKm.coerceAtLeast(0.1))
             .coerceIn(0.0, 2.0)
 
-        // FIX Bug 4: no free 1.0 bonus when time is missing
         val hasTime = earningPerHour > 0.0 && profile.targetEarningPerHour > 0.0
         val hourRatio = if (hasTime)
             (earningPerHour / profile.targetEarningPerHour).coerceIn(0.0, 2.0)
@@ -703,21 +808,19 @@ class ProfitCalculator {
         val composite = if (hourRatio != null)
             profitRatio * 0.50 + kmRatio * 0.35 + hourRatio * 0.15
         else
-            profitRatio * 0.55 + kmRatio * 0.45   // reweight when no time data
+            profitRatio * 0.55 + kmRatio * 0.45
 
-        // FIX Bug 5: hard reject always RED, composite only used when no hard reject
         val signal = when {
             hardRejectReason != null -> Signal.RED
-            composite >= 1.0         -> Signal.GREEN   // both targets met
-            composite >= 0.65        -> Signal.YELLOW  // close but not there
+            composite >= 1.0         -> Signal.GREEN
+            composite >= 0.65        -> Signal.YELLOW
             else                     -> Signal.RED
         }
 
-        // STEP 10: DECISION SCORE for ranking — relative to rider's targets
-        // FIX Bug 3: 1.0 = at target, 2.0 = double target. × 50 gives 0–100.
+        // STEP 10: DECISION SCORE for ranking
         val effScore  = (efficiencyPerKm / profile.minAcceptablePerKm.coerceAtLeast(0.1))
             .coerceIn(0.0, 2.0)
-        val profScore = (netProfit / profile.minAcceptableNetProfit.coerceAtLeast(1.0))
+        val profScore = (netProfit / effectiveMinProfit.coerceAtLeast(1.0))
             .coerceIn(0.0, 2.0)
 
         val decisionScore = if (hardRejectReason != null) 0.0
@@ -728,8 +831,13 @@ class ProfitCalculator {
         if (hardRejectReason != null) {
             failedChecks.add(hardRejectReason)
         } else {
-            if (netProfit < profile.minAcceptableNetProfit)
-                failedChecks.add("Profit ₹${netProfit.toInt()} — need ₹${profile.minAcceptableNetProfit.toInt()}")
+            // FIX Bug 6: Alert if mileage is missing for fuel-based vehicles
+            if (ride.vehicleType.fuelType != FuelType.ELECTRIC && effectiveMileage <= 0.5) {
+                failedChecks.add("Set mileage in profile")
+            }
+
+            if (netProfit < effectiveMinProfit)
+                failedChecks.add("Profit ₹${netProfit.toInt()} — need ₹${effectiveMinProfit.toInt()}")
             if (efficiencyPerKm < profile.minAcceptablePerKm)
                 failedChecks.add("₹/km ₹${"%.1f".format(efficiencyPerKm)} — need ₹${"%.1f".format(profile.minAcceptablePerKm)}")
             if (hasTime && earningPerHour < profile.targetEarningPerHour)
@@ -755,9 +863,6 @@ class ProfitCalculator {
         )
     }
 
-    /**
-     * Proportional share × urgency premium
-     */
     fun marginalBonusValue(inc: IncentiveProfile): Double {
         if (!inc.enabled || inc.targetRides <= 0 || inc.rewardAmount <= 0.0) return 0.0
         val remaining = (inc.targetRides - inc.completedToday).coerceAtLeast(0)
@@ -813,6 +918,13 @@ import com.ridesmart.model.ParsedRide
  */
 class RideSessionCache {
 
+    sealed class BestSeenStatus {
+        data class Active(val result: CachedResult) : BestSeenStatus()
+        data class Stale(val result: CachedResult, val staleByMs: Long) : BestSeenStatus()
+        object Evicted : BestSeenStatus()
+        object Empty   : BestSeenStatus()
+    }
+
     data class CachedResult(
         val ride: ParsedRide,
         val netProfit: Double,
@@ -827,6 +939,7 @@ class RideSessionCache {
 
     companion object {
         private const val SESSION_TIMEOUT_MS = 90_000L
+        private const val RIDE_STALE_MS      = 20_000L
     }
 
     private fun buildKey(ride: ParsedRide): String {
@@ -874,6 +987,46 @@ class RideSessionCache {
     fun getTotalCardsSeen(): Int = results.size
 
     fun isEmpty(): Boolean = results.isEmpty()
+
+    fun markSeen(ride: ParsedRide) {
+        val key = buildKey(ride)
+        results[key]?.let {
+            results[key] = it.copy(timestampMs = System.currentTimeMillis())
+        }
+    }
+
+    fun addOrRefresh(ride: ParsedRide, netProfit: Double, decisionScore: Double) {
+        addResult(ride, netProfit, decisionScore)
+        markSeen(ride)
+    }
+
+    fun evictExpired(): Int {
+        val now         = System.currentTimeMillis()
+        val expiredKeys = results.filterValues { now - it.timestampMs > RIDE_STALE_MS }.keys.toList()
+        expiredKeys.forEach { results.remove(it) }
+        return expiredKeys.size
+    }
+
+    fun getBestActiveSeen(): CachedResult? {
+        val now = System.currentTimeMillis()
+        return results.values
+            .filter { now - it.timestampMs <= RIDE_STALE_MS }
+            .maxByOrNull { it.decisionScore }
+    }
+
+    fun isBestStale(): Boolean {
+        val best = getBestSeen() ?: return false
+        return System.currentTimeMillis() - best.timestampMs > RIDE_STALE_MS
+    }
+
+    fun getBestSeenStatus(): BestSeenStatus {
+        if (results.isEmpty()) return BestSeenStatus.Empty
+        val best    = results.values.maxByOrNull { it.decisionScore }
+                      ?: return BestSeenStatus.Empty
+        val staleBy = System.currentTimeMillis() - best.timestampMs
+        return if (staleBy <= RIDE_STALE_MS) BestSeenStatus.Active(best)
+               else BestSeenStatus.Stale(best, staleBy)
+    }
 }
 
 ========================================
@@ -1053,7 +1206,8 @@ data class RideResult(
     val totalCardsSeen:     Int = 1,
     val todayEarnings:      Double = 0.0,
     val dailyTargetAmount:  Double = 0.0,
-    val decisionScore:      Double = 0.0   // replaces smartScore
+    val decisionScore:      Double = 0.0,  // replaces smartScore
+    val bestSeenNote:       String? = null
 )
 
 ========================================
@@ -1092,8 +1246,9 @@ data class RiderProfile(
     // Conservative estimate for 150cc bike
 
     // ── EARNING TARGETS ──
-    val minAcceptableNetProfit: Double = 30.0,
-    // Rider will not accept a ride if net profit is below this (₹)
+    val minAcceptableNetProfit: Double = 0.0,
+    // FIXED Bug 2: 0 = use only the ₹/km scaled minimum.
+    // Rider sets a hard floor if they want (e.g. ₹5 = never accept below ₹5 even on 0.5km rides)
 
     val minAcceptablePerKm: Double = 3.50,
     // ₹3.50 net profit per km is the correct threshold
@@ -1190,6 +1345,7 @@ package com.ridesmart.overlay
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -1201,6 +1357,7 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.ridesmart.R
+import com.ridesmart.engine.CrossPlatformRanker
 import com.ridesmart.model.RideResult
 import com.ridesmart.model.Signal
 import com.ridesmart.model.VehicleType
@@ -1209,18 +1366,6 @@ import kotlin.math.roundToInt
 /**
  * Manages two permanent side strips that show ride data without ever
  * blocking the center of the screen.
- *
- * RIGHT STRIP (76dp, right edge):
- *   Always visible when any offer is active.
- *   Shows full details of the "featured" offer (highest decisionScore by
- *   default, or whichever the driver last tapped on the left strip).
- *
- * LEFT STRIP (68dp, left edge):
- *   Only visible when 2+ platforms have active offers simultaneously.
- *   Shows one compact ranked card per platform sorted by decisionScore.
- *   Driver taps a card to pin that platform to the right strip.
- *
- * Neither strip ever expands, moves, or covers the center.
  */
 class OverlayManager(private val context: Context) {
 
@@ -1228,26 +1373,16 @@ class OverlayManager(private val context: Context) {
     private val powerManager  = context.getSystemService(Context.POWER_SERVICE)  as PowerManager
     private val handler       = Handler(Looper.getMainLooper())
 
-    // All currently active ride offers keyed by platform display name
-    // e.g. "Rapido", "Ola", "Uber", "Shadowfax"
     private val activePlatforms = LinkedHashMap<String, RideResult>()
-
-    // Which platform is pinned to the right strip by driver tap.
-    // null = auto mode — always show platform with highest decisionScore.
     private var featuredPlatform: String? = null
 
-    // Right strip — present whenever any offer is active
     private var rightStripView:   View? = null
     private var rightStripParams: WindowManager.LayoutParams? = null
 
-    // Left strip — present only when 2+ offers active simultaneously
     private var leftStripView:   View? = null
     private var leftStripParams: WindowManager.LayoutParams? = null
 
-    // Auto-dismiss runnable per platform
     private val dismissRunnables = mutableMapOf<String, Runnable>()
-
-    // WakeLock to light up screen when offer arrives
     private var wakeLock: PowerManager.WakeLock? = null
 
     companion object {
@@ -1255,37 +1390,21 @@ class OverlayManager(private val context: Context) {
         private const val AUTO_DISMISS_MS = 12_000L
         private const val RIGHT_STRIP_DP  = 76
         private const val LEFT_STRIP_DP   = 68
-        // Start strips 38% down from top — avoids Reject/X buttons on
-        // Shadowfax and Uber which sit at the top-right of the screen.
         private const val VERTICAL_ANCHOR = 0.38
     }
 
-    // Kept for compatibility with RideSmartService
     var onAutoDismiss: ((String) -> Unit)? = null
-
-    // ── Public entry point ────────────────────────────────────────────────
-    // Called by RideSmartService every time a new or updated ride arrives.
-    // Signature matches existing RideSmartService call: showResult(rideResult)
 
     fun showResult(result: RideResult) {
         val platform = result.parsedRide.platform
         handler.post {
             wakeScreen()
-
-            // Cancel any existing auto-dismiss for this platform
             dismissRunnables[platform]?.let { handler.removeCallbacks(it) }
-
-            // Store / update the result
             activePlatforms[platform] = result
-
-            // Create strip views in WindowManager if not yet present
             ensureViews()
-
-            // Re-render both strips with updated data
             renderRightStrip()
             renderLeftStrip()
 
-            // Schedule auto-dismiss
             val runnable = Runnable {
                 dismissPlatform(platform)
                 onAutoDismiss?.invoke(platform)
@@ -1294,8 +1413,6 @@ class OverlayManager(private val context: Context) {
             handler.postDelayed(runnable, AUTO_DISMISS_MS)
         }
     }
-
-    // ── View lifecycle ────────────────────────────────────────────────────
 
     private fun ensureViews() {
         val dm      = context.resources.displayMetrics
@@ -1308,72 +1425,70 @@ class OverlayManager(private val context: Context) {
 
         if (rightStripView == null) {
             val view = LayoutInflater.from(context).inflate(R.layout.overlay_right_strip, null)
+            val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+
+            val finalFlags = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                flags or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+            } else flags
+
             val params = WindowManager.LayoutParams(
-                rightStripPx,                                        // ← exact 76dp width
+                rightStripPx,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                finalFlags,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = screenW - rightStripPx                          // ← pinned to right edge
+                x = screenW - rightStripPx
                 y = yPos
             }
             try {
                 windowManager.addView(view, params)
                 rightStripView   = view
                 rightStripParams = params
-            } catch (e: Exception) {
-                Log.e(TAG, "addView rightStrip: ${e.message}")
-            }
+            } catch (e: Exception) { Log.e(TAG, "addView rightStrip: ${e.message}") }
         }
 
         if (leftStripView == null) {
             val view = LayoutInflater.from(context).inflate(R.layout.overlay_left_strip, null)
+            val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+
+            val finalFlags = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                flags or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+            } else flags
+
             val params = WindowManager.LayoutParams(
-                leftStripPx,                                         // ← exact 68dp width
+                leftStripPx,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                finalFlags,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 0                                                // ← pinned to left edge
+                x = 0
                 y = yPos
             }
             try {
                 windowManager.addView(view, params)
                 leftStripView   = view
                 leftStripParams = params
-            } catch (e: Exception) {
-                Log.e(TAG, "addView leftStrip: ${e.message}")
-            }
+            } catch (e: Exception) { Log.e(TAG, "addView leftStrip: ${e.message}") }
         }
     }
 
     private fun tearDownViews() {
-        rightStripView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) { }
-        }
+        rightStripView?.let { try { windowManager.removeView(it) } catch (_: Exception) { } }
         rightStripView   = null
         rightStripParams = null
-
-        leftStripView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) { }
-        }
+        leftStripView?.let { try { windowManager.removeView(it) } catch (_: Exception) { } }
         leftStripView   = null
         leftStripParams = null
-
         try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) { }
     }
-
-    // ── Right strip rendering ─────────────────────────────────────────────
 
     private fun renderRightStrip() {
         val view = rightStripView ?: return
@@ -1386,8 +1501,6 @@ class OverlayManager(private val context: Context) {
         bindRightStrip(view, result)
     }
 
-    // Returns the result to feature on the right strip.
-    // Uses the driver-pinned platform if set, otherwise picks highest decisionScore.
     private fun getFeaturedResult(): RideResult? {
         if (activePlatforms.isEmpty()) return null
         val pinned = featuredPlatform
@@ -1397,7 +1510,6 @@ class OverlayManager(private val context: Context) {
 
     private fun bindRightStrip(view: View, result: RideResult) {
         val accentColor = signalColor(result.signal)
-
         view.findViewById<View>(R.id.rs_accent_bar).setBackgroundColor(accentColor)
 
         val tvBadge = view.findViewById<TextView>(R.id.rs_badge)
@@ -1413,122 +1525,87 @@ class OverlayManager(private val context: Context) {
         if (hint.isNotEmpty()) {
             tvTimeCtx.text       = hint
             tvTimeCtx.visibility = View.VISIBLE
-        } else {
-            tvTimeCtx.visibility = View.GONE
-        }
+        } else tvTimeCtx.visibility = View.GONE
 
-        // Net profit — hero number
-        view.findViewById<TextView>(R.id.rs_net).text =
-            "₹${result.netProfit.roundToInt()}"
+        view.findViewById<TextView>(R.id.rs_net).text = "₹${result.netProfit.roundToInt()}"
+        view.findViewById<TextView>(R.id.rs_fare).text = "₹${result.totalFare.roundToInt()}"
 
-        // Gross fare
-        view.findViewById<TextView>(R.id.rs_fare).text =
-            "₹${result.totalFare.roundToInt()}"
-
-        // Extras: tip and/or premium
         val tvExtras = view.findViewById<TextView>(R.id.rs_extras)
         val extras   = buildExtras(result)
         if (extras.isNotEmpty()) {
             tvExtras.text       = extras
             tvExtras.visibility = View.VISIBLE
-        } else {
-            tvExtras.visibility = View.GONE
-        }
+        } else tvExtras.visibility = View.GONE
 
-        // Platform
-        view.findViewById<TextView>(R.id.rs_platform).text =
-            result.parsedRide.platform.uppercase()
+        view.findViewById<TextView>(R.id.rs_platform).text = result.parsedRide.platform.uppercase()
 
-        // Pass tag — shown for subscription-model platforms
         val tvPassTag = view.findViewById<TextView>(R.id.rs_pass_tag)
-        val isPassPlatform = when (result.parsedRide.packageName) {
-            "com.rapido.rider" -> true
-            else               -> false
-        }
-        tvPassTag.visibility = if (isPassPlatform) View.VISIBLE else View.GONE
+        tvPassTag.visibility = if (result.parsedRide.packageName == "com.rapido.rider") View.VISIBLE else View.GONE
 
-        // Vehicle type
         val tvVehicle   = view.findViewById<TextView>(R.id.rs_vehicle)
-        val vehicleType = result.parsedRide.vehicleType
-        if (vehicleType != VehicleType.UNKNOWN) {
-            tvVehicle.text       = vehicleType.displayName.uppercase()
+        if (result.parsedRide.vehicleType != VehicleType.UNKNOWN) {
+            tvVehicle.text       = result.parsedRide.vehicleType.displayName.uppercase()
             tvVehicle.visibility = View.VISIBLE
-        } else {
-            tvVehicle.visibility = View.GONE
-        }
+        } else tvVehicle.visibility = View.GONE
 
-        // ₹/km — honest metric
-        view.findViewById<TextView>(R.id.rs_per_km).text =
-            "₹${"%.1f".format(result.efficiencyPerKm)}/km"
+        view.findViewById<TextView>(R.id.rs_per_km).text = "₹${"%.1f".format(result.efficiencyPerKm)}/km"
 
-        // ₹/hr — hidden when 0 (Rapido loading state has no duration)
         val tvPerHour = view.findViewById<TextView>(R.id.rs_per_hour)
         if (result.earningPerHour > 0) {
             tvPerHour.text       = "₹${result.earningPerHour.roundToInt()}/hr"
             tvPerHour.visibility = View.VISIBLE
-        } else {
-            tvPerHour.visibility = View.GONE
-        }
+        } else tvPerHour.visibility = View.GONE
 
-        // Pickup distance — absolute km thresholds
         val pickupKm = result.parsedRide.pickupDistanceKm
         val pickupColor = when {
-            pickupKm <= 0.8 -> 0xFF16A34A.toInt()  // green  — short, fine
-            pickupKm <= 1.8 -> 0xFFCA8A04.toInt()  // amber  — medium, driver decides
-            else            -> 0xFFDC2626.toInt()  // red    — long, meaningful warning
+            pickupKm <= 0.8 -> 0xFF16A34A.toInt()
+            pickupKm <= 1.8 -> 0xFFCA8A04.toInt()
+            else            -> 0xFFDC2626.toInt()
         }
         val tvPickup = view.findViewById<TextView>(R.id.rs_pickup)
         tvPickup.text = "${"%.1f".format(pickupKm)}km"
         tvPickup.setTextColor(pickupColor)
 
         val tvPickupPct = view.findViewById<TextView>(R.id.rs_pickup_pct)
-        val pickupPct = (result.pickupRatio * 100).roundToInt()
-        tvPickupPct.text = "${pickupPct}% pkup"
+        tvPickupPct.text = "${(result.pickupRatio * 100).roundToInt()}% pkup"
         tvPickupPct.setTextColor(pickupColor)
 
-        // Payment type badge
         val tvPayment    = view.findViewById<TextView>(R.id.rs_payment)
         val paymentLabel = normalisePaymentType(result.parsedRide.paymentType)
         if (paymentLabel.isNotBlank()) {
             tvPayment.text       = paymentLabel
             tvPayment.visibility = View.VISIBLE
-        } else {
-            tvPayment.visibility = View.GONE
-        }
+        } else tvPayment.visibility = View.GONE
 
-        // Costs
-        view.findViewById<TextView>(R.id.rs_fuel).text =
-            "fuel ₹${"%.0f".format(result.fuelCost)}"
-        view.findViewById<TextView>(R.id.rs_wear).text =
-            "wear ₹${"%.0f".format(result.wearCost)}"
+        view.findViewById<TextView>(R.id.rs_fuel).text = "fuel ₹${"%.0f".format(result.fuelCost)}"
+        view.findViewById<TextView>(R.id.rs_wear).text = "wear ₹${"%.0f".format(result.wearCost)}"
 
         val tvScore = view.findViewById<TextView>(R.id.rs_score)
         if (result.decisionScore > 0.0) {
             val scoreInt   = result.decisionScore.toInt().coerceIn(0, 100)
             val scoreColor = when {
-                scoreInt >= 75 -> 0xFF16A34A.toInt()   // green  — great ride
-                scoreInt >= 45 -> 0xFFCA8A04.toInt()   // amber  — acceptable
-                else           -> 0xFFDC2626.toInt()   // red    — poor ride
+                scoreInt >= 75 -> 0xFF16A34A.toInt()
+                scoreInt >= 45 -> 0xFFCA8A04.toInt()
+                else           -> 0xFFDC2626.toInt()
             }
             tvScore.text       = "S:$scoreInt"
             tvScore.setTextColor(scoreColor)
             tvScore.visibility = View.VISIBLE
-        } else {
-            tvScore.visibility = View.GONE
+        } else tvScore.visibility = View.GONE
+
+        val tvBestNote = view.findViewById<TextView?>(R.id.rs_best_note)
+        if (tvBestNote != null) {
+            val note = result.bestSeenNote
+            tvBestNote.text       = note ?: ""
+            tvBestNote.visibility = if (note != null) View.VISIBLE else View.GONE
         }
 
-        // Daily progress — shown only when a daily target is set
         val tvToday = view.findViewById<TextView>(R.id.rs_today)
         if (result.dailyTargetAmount > 0.0) {
-            val done = result.todayEarnings.roundToInt()
-            val target = result.dailyTargetAmount.roundToInt()
-            tvToday.text = "₹$done / ₹$target"
+            tvToday.text = "₹${result.todayEarnings.roundToInt()} / ₹${result.dailyTargetAmount.roundToInt()}"
             tvToday.visibility = View.VISIBLE
-        } else {
-            tvToday.visibility = View.GONE
-        }
+        } else tvToday.visibility = View.GONE
 
-        // Failed checks — abbreviated to fit 76dp width
         val tvChecksDivider = view.findViewById<View>(R.id.rs_checks_divider)
         val tvChecks        = view.findViewById<TextView>(R.id.rs_checks)
         if (result.failedChecks.isNotEmpty()) {
@@ -1541,44 +1618,46 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    // ── Left strip rendering ──────────────────────────────────────────────
-
     private fun renderLeftStrip() {
         val view = leftStripView ?: return
-
-        // Only show left strip when there are 2 or more competing offers
         if (activePlatforms.size < 2) {
             view.visibility = View.GONE
             return
         }
-
         view.visibility = View.VISIBLE
-
         val container      = view.findViewById<LinearLayout>(R.id.ls_cards_container)
         val featuredResult = getFeaturedResult()
         val inflater       = LayoutInflater.from(context)
-
         container.removeAllViews()
 
-        // Sort by decisionScore descending and render one card per platform
-        activePlatforms.values
-            .sortedByDescending { it.decisionScore }
-            .forEachIndexed { index, result ->
-                val cardView = inflater.inflate(R.layout.overlay_left_card, container, false)
-                bindLeftCard(
-                    view       = cardView,
-                    result     = result,
-                    rank       = index + 1,
-                    isFeatured = (result == featuredResult)
-                )
-                cardView.setOnClickListener {
-                    // Pin this platform to the right strip
-                    featuredPlatform = result.parsedRide.platform
-                    renderRightStrip()
-                    renderLeftStrip()
+        val ranking = CrossPlatformRanker.rank(activePlatforms.values.toList())
+        ranking.ranked.forEachIndexed { index, result ->
+            val cardView = inflater.inflate(R.layout.overlay_left_card, container, false)
+            bindLeftCard(
+                view       = cardView,
+                result     = result,
+                rank       = index + 1,
+                isFeatured = (result == featuredResult)
+            )
+
+            if (index == 0 && activePlatforms.size >= 2) {
+                cardView.findViewById<TextView>(R.id.lc_rank_platform).text = ranking.summaryLine
+                if (ranking.runnerUp != null) {
+                    val tvNet    = cardView.findViewById<TextView>(R.id.lc_net)
+                    val deltaStr = if (ranking.profitDelta >= 0)
+                        "+₹${ranking.profitDelta.toInt()}"
+                        else "-₹${(-ranking.profitDelta).toInt()}"
+                    tvNet.text = "₹${result.netProfit.roundToInt()} ($deltaStr vs ${ranking.runnerUp!!.parsedRide.platform})"
                 }
-                container.addView(cardView)
             }
+
+            cardView.setOnClickListener {
+                featuredPlatform = result.parsedRide.platform
+                renderRightStrip()
+                renderLeftStrip()
+            }
+            container.addView(cardView)
+        }
     }
 
     private fun bindLeftCard(view: View, result: RideResult, rank: Int, isFeatured: Boolean) {
@@ -1588,50 +1667,40 @@ class OverlayManager(private val context: Context) {
             Signal.YELLOW -> 0x22CA8A04.toInt()
             Signal.RED    -> 0x22DC2626.toInt()
         }
-
         view.findViewById<View>(R.id.lc_root).setBackgroundColor(tintBg)
         view.findViewById<View>(R.id.lc_accent_bar).setBackgroundColor(accentColor)
 
         val platformAbbr = result.parsedRide.platform.take(3).uppercase()
-        // Show rank, platform and decisionScore
         val score = result.decisionScore.toInt().coerceIn(0, 100)
-        view.findViewById<TextView>(R.id.lc_rank_platform).text = "#$rank $platformAbbr S:$score"
+        
+        val tvRankLabel = view.findViewById<TextView>(R.id.lc_rank_platform)
+        if (rank == 1 && isFeatured) {
+            // Will be set by caller via ranking.summaryLine — keep default for now
+            tvRankLabel.text = "#$rank $platformAbbr S:$score"
+        } else {
+            tvRankLabel.text = "#$rank $platformAbbr S:$score"
+        }
 
         val tvNet = view.findViewById<TextView>(R.id.lc_net)
         tvNet.text = "₹${result.netProfit.roundToInt()}"
         tvNet.setTextColor(if (isFeatured) accentColor else 0xFFFFFFFF.toInt())
 
-        view.findViewById<TextView>(R.id.lc_ride_km).text =
-            "${"%.1f".format(result.parsedRide.rideDistanceKm)}k"
-
-        val tvSelected = view.findViewById<TextView>(R.id.lc_selected_label)
-        tvSelected.visibility = if (isFeatured) View.VISIBLE else View.GONE
+        view.findViewById<TextView>(R.id.lc_ride_km).text = "${"%.1f".format(result.parsedRide.rideDistanceKm)}k"
+        view.findViewById<TextView>(R.id.lc_selected_label).visibility = if (isFeatured) View.VISIBLE else View.GONE
     }
 
-    // ── Dismissal ─────────────────────────────────────────────────────────
-
-    // Called by RideSmartService as: dismissPlatform(displayName, immediate = true)
     fun dismissPlatform(platform: String, immediate: Boolean = false) {
         handler.post {
             dismissRunnables[platform]?.let { handler.removeCallbacks(it) }
             dismissRunnables.remove(platform)
             activePlatforms.remove(platform)
-
-            // If driver had pinned this platform, revert to auto mode
             if (featuredPlatform == platform) featuredPlatform = null
-
-            if (activePlatforms.isEmpty()) {
-                tearDownViews()
-            } else {
-                renderRightStrip()
-                renderLeftStrip()
-            }
-
+            if (activePlatforms.isEmpty()) tearDownViews()
+            else { renderRightStrip(); renderLeftStrip() }
             if (!immediate) onAutoDismiss?.invoke(platform)
         }
     }
 
-    // Called by RideSmartService as: dismissAll()
     fun dismissAll() {
         handler.post {
             dismissRunnables.values.forEach { handler.removeCallbacks(it) }
@@ -1642,8 +1711,6 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
-
     fun isShowing():                  Boolean = activePlatforms.isNotEmpty()
     fun isPlatformShowing(p: String): Boolean = activePlatforms.containsKey(p)
 
@@ -1653,49 +1720,36 @@ class OverlayManager(private val context: Context) {
         Signal.RED    -> 0xFFDC2626.toInt()
     }
 
-    // Normalises raw payment-type strings from all parsers
-    // into a short uppercase badge label.
     private fun normalisePaymentType(raw: String): String {
         val up = raw.trim().uppercase()
         return when {
             up.isBlank()          -> ""
             up.contains("ONLINE") -> "ONLINE"
             up.contains("UPI")    -> "UPI"
-            up.contains("COD") -> "COD"
-            up.contains("CASH")   -> "CASH"
+            up.contains("COD")    || up.contains("CASH")   -> "CASH"
             up.contains("WALLET") -> "WALLET"
             else                  -> up.take(8)
         }
     }
 
     private fun buildExtras(result: RideResult): String = buildString {
-        if (result.parsedRide.tipAmount > 0.0)
-            append("+₹${result.parsedRide.tipAmount.roundToInt()} tip")
+        if (result.parsedRide.tipAmount > 0.0) append("+₹${result.parsedRide.tipAmount.roundToInt()} tip")
         if (result.parsedRide.premiumAmount > 0.0) {
             if (isNotEmpty()) append("\n")
             append("+₹${result.parsedRide.premiumAmount.roundToInt()} prm")
         }
     }
 
-    // Abbreviates failed-check messages to fit the 76dp right strip.
     private fun abbreviateCheck(check: String): String = when {
-        check.contains("below your") && check.contains("minimum") -> {
-            val profit = check.substringAfter("Profit ").substringBefore(" below")
-            "$profit<min"
-        }
-        check.contains("/km")                            -> "low ₹/km"
-        check.contains("/hr") || check.contains("hour") -> "low ₹/hr"
-        check.contains("pickup") || check.contains("far") -> "far pkup"
-        else                                             -> check.take(10)
+        check.startsWith("Profit") || check.startsWith("Losing") -> check.substringBefore("—").trim().take(12)
+        check.contains("/km")                             -> "low ₹/km"
+        check.contains("/hr") || check.contains("hour")  -> "low ₹/hr"
+        check.contains("pickup") || check.contains("far")  -> "far pkup"
+        else                                              -> check.take(12)
     }
 
-    /**
-     * Short time-of-day note based on Indian bike-taxi peak/slump patterns.
-     * Returns empty string outside notable windows — overlay hides the view.
-     */
     private fun timeContextHint(): String {
-        val hour = java.util.Calendar.getInstance()
-            .get(java.util.Calendar.HOUR_OF_DAY)
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         return when (hour) {
             in 7..10  -> "⚡ Peak"
             in 11..12 -> "🟡 Slowing"
@@ -1707,15 +1761,17 @@ class OverlayManager(private val context: Context) {
     }
 
     private fun wakeScreen() {
-        if (!powerManager.isInteractive) {
-            if (wakeLock == null) {
-                wakeLock = powerManager.newWakeLock(
-                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                    "RideSmart::OverlayWake"
-                )
+        if (powerManager.isInteractive) return
+        try {
+            val level = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP
+            } else {
+                @Suppress("DEPRECATION")
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP
             }
+            if (wakeLock == null) wakeLock = powerManager.newWakeLock(level, "RideSmart::OverlayWake")
             if (wakeLock?.isHeld == false) wakeLock?.acquire(10_000L)
-        }
+        } catch (e: Exception) { Log.e(TAG, "wakeScreen failed: ${e.message}") }
     }
 }
 
@@ -1975,6 +2031,7 @@ import com.ridesmart.model.ParsedRide
 import com.ridesmart.model.ParseResult
 import com.ridesmart.model.ScreenState
 import com.ridesmart.model.VehicleType
+import com.ridesmart.service.RapidoNodeBundle
 
 class RapidoParser : IPlatformParser {
 
@@ -1991,6 +2048,15 @@ class RapidoParser : IPlatformParser {
             "start ride", "otp to start", "you are on a trip"
         )
 
+        private val HOME_SCREEN_KEYWORDS = listOf(
+            "performance icon", "right on track", "quick actions",
+            "choose your earning plan", "view rate card", "view all plans",
+            "select your next plan", "on-ride booking", "incentives and more",
+            "portrait image card", "terms and conditions", "plan is active",
+            "hi rajat", "good morning", "good afternoon", "good evening",
+            "weekly earnings", "daily earnings target", "rides completed"
+        )
+
         private val ADDRESS_BLACKLIST = listOf(
             "Accept", "Match", "Go To", "See", "Includes", "Demand", "Ride for you", 
             "Customer added", "Tip", "Earnings", "Order", "History", "Support"
@@ -2001,6 +2067,11 @@ class RapidoParser : IPlatformParser {
 
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
+
+        // Home/dashboard screen detection — return IDLE immediately
+        if (HOME_SCREEN_KEYWORDS.any { combined.contains(it) }) {
+            return ScreenState.IDLE
+        }
 
         if (ACTIVE_RIDE_KEYWORDS.any { combined.contains(it) }) {
             return ScreenState.IDLE
@@ -2017,6 +2088,21 @@ class RapidoParser : IPlatformParser {
             hasFare && hasKm && !hasAccept   -> ScreenState.OFFER_LOADING
             hasFare && !hasKm && !hasAccept  -> ScreenState.OFFER_LOADING
             else                             -> ScreenState.IDLE
+        }
+    }
+
+    private fun parseVehicleTypeFromServiceName(text: String): VehicleType {
+        return when {
+            text.contains("Bike Boost", ignoreCase = true) -> VehicleType.BIKE_BOOST
+            text.contains("CNG Auto",   ignoreCase = true) -> VehicleType.CNG_AUTO
+            text.contains("e-Bike",     ignoreCase = true) -> VehicleType.EBIKE
+            text.contains("Bike Taxi",  ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Bike Metro", ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Bike",       ignoreCase = true) -> VehicleType.BIKE
+            text.contains("Auto",       ignoreCase = true) -> VehicleType.AUTO
+            text.contains("Car",        ignoreCase = true) -> VehicleType.CAR
+            text.contains("Prime",      ignoreCase = true) -> VehicleType.CAR
+            else                                           -> VehicleType.UNKNOWN
         }
     }
 
@@ -2159,6 +2245,98 @@ class RapidoParser : IPlatformParser {
             vehicleType          = vehicleType,
             screenState          = screenState
         )
+    }
+
+    fun parseFromBundle(bundle: RapidoNodeBundle, packageName: String): ParseResult {
+        // ── FARE ────────────────────────────────────────────────────────
+        var baseFare = 0.0
+        if (bundle.fare.isNotBlank()) {
+            baseFare = FARE_REGEX.find(bundle.fare)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        }
+        // Fallback: scan allTextNodes using existing logic
+        if (baseFare == 0.0) {
+            for (node in bundle.allTextNodes) {
+                val trimmed = node.trim()
+                if (trimmed.startsWith("+")) continue
+                val v = FARE_REGEX.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull() ?: continue
+                if (v > 5.0) { baseFare = v; break }
+            }
+        }
+        if (baseFare == 0.0) return ParseResult.Failure("RapidoBundle: no fare", confidence = 0.2f)
+
+        // ── VEHICLE TYPE ─────────────────────────────────────────────────
+        val vehicleType = if (bundle.vehicleType.isNotBlank())
+            parseVehicleTypeFromServiceName(bundle.vehicleType)
+        else
+            detectVehicleType(bundle.allTextNodes)
+
+        // ── PICKUP DISTANCE ──────────────────────────────────────────────
+        var pickupDistanceKm = 0.0
+        if (bundle.pickupDistanceText.isNotBlank()) {
+            pickupDistanceKm = KM_REGEX.find(bundle.pickupDistanceText)
+                ?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        }
+
+        // ── ADDRESSES ────────────────────────────────────────────────────
+        val pickupAddress = bundle.pickupAddress.ifBlank {
+            bundle.allTextNodes.firstOrNull { n ->
+                n.length > 12 && !KM_REGEX.containsMatchIn(n) &&
+                !n.contains("₹") &&
+                ADDRESS_BLACKLIST.none { n.contains(it, ignoreCase = true) }
+            } ?: ""
+        }
+        val dropAddress = bundle.dropAddress.ifBlank {
+            bundle.allTextNodes.firstOrNull { n ->
+                n.length > 12 && !KM_REGEX.containsMatchIn(n) &&
+                !n.contains("₹") && n != pickupAddress &&
+                ADDRESS_BLACKLIST.none { n.contains(it, ignoreCase = true) }
+            } ?: ""
+        }
+
+        // ── OFFER AGE → CONFIDENCE ───────────────────────────────────────
+        val offerAgeSeconds = if (bundle.offerAgeText.isNotBlank())
+            Regex("""(\d+)\s*s""").find(bundle.offerAgeText)
+                ?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        else 0
+        val confidence = if (offerAgeSeconds >= 12) 0.5f else 1.0f
+
+        // ── RIDE DISTANCE + DURATION via existing multi-card logic ────────
+        // Run the full parseAll on allTextNodes to get rideDistanceKm,
+        // premiumAmount, tipAmount, durationMin, and catch extra cards.
+        val fullResult = parseAll(bundle.allTextNodes, packageName)
+
+        return when (fullResult) {
+            is ParseResult.Success -> {
+                // Enrich the first parsed ride with bundle-sourced fields
+                val enriched = fullResult.rides.mapIndexed { i, ride ->
+                    if (i == 0) ride.copy(
+                        pickupDistanceKm = if (pickupDistanceKm > 0.0) pickupDistanceKm else ride.pickupDistanceKm,
+                        vehicleType      = if (vehicleType != VehicleType.UNKNOWN) vehicleType else ride.vehicleType,
+                        pickupAddress    = pickupAddress.ifBlank { ride.pickupAddress },
+                        dropAddress      = dropAddress.ifBlank  { ride.dropAddress  },
+                        confidence       = confidence
+                    ) else ride
+                }
+                ParseResult.Success(enriched)
+            }
+            else -> {
+                // fullResult failed but we have a fare — build a minimal ride
+                ParseResult.Success(listOf(
+                    ParsedRide(
+                        baseFare             = baseFare,
+                        rideDistanceKm       = 0.0,
+                        pickupDistanceKm     = pickupDistanceKm,
+                        platform             = "Rapido",
+                        packageName          = packageName,
+                        vehicleType          = vehicleType,
+                        pickupAddress        = pickupAddress,
+                        dropAddress          = dropAddress,
+                        rawTextNodes         = bundle.allTextNodes,
+                        confidence           = confidence
+                    )
+                ))
+            }
+        }
     }
 
     override fun parseAll(nodes: List<String>, packageName: String): ParseResult {
@@ -2750,7 +2928,8 @@ class UberParser : IPlatformParser {
     override fun detectScreenState(nodes: List<String>): ScreenState {
         val combined = nodes.joinToString(" ").lowercase()
         // Broaden fare detection to include common OCR artifacts and '+' prefix
-        val hasFareQuick = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|F|Tt|r|[+])\s*\d+""").containsMatchIn(combined)
+        // FIX: Removed 'F' and 'r' which caused false positives on words like 'For' or 'Airport'
+        val hasFareQuick = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|[+])\s*\d+""").containsMatchIn(combined)
         
         if (SCREEN_REJECT.any { combined.contains(it) } && !hasFareQuick) return ScreenState.IDLE
         
@@ -2827,7 +3006,8 @@ class UberParser : IPlatformParser {
 
     private fun extractTotalFare(lines: List<String>): Double? {
         // Updated regex with negative lookbehind to avoid matching 'r' in words like 'Uber' or 'Airport'
-        val fareRegex = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|Ff|F|r|[+])\s*(\d{1,5}(?:\.\d{1,2})?)""")
+        // FIX: Removed 'F', 'Ff', and 'r' as standalone currency symbols to prevent false positives
+        val fareRegex = Regex("""(?<![a-zA-Z])(?:₹|Rs\.?|Tt|[+])\s*(\d{1,5}(?:\.\d{1,2})?)""")
         var total = 0.0
         var found = false
 
@@ -2938,7 +3118,7 @@ class UberParser : IPlatformParser {
 
     private fun fixOcrErrors(line: String): String = line.replace("krn", "km").replace("knn", "km")
         .replace("lmin", "1min").replace("l min", "1 min")
-        .replace("Tt", "₹").replace("F", "₹")
+        .replace("Tt", "₹")
         .replace(",", ".")
 }
 
@@ -3005,6 +3185,64 @@ class BootReceiver : BroadcastReceiver() {
         notificationManager.notify(NOTIF_ID, notification)
     }
 }
+
+========================================
+FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\service\NotificationDataCache.kt
+========================================
+package com.ridesmart.service
+
+object NotificationDataCache {
+
+    private const val ENTRY_TTL_MS = 30_000L
+
+    private data class CachedEntry(val nodes: List<String>, val writtenAtMs: Long)
+
+    private val store = mutableMapOf<String, CachedEntry>()
+
+    @Synchronized
+    fun store(pkg: String, title: String, body: String) {
+        val nodes = buildList {
+            if (title.isNotBlank()) add(title.trim())
+            body.lines().map { it.trim() }.filter { it.isNotBlank() }.forEach { add(it) }
+        }
+        if (nodes.isEmpty()) return
+        store[pkg] = CachedEntry(nodes, System.currentTimeMillis())
+    }
+
+    @Synchronized
+    fun getFreshNodes(pkg: String): List<String>? {
+        val entry = store[pkg] ?: return null
+        return if (System.currentTimeMillis() - entry.writtenAtMs <= ENTRY_TTL_MS)
+            entry.nodes else null
+    }
+
+    @Synchronized
+    fun invalidate(pkg: String) { store.remove(pkg) }
+
+    @Synchronized
+    fun clear() { store.clear() }
+}
+
+========================================
+FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\service\RapidoNodeBundle.kt
+========================================
+package com.ridesmart.service
+
+/**
+ * Structured result of a single Rapido UI tree traversal.
+ * Fields map 1-to-1 with confirmed APK resource IDs from order_list_item.xml.
+ * Empty string = node not found in tree (use allTextNodes fallback).
+ */
+data class RapidoNodeBundle(
+    val fare: String,               // id/amount_tv  (ComposeView — special extraction)
+    val vehicleType: String,        // id/service_name_tv  e.g. "Bike Taxi"
+    val offerAgeText: String,       // id/order_accept_time_tv  e.g. "2s ago"
+    val pickupAddress: String,      // id/pickup_location_tv
+    val pickupSubText: String,      // id/pickup_location_sub_text
+    val pickupDistanceText: String, // id/distanceTv  e.g. "1.2 km"
+    val dropAddress: String,        // id/drop_location_tv
+    val allTextNodes: List<String>  // full flat list — used as fallback by existing parsers
+)
 
 ========================================
 FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\service\RideNotificationListener.kt
@@ -3125,9 +3363,11 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
@@ -3151,6 +3391,7 @@ import com.ridesmart.overlay.OverlayManager
 import com.ridesmart.parser.OlaParser
 import com.ridesmart.parser.ParserFactory
 import com.ridesmart.parser.UberParser
+import com.ridesmart.parser.RapidoParser
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
@@ -3200,6 +3441,8 @@ class RideSmartService : AccessibilityService() {
     
     private val screenshotExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
+    private lateinit var powerManager: PowerManager
+    @Volatile private var lastRapidoBundle: RapidoNodeBundle? = null
     @Volatile private var isOnline               = true
     private val uberOcrEngine                    = UberOcrEngine()
     private val uberParser                       = UberParser()
@@ -3236,8 +3479,9 @@ class RideSmartService : AccessibilityService() {
     private fun buildRideKey(ride: ParsedRide, pkg: String): String {
         val p = (ride.pickupDistanceKm * 100).toInt()
         val r = (ride.rideDistanceKm   * 100).toInt()
-        val addrHash = ride.pickupAddress.take(15).hashCode()
-        return "${pkg}_${(ride.baseFare * 10).toInt()}_${p}_${r}_$addrHash"
+        val pickupHash = ride.pickupAddress.trim().lowercase().hashCode()
+        val dropHash   = ride.dropAddress.trim().lowercase().hashCode()
+        return "${pkg}_${(ride.baseFare * 10).toInt()}_${p}_${r}_${pickupHash}_${dropHash}"
     }
 
     @OptIn(FlowPreview::class)
@@ -3256,6 +3500,7 @@ class RideSmartService : AccessibilityService() {
             serviceScope, SharingStarted.Eagerly, com.ridesmart.model.RiderProfile()
         )
         overlayManager    = OverlayManager(this)
+        powerManager      = getSystemService(Context.POWER_SERVICE) as PowerManager
         historyRepository = RideHistoryRepository(this)
 
         serviceScope.launch(Dispatchers.IO) {
@@ -3290,6 +3535,22 @@ class RideSmartService : AccessibilityService() {
         serviceScope.launch {
             historyRepository.getTodayRideCount(getStartOfDayMs())
                 .collect { count -> todayRideCount = count }
+        }
+
+        serviceScope.launch {
+            while (isActive) {
+                delay(5_000L)
+                if (!isOnline) continue
+                rapidoSessionCache.evictExpired()
+                val cacheStatus = rapidoSessionCache.getBestSeenStatus()
+                if (cacheStatus is RideSessionCache.BestSeenStatus.Empty &&
+                    overlayManager.isPlatformShowing("Rapido")) {
+                    withContext(Dispatchers.Main) {
+                        overlayManager.dismissPlatform("Rapido", immediate = true)
+                    }
+                    rapidoSessionCache.reset()
+                }
+            }
         }
 
         serviceScope.launch {
@@ -3463,19 +3724,22 @@ class RideSmartService : AccessibilityService() {
         when (result) {
             is ParseResult.Success -> {
                 val profile = cachedProfile.value
-                val best = result.rides.map { r ->
-                    val platformName = PlatformConfig.get(pkg).displayName
-                    val incentive    = profile.incentiveProfiles[platformName]
-                                        ?: com.ridesmart.model.IncentiveProfile()
-                    val bMarg        = calculator.marginalBonusValue(incentive)
-                    val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
-                    Triple(r, res, res.decisionScore)
-                }.filter { it.second.hardRejectReason == null }
-                 .maxByOrNull { it.third } ?: return
+                val best = result.rides
+                    .filter { isValidRideOffer(it) }
+                    .map { r ->
+                        val platformName = PlatformConfig.get(pkg).displayName
+                        val incentive    = profile.incentiveProfiles[platformName]
+                                            ?: com.ridesmart.model.IncentiveProfile()
+                        val bMarg        = calculator.marginalBonusValue(incentive)
+                        val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
+                        Triple(r, res, res.decisionScore)
+                    }.filter { it.second.hardRejectReason == null }
+                    .maxByOrNull { it.third } ?: return
                 showRideOverlay(best.first, pkg, best.second)
             }
             is ParseResult.Idle -> {
                 if (pkg.contains("rapido", true)) rapidoSessionCache.reset()
+                NotificationDataCache.invalidate(pkg)
                 withContext(Dispatchers.Main) {
                     overlayManager.dismissPlatform(PlatformConfig.get(pkg).displayName, true)
                 }
@@ -3506,15 +3770,17 @@ class RideSmartService : AccessibilityService() {
             val result = uberParser.parseAll(nodes, pkg)
             if (result is ParseResult.Success) {
                 val profile = cachedProfile.value
-                val best = result.rides.map { r ->
-                    val platformName = PlatformConfig.get(pkg).displayName
-                    val incentive    = profile.incentiveProfiles[platformName]
-                                        ?: com.ridesmart.model.IncentiveProfile()
-                    val bMarg        = calculator.marginalBonusValue(incentive)
-                    val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
-                    Triple(r, res, res.decisionScore)
-                }.filter { it.second.hardRejectReason == null }
-                 .maxByOrNull { it.third } ?: return
+                val best = result.rides
+                    .filter { isValidRideOffer(it) }
+                    .map { r ->
+                        val platformName = PlatformConfig.get(pkg).displayName
+                        val incentive    = profile.incentiveProfiles[platformName]
+                                            ?: com.ridesmart.model.IncentiveProfile()
+                        val bMarg        = calculator.marginalBonusValue(incentive)
+                        val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
+                        Triple(r, res, res.decisionScore)
+                    }.filter { it.second.hardRejectReason == null }
+                    .maxByOrNull { it.third } ?: return
                 showRideOverlay(best.first, pkg, best.second)
                 return
             }
@@ -3544,6 +3810,7 @@ class RideSmartService : AccessibilityService() {
     }
 
     private fun handleExternalNotification(pkg: String, title: String, text: String) {
+        NotificationDataCache.store(pkg, title, text)
         serviceScope.launch(Dispatchers.Default) {
             if (pkg.contains("ubercab", true)) {
                 val combined = "$title $text"
@@ -3562,7 +3829,10 @@ class RideSmartService : AccessibilityService() {
                 parser.parseAll(listOf(title, text), pkg)
             }
             if (result is ParseResult.Success) {
-                result.rides.firstOrNull()?.let { showRideOverlay(it, pkg) }
+                result.rides
+                    .filter { isValidRideOffer(it) }
+                    .firstOrNull()
+                    ?.let { showRideOverlay(it, pkg) }
             }
         }
     }
@@ -3571,19 +3841,56 @@ class RideSmartService : AccessibilityService() {
         serviceScope.launch {
             val profile = cachedProfile.value
             val platformName = PlatformConfig.get(pkg).displayName
-            val incentive    = profile.incentiveProfiles[platformName]
-                                ?: com.ridesmart.model.IncentiveProfile()
-            val bMarg        = calculator.marginalBonusValue(incentive)
-            val res          = result ?: calculator.calculate(ride, profile, bMarg, todayRideCount)
             
-            val best    = if (pkg.contains("rapido", true)) {
-                rapidoSessionCache.addResult(ride, res.netProfit, res.decisionScore)
-                rapidoSessionCache.getBestSeen()
-            } else null
+            val res = result ?: run {
+                val incentive = profile.incentiveProfiles[platformName]
+                                    ?: com.ridesmart.model.IncentiveProfile()
+                val bMarg = calculator.marginalBonusValue(incentive)
+                calculator.calculate(ride, profile, bMarg, todayRideCount)
+            }
+
+            // Use bundle-enriched parse for Rapido when available
+            if (pkg.contains("rapido", ignoreCase = true)) {
+                val bundle = lastRapidoBundle
+                lastRapidoBundle = null
+                if (bundle != null) {
+                    val bundleResult = RapidoParser().parseFromBundle(bundle, pkg)
+                    if (bundleResult is ParseResult.Success) {
+                        val enrichedRide = bundleResult.rides.firstOrNull()
+                        if (enrichedRide != null && enrichedRide.rideDistanceKm > 0.0) {
+                            Log.d(TAG, "Rapido: using bundle-enriched ride fare=${enrichedRide.baseFare} vehicle=${enrichedRide.vehicleType}")
+                            // re-calculate with enriched ride and show overlay
+                            val enrichedIncentive = profile.incentiveProfiles[platformName]
+                                                        ?: com.ridesmart.model.IncentiveProfile()
+                            val enrichedBMarg = calculator.marginalBonusValue(enrichedIncentive)
+                            val enrichedRes   = calculator.calculate(enrichedRide, profile, enrichedBMarg, todayRideCount)
+                            showRideOverlay(enrichedRide, pkg, enrichedRes)
+                            return@launch
+                        }
+                    }
+                }
+            }
             
-            val current = if (pkg.contains("rapido", true)) {
-                rapidoSessionCache.getResultFor(ride)
+            val status = if (pkg.contains("rapido", true)) {
+                rapidoSessionCache.addOrRefresh(ride, res.netProfit, res.decisionScore)
+                rapidoSessionCache.getBestSeenStatus()
             } else null
+
+            val best = (status as? RideSessionCache.BestSeenStatus.Active)?.result
+                    ?: (status as? RideSessionCache.BestSeenStatus.Stale)?.result
+
+            val current = if (pkg.contains("rapido", true))
+                rapidoSessionCache.getResultFor(ride) else null
+
+            val bestSeenNote: String? = when (status) {
+                is RideSessionCache.BestSeenStatus.Stale ->
+                    "⚠ Best ride (card #${status.result.cardIndex}) may be gone"
+                is RideSessionCache.BestSeenStatus.Active ->
+                    if (best?.ride != ride)
+                        "↑ Better at card #${best!!.cardIndex} • ₹${best.netProfit.toInt()}"
+                    else null
+                else -> null
+            }
 
             val rideResult = RideResult(
                 parsedRide        = ride,
@@ -3602,11 +3909,11 @@ class RideSmartService : AccessibilityService() {
                 todayEarnings     = todayEarningsSoFar,
                 dailyTargetAmount = profile.dailyEarningTarget,
                 decisionScore     = res.decisionScore,
-                // Rapido-only fields:
-                isBestSoFar       = (best?.ride == ride),
+                isBestSoFar       = best == null || res.decisionScore >= (best.decisionScore),
                 bestNetProfit     = best?.netProfit ?: res.netProfit,
                 cardIndex         = current?.cardIndex ?: 1,
-                totalCardsSeen    = rapidoSessionCache.getTotalCardsSeen()
+                totalCardsSeen    = rapidoSessionCache.getTotalCardsSeen(),
+                bestSeenNote      = bestSeenNote
             )
             
             withContext(Dispatchers.Main) {
@@ -3648,12 +3955,12 @@ class RideSmartService : AccessibilityService() {
                     wearCost             = result.wearCost,
                     totalCost            = result.fuelCost + result.wearCost,
                     netProfit            = result.netProfit,
-                    earningPerKm         = result.efficiencyPerKm,
+                    efficiencyPerKm      = result.efficiencyPerKm,
                     pickupPenaltyPct     = 0.0,
                     earningPerHour       = result.earningPerHour,
                     signal               = result.signal,
                     failedChecks         = result.failedChecks.joinToString("|"),
-                    smartScore           = result.decisionScore,
+                    decisionScore        = result.decisionScore,
                     pickupAddress        = ride.pickupAddress,
                     dropAddress          = ride.dropAddress,
                     riderRating          = ride.riderRating,
@@ -3682,9 +3989,12 @@ class RideSmartService : AccessibilityService() {
                             when {
                                 ocrResult is ParseResult.Success -> {
                                     consecutiveOcrFailures = 0 
-                                    ocrResult.rides.firstOrNull()?.let {
-                                        showRideOverlay(it, "com.ubercab.driver")
-                                    }
+                                    ocrResult.rides
+                                        .filter { isValidRideOffer(it) }
+                                        .firstOrNull()
+                                        ?.let {
+                                            showRideOverlay(it, "com.ubercab.driver")
+                                        }
                                 }
                                 ocrResult is ParseResult.Failure -> {
                                     consecutiveOcrFailures++
@@ -3712,23 +4022,142 @@ class RideSmartService : AccessibilityService() {
 
     private fun findNodesForPackage(packageName: String): List<String> {
         return try {
-            val rootNode = rootInActiveWindow
-            if (rootNode?.packageName?.toString() == packageName) {
-                collectAllTextSafely(rootNode)
-            } else {
-                val uberWindow = windows.find { w ->
-                    w.root?.packageName?.toString() == packageName ||
-                    w.title?.toString()?.contains("uber", ignoreCase = true) == true
+            val liveNodes: List<String> = run {
+                val rootNode = rootInActiveWindow
+                if (rootNode?.packageName?.toString() == packageName) {
+                    if (packageName.contains("rapido", ignoreCase = true)) {
+                        val bundle = collectRapidoNodesSafely(rootNode)
+                        lastRapidoBundle = bundle
+                        bundle.allTextNodes
+                    } else {
+                        collectAllTextSafely(rootNode)
+                    }
+                } else {
+                    val uberWindow = windows.find { w ->
+                        w.root?.packageName?.toString() == packageName ||
+                        w.title?.toString()?.contains("uber", ignoreCase = true) == true
+                    }
+                    val nodes = uberWindow?.root?.let { collectAllTextSafely(it) } ?: emptyList()
+                    if (nodes.isEmpty() && uberWindow != null &&
+                        packageName.contains("uber", true)) {
+                        setUberOfferSignal()
+                        scheduleImmediateOcr()
+                    }
+                    nodes
                 }
-                val nodes = uberWindow?.root?.let { collectAllTextSafely(it) } ?: emptyList()
-
-                if (nodes.isEmpty() && uberWindow != null && packageName.contains("uber", true)) {
-                    setUberOfferSignal()
-                    scheduleImmediateOcr()
-                }
-                nodes
             }
+            if (liveNodes.isEmpty() && !powerManager.isInteractive) {
+                val cached = NotificationDataCache.getFreshNodes(packageName)
+                if (cached != null) {
+                    Log.d(TAG, "findNodes: screen locked, using cached for $packageName")
+                    return cached
+                }
+            }
+            liveNodes
         } catch (e: Exception) { emptyList() }
+    }
+
+    private fun collectRapidoNodesSafely(root: AccessibilityNodeInfo?): RapidoNodeBundle {
+        val empty = RapidoNodeBundle("", "", "", "", "", "", "", emptyList())
+        if (root == null) return empty
+
+        var fare               = ""
+        var vehicleType        = ""
+        var offerAgeText       = ""
+        var pickupAddress      = ""
+        var pickupSubText      = ""
+        var pickupDistanceText = ""
+        var dropAddress        = ""
+        val allText            = mutableListOf<String>()
+
+        val toVisit   = ArrayDeque<AccessibilityNodeInfo>()
+        val toRecycle = mutableListOf<AccessibilityNodeInfo>()
+        toVisit.add(root)
+        var visited = 0
+
+        while (toVisit.isNotEmpty() && visited < 300) {
+            val node = toVisit.removeFirst()
+            toRecycle.add(node)
+            visited++
+
+            // ── Read node text ───────────────────────────────────────────
+            val nodeText = node.text?.toString()?.trim() ?: ""
+            val nodeDesc = node.contentDescription?.toString()?.trim() ?: ""
+
+            // Collect all text for the flat fallback list
+            if (nodeText.isNotBlank()) allText.add(nodeText)
+            if (nodeDesc.isNotBlank() && nodeDesc != nodeText) allText.add(nodeDesc)
+
+            // ── Match by resource ID suffix ──────────────────────────────
+            val idName = node.viewIdResourceName
+                ?.substringAfter("/", "") ?: ""
+
+            when (idName) {
+                "service_name_tv" -> {
+                    if (nodeText.isNotBlank()) vehicleType = nodeText
+                }
+                "order_accept_time_tv" -> {
+                    if (nodeText.isNotBlank()) offerAgeText = nodeText
+                }
+                "amount_tv" -> {
+                    // ComposeView — text not in node.text; try 3 strategies
+                    val composeText = when {
+                        nodeDesc.isNotBlank() -> nodeDesc
+                        nodeText.isNotBlank() -> nodeText
+                        else -> {
+                            // Strategy 3: walk virtual semantic children
+                            val sb = StringBuilder()
+                            for (i in 0 until node.childCount) {
+                                val child = node.getChild(i) ?: continue
+                                val ct = child.text?.toString()?.trim() ?: ""
+                                val cd = child.contentDescription?.toString()?.trim() ?: ""
+                                if (ct.isNotBlank()) sb.append(ct).append(" ")
+                                if (cd.isNotBlank() && cd != ct) sb.append(cd).append(" ")
+                                try { child.recycle() } catch (_: Exception) {}
+                            }
+                            sb.toString().trim()
+                        }
+                    }
+                    if (composeText.isNotBlank()) {
+                        fare = composeText
+                        // Also add to allText so fallback parsers can see it
+                        if (!allText.contains(composeText)) allText.add(composeText)
+                    }
+                }
+                "pickup_location_tv" -> {
+                    if (nodeText.isNotBlank()) pickupAddress = nodeText
+                }
+                "pickup_location_sub_text" -> {
+                    if (nodeText.isNotBlank()) pickupSubText = nodeText
+                }
+                "distanceTv" -> {
+                    if (nodeText.isNotBlank()) pickupDistanceText = nodeText
+                }
+                "drop_location_tv" -> {
+                    if (nodeText.isNotBlank()) dropAddress = nodeText
+                }
+            }
+
+            // ── Queue children ───────────────────────────────────────────
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { toVisit.add(it) }
+            }
+        }
+
+        toRecycle.forEach { try { it.recycle() } catch (_: Exception) {} }
+
+        Log.d(TAG, "RapidoBundle: fare='$fare' vehicle='$vehicleType' pickupDist='$pickupDistanceText' offerAge='$offerAgeText'")
+
+        return RapidoNodeBundle(
+            fare               = fare,
+            vehicleType        = vehicleType,
+            offerAgeText       = offerAgeText,
+            pickupAddress      = pickupAddress,
+            pickupSubText      = pickupSubText,
+            pickupDistanceText = pickupDistanceText,
+            dropAddress        = dropAddress,
+            allTextNodes       = allText
+        )
     }
 
     private fun collectAllTextSafely(root: AccessibilityNodeInfo?): List<String> {
@@ -3757,6 +4186,31 @@ class RideSmartService : AccessibilityService() {
         return results
     }
 
+    private fun isValidRideOffer(ride: ParsedRide): Boolean {
+        if (ride.rideDistanceKm < 0.3) return false
+        if (ride.baseFare < 10.0) return false
+        if ((ride.pickupDistanceKm + ride.rideDistanceKm) < 0.3) return false
+        val maxReasonableFare = when {
+            ride.vehicleType == com.ridesmart.model.VehicleType.CAR -> 2000.0
+            ride.vehicleType == com.ridesmart.model.VehicleType.DELIVERY -> 1500.0
+            else -> 800.0
+        }
+        if (ride.baseFare > maxReasonableFare) return false
+        val junkAddressKeywords = listOf(
+            "performance icon", "right on track", "quick actions",
+            "choose your earning plan", "view rate card", "view all plans",
+            "government taxes", "commission", "on-ride booking",
+            "select your next plan", "terms and conditions",
+            "incentives and more", "portrait image card",
+            "fixed commission", "earning (minimum)", "plan is active"
+        )
+        val pickupLower = ride.pickupAddress.lowercase()
+        val dropLower = ride.dropAddress.lowercase()
+        if (junkAddressKeywords.any { pickupLower.contains(it) }) return false
+        if (junkAddressKeywords.any { dropLower.contains(it) }) return false
+        return true
+    }
+
     private fun handleThrottledScan(pkg: String) {
         val now = System.currentTimeMillis()
         if (now - (lastScanTime[pkg] ?: 0L) < SCAN_THROTTLE_MS) return
@@ -3769,6 +4223,7 @@ class RideSmartService : AccessibilityService() {
         uberPollingJob?.cancel()
         serviceScope.cancel()
         screenshotExecutor.shutdown()
+        NotificationDataCache.clear()
         super.onDestroy()
     }
 }
@@ -3798,10 +4253,10 @@ class UberOcrEngine {
         private const val OCR_TIMEOUT_MS = 3000L
         
         // Uber offer popups are always at the bottom.
-        // CROP_TOP_FRACTION = 0.55 means we remove the top 60% (Map + status bar).
-        // CROP_BOTTOM_FRACTION = 0.08 means we remove the bottom 8% (System navigation bar).
-        private const val CROP_TOP_FRACTION = 0.55f
-        private const val CROP_BOTTOM_FRACTION = 0.08f
+        // Reduced CROP_TOP_FRACTION from 0.55 to 0.40 to ensure the fare (often at the top of the card) is included.
+        // Reduced CROP_BOTTOM_FRACTION from 0.08 to 0.02 to capture the full button area if needed.
+        private const val CROP_TOP_FRACTION = 0.40f
+        private const val CROP_BOTTOM_FRACTION = 0.02f
     }
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -4097,29 +4552,27 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         rows: List<DailyPlatformRow>,
         profile: RiderProfile
     ): SettledDaySummary {
-        var totalGross       = 0.0
-        var totalRideCost    = 0.0   // fuel + wear across all rides
-        var totalCommission  = 0.0
-        var totalPassCost    = 0.0
-        var totalIncentive   = 0.0
-        var totalRides       = 0
-        val platformDetails  = mutableListOf<SettledPlatformDetail>()
+        var totalGross           = 0.0
+        var totalRideCost        = 0.0   // fuel + wear across all rides
+        var totalCommission      = 0.0
+        var totalPassCost        = 0.0
+        var totalIncentive       = 0.0
+        var totalRides           = 0
+        var totalOperatingProfit = 0.0
+        val platformDetails      = mutableListOf<SettledPlatformDetail>()
 
         for (row in rows) {
             val plan      = profile.platformPlans[row.platform] ?: PlatformPlan()
             val incentive = profile.incentiveProfiles[row.platform] ?: IncentiveProfile()
 
             // Commission already deducted from operatingProfit in ProfitCalculator
-            // So operatingProfit = fare_after_commission - ride_costs
-            // We need to reconstruct gross earnings and commission separately
-            // grossEarnings is the raw fare sum from RideEntry.baseFare
+            // Reconstruction for UI only
             val commissionDeducted = if (plan.planType == PlanType.COMMISSION) {
                 row.grossEarnings * (plan.commissionPercent / 100.0)
             } else 0.0
 
             // Pass cost: one-time deduction for the platform's pass
             val passCost = if (plan.planType == PlanType.PASS && plan.passAmount > 0.0) {
-                // Daily share of the pass cost
                 plan.passAmount / plan.passDurationDays.coerceAtLeast(1).toDouble()
             } else 0.0
 
@@ -4130,8 +4583,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 incentive.completedToday >= incentive.targetRides
             ) incentive.rewardAmount else 0.0
 
-            // Platform operating profit = sum of per-ride net profits
-            // (already correct: commission deducted per ride, ride costs deducted)
+            // FIXED Bug 4: use direct sum from stored netProfit
             val operatingProfit = row.operatingProfit
 
             // Platform final settled profit
@@ -4153,16 +4605,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             )
 
-            totalGross      += row.grossEarnings
-            totalRideCost   += row.fuelCost + row.wearCost
-            totalCommission += commissionDeducted
-            totalPassCost   += passCost
-            totalIncentive  += incentiveEarned
-            totalRides      += row.rideCount
+            totalGross           += row.grossEarnings
+            totalRideCost        += row.fuelCost + row.wearCost
+            totalCommission      += commissionDeducted
+            totalPassCost        += passCost
+            totalIncentive       += incentiveEarned
+            totalRides           += row.rideCount
+            totalOperatingProfit += operatingProfit
         }
 
-        val totalOperating = totalGross - totalRideCost - totalCommission
-        val totalSettled   = totalOperating - totalPassCost + totalIncentive
+        val totalSettled = totalOperatingProfit - totalPassCost + totalIncentive
 
         return SettledDaySummary(
             totalRides          = totalRides,
@@ -4171,7 +4623,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             totalCommission     = totalCommission,
             totalPassCost       = totalPassCost,
             totalIncentive      = totalIncentive,
-            totalOperatingProfit= totalOperating,
+            totalOperatingProfit= totalOperatingProfit,
             totalSettledProfit  = totalSettled,
             platforms           = platformDetails
         )
@@ -5034,7 +5486,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         val pDailyTarget = dailyTarget.toDoubleOrNull() ?: 0.0
 
         val error = when {
-            pMileage !in 5.0..100.0 -> getApplication<Application>().getString(R.string.error_mileage)
+            // FIXED Bug 6: mileage validation tightened
+            pMileage !in 10.0..100.0 -> getApplication<Application>().getString(R.string.error_mileage)
             pFuel !in 80.0..150.0 -> getApplication<Application>().getString(R.string.error_fuel_price)
             pCng !in 50.0..120.0 -> getApplication<Application>().getString(R.string.error_cng_price)
             pMaint !in 0.0..10.0 -> getApplication<Application>().getString(R.string.error_maintenance)
@@ -5339,7 +5792,8 @@ private fun PlatformDayCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 MiniStat("Rides", "${detail.rides}")
                 MiniStat("Gross", "₹${"%.0f".format(detail.grossEarnings)}")
-                MiniStat("Ride cost", "₹${"%.0f".format(detail.rideOperatingProfit)}")
+                // FIXED Bug 7: label changed to Ride profit
+                MiniStat("Ride profit", "₹${"%.0f".format(detail.rideOperatingProfit)}")
             }
             if (isPassPlatform || detail.commissionDeducted > 0) {
                 Spacer(Modifier.height(8.dp))
@@ -5528,9 +5982,9 @@ fun RideComparisonScreen(
 
     val sorted = remember(rides, sort) {
         when (sort) {
-            CompareSort.SCORE  -> rides.sortedByDescending { it.smartScore }
+            CompareSort.SCORE  -> rides.sortedByDescending { it.decisionScore }
             CompareSort.PROFIT -> rides.sortedByDescending { it.netProfit }
-            CompareSort.PER_KM -> rides.sortedByDescending { it.earningPerKm }
+            CompareSort.PER_KM -> rides.sortedByDescending { it.efficiencyPerKm }
             CompareSort.PICKUP -> rides.sortedBy { it.pickupKm }
         }
     }
@@ -5638,8 +6092,8 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
         Signal.RED    -> Color(0xFFDC2626)
     }
     val scoreColor = when {
-        ride.smartScore >= 75.0 -> Color(0xFF16A34A)
-        ride.smartScore >= 45.0 -> Color(0xFFCA8A04)
+        ride.decisionScore >= 75.0 -> Color(0xFF16A34A)
+        ride.decisionScore >= 45.0 -> Color(0xFFCA8A04)
         else                   -> Color(0xFFDC2626)
     }
     val timeStr = remember(ride.timestampMs) {
@@ -5682,13 +6136,13 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
                     Text(timeStr, color = Color(0xFF555555), fontSize = 12.sp)
                 }
                 // SmartScore badge
-                if (ride.smartScore > 0.0) {
+                if (ride.decisionScore > 0.0) {
                     Surface(
                         color = scoreColor.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            "S:${ride.smartScore.toInt()}",
+                            "S:${ride.decisionScore.toInt()}",
                             color      = scoreColor,
                             fontSize   = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -5707,7 +6161,7 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
             ) {
                 CompStat("Net profit", "₹${"%.0f".format(ride.netProfit)}", green)
                 CompStat("Fare", "₹${"%.0f".format(ride.baseFare)}")
-                CompStat("₹/km", "₹${"%.1f".format(ride.earningPerKm)}")
+                CompStat("₹/km", "₹${"%.1f".format(ride.efficiencyPerKm)}")
                 CompStat("Pickup", "${"%.1f".format(ride.pickupKm)}km",
                     if (ride.pickupKm > 2.5) Color(0xFFDC2626)
                     else if (ride.pickupKm > 1.0) Color(0xFFCA8A04)
@@ -5725,12 +6179,18 @@ private fun ComparisonRideCard(ride: RideEntry, cardBg: Color, green: Color) {
                 CompStat("Ride km", "${"%.1f".format(ride.rideKm)} km")
                 CompStat("Total km", "${"%.1f".format(ride.totalKm)} km")
                 CompStat("Cost", "₹${"%.0f".format(ride.totalCost)}")
-                if (ride.pickupPenaltyPct > 0.0) {
-                    CompStat("Penalty", "${ride.pickupPenaltyPct.toInt()}%",
-                        Color(0xFFCA8A04))
-                } else {
-                    CompStat("Penalty", "None", Color(0xFF3DDC84))
-                }
+
+                // FIXED Bug 5: Replace penalty with pickup ratio
+                val pickupPct = if (ride.totalKm > 0)
+                    (ride.pickupKm / ride.totalKm * 100).toInt() else 0
+                CompStat(
+                    "Pkup%", "${pickupPct}%",
+                    when {
+                        pickupPct > 35 -> Color(0xFFDC2626)
+                        pickupPct > 20 -> Color(0xFFCA8A04)
+                        else           -> Color(0xFF3DDC84)
+                    }
+                )
             }
 
             // Failed checks (compact)
@@ -6138,7 +6598,7 @@ fun RideRow(entry: RideEntry) {
                     Spacer(Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        MiniStat(stringResource(R.string.label_per_km_stat), "₹${"%.1f".format(entry.earningPerKm)}")
+                        MiniStat(stringResource(R.string.label_per_km_stat), "₹${"%.1f".format(entry.efficiencyPerKm)}")
                         if (entry.earningPerHour > 0) MiniStat(stringResource(R.string.label_per_hr_stat), "₹${"%.0f".format(entry.earningPerHour)}")
                         if (entry.estimatedDurationMin > 0) MiniStat(stringResource(R.string.label_duration), "${entry.estimatedDurationMin}m")
                         MiniStat(stringResource(R.string.label_pickup_pct), "${entry.pickupRatioPct}%")
@@ -6149,7 +6609,7 @@ fun RideRow(entry: RideEntry) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         if (entry.riderRating > 0) MiniStat(stringResource(R.string.label_rating), "⭐ ${"%.2f".format(entry.riderRating)}")
                         if (entry.paymentType.isNotBlank()) MiniStat(stringResource(R.string.label_payment), entry.paymentType)
-                        MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.smartScore)}")
+                        MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.decisionScore)}")
                     }
 
                     if (entry.failedChecks.isNotBlank()) {
@@ -6214,10 +6674,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -6234,13 +6692,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -6663,6 +7121,40 @@ fun isNotificationListenerEnabled(context: Context): Boolean {
 fun isBatteryOptimizationIgnored(context: Context): Boolean {
     val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     return pm.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+========================================
+FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\java\com\ridesmart\RideSmartApp.kt
+========================================
+package com.ridesmart
+
+import android.app.Application
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.storage.Storage
+
+class RideSmartApp : Application() {
+
+    companion object {
+        lateinit var supabase: SupabaseClient
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+
+        supabase = createSupabaseClient(
+            supabaseUrl = "https://iwlzgybvcwizawnqwntx.supabase.co",
+            supabaseKey = BuildConfig.SUPABASE_KEY // Use BuildConfig for secret
+        ) {
+            install(Auth)
+            install(Postgrest)
+            install(Realtime)
+            install(Storage)
+        }
+    }
 }
 
 ========================================
@@ -7538,6 +8030,15 @@ FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\res\layout\ove
                 android:visibility="gone"/>
 
             <TextView
+                android:id="@+id/rs_best_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="9sp"
+                android:textColor="#FFCA8A04"
+                android:visibility="gone"
+                android:maxLines="2" />
+
+            <TextView
                 android:id="@+id/rs_today"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -8208,6 +8709,7 @@ FILE: C:\Users\rajat\AndroidStudioProjects\ridesmart\app\src\main\AndroidManifes
         tools:ignore="ProtectedPermissions" />
 
     <application
+        android:name=".RideSmartApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -8775,6 +9277,7 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -8793,6 +9296,8 @@ android {
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+
+        buildConfigField("String", "SUPABASE_KEY", "\"REPLACE_WITH_YOUR_SUPABASE_KEY\"") // Do not commit real secret
     }
 
     buildTypes {
@@ -8814,6 +9319,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
@@ -8825,6 +9331,7 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -8847,6 +9354,15 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.config)
 
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.realtime)
+    implementation(libs.supabase.storage)
+    implementation(libs.ktor.client.android)
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -8867,6 +9383,7 @@ plugins {
     alias(libs.plugins.google.gms.google.services) apply false
     alias(libs.plugins.google.firebase.crashlytics) apply false
     alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 
 ========================================
