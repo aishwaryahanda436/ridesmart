@@ -11,7 +11,7 @@ object PlatformConfig {
 
     val ALL = listOf(
         Platform("com.rapido.rider",            "Rapido",       0.0,  67.0),
-        Platform("com.ubercab.driver",          "Uber",         0.0,  0.0),
+        Platform("com.ubercab.driver",          "Uber",         20.0, 0.0), // Bug 2B Fixed: 20% default for Uber India
         Platform("com.olacabs.oladriver",       "Ola",          20.0, 0.0),
         Platform("in.shadowfax.gandalf",        "Shadowfax",    0.0,  0.0),
         Platform("in.juspay.nammayatripartner", "Namma Yatri",  0.0,  0.0),

@@ -21,6 +21,7 @@ class ProfileRepository(private val context: Context) {
 
     // ── DATASTORE KEYS ──────────────────────────────────────────────
     companion object {
+        val KEY_IS_CONFIGURED   = booleanPreferencesKey("is_configured")
         val KEY_MILEAGE         = doublePreferencesKey("mileage_km_per_litre")
         val KEY_FUEL_PRICE      = doublePreferencesKey("fuel_price_per_litre")
         val KEY_CNG_PRICE       = doublePreferencesKey("cng_price_per_kg")
@@ -129,6 +130,7 @@ class ProfileRepository(private val context: Context) {
         .map { preferences ->
             val defaults = RiderProfile()
             RiderProfile(
+                isConfigured              = preferences[KEY_IS_CONFIGURED]   ?: false,
                 mileageKmPerLitre         = preferences[KEY_MILEAGE]         ?: defaults.mileageKmPerLitre,
                 fuelPricePerLitre         = preferences[KEY_FUEL_PRICE]      ?: defaults.fuelPricePerLitre,
                 cngPricePerKg             = preferences[KEY_CNG_PRICE]       ?: defaults.cngPricePerKg,
@@ -215,6 +217,7 @@ class ProfileRepository(private val context: Context) {
         require(profile.cngPricePerKg >= 0) { "CNG price cannot be negative" }
 
         context.dataStore.edit { preferences ->
+            preferences[KEY_IS_CONFIGURED]   = profile.isConfigured
             preferences[KEY_MILEAGE]         = profile.mileageKmPerLitre
             preferences[KEY_FUEL_PRICE]      = profile.fuelPricePerLitre
             preferences[KEY_CNG_PRICE]       = profile.cngPricePerKg

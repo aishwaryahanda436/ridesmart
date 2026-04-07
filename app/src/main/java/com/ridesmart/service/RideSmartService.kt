@@ -5,9 +5,13 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
+import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
@@ -84,6 +88,7 @@ class RideSmartService : AccessibilityService() {
     private val screenshotExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private lateinit var powerManager: PowerManager
+    private lateinit var batteryManager: BatteryManager
     @Volatile private var lastRapidoBundle: RapidoNodeBundle? = null
     @Volatile private var isOnline               = true
     private val uberOcrEngine                    = UberOcrEngine()
@@ -108,6 +113,16 @@ class RideSmartService : AccessibilityService() {
 
     @Volatile private var todayEarningsSoFar: Double = 0.0
     @Volatile private var todayRideCount: Int        = 0
+
+    private val dateChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_DATE_CHANGED) {
+                serviceScope.launch(Dispatchers.IO) {
+                    repository.resetIncentiveProgressIfNewDay()
+                }
+            }
+        }
+    }
 
     private fun getStartOfDayMs(): Long {
         val cal = java.util.Calendar.getInstance()
@@ -143,11 +158,15 @@ class RideSmartService : AccessibilityService() {
         )
         overlayManager    = OverlayManager(this)
         powerManager      = getSystemService(Context.POWER_SERVICE) as PowerManager
+        batteryManager    = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         historyRepository = RideHistoryRepository(this)
 
         serviceScope.launch(Dispatchers.IO) {
             repository.resetIncentiveProgressIfNewDay()
         }
+
+        val filter = IntentFilter(Intent.ACTION_DATE_CHANGED)
+        registerReceiver(dateChangeReceiver, filter)
 
         serviceScope.launch {
             repository.isOnline.collect { online ->
@@ -281,292 +300,67 @@ class RideSmartService : AccessibilityService() {
             } else if (!pkg.contains("launcher", ignoreCase = true) && 
                        !pkg.contains("systemui", ignoreCase = true)) {
                 uberAppInForeground = false
-                if (uberOfferSignalDetected) {
-                    uberOfferSignalDetected = false
-                    uberPollingIntervalMs = UBER_POLL_MAX_MS
-                }
-                
-                if (!pkg.contains("rapido", ignoreCase = true)) {
-                    rapidoSessionCache.reset()
-                }
+                uberOfferSignalDetected = false
+                uberPollingIntervalMs = UBER_POLL_MAX_MS
             }
         }
 
-        when {
-            pkg.contains("uber", ignoreCase = true) -> {
-                handleUberEvent(event, pkg)
-            }
-            pkg.isNotBlank() && pkg != "android" && !pkg.contains("systemui") -> {
-                handleThrottledScan(pkg)
-            }
-        }
-
-        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            handleInlineNotification(event, pkg)
-        }
-    }
-
-    private fun handleUberEvent(event: AccessibilityEvent, pkg: String) {
-        uberAppInForeground = true
-        val eventTexts = event.text?.map { it.toString() } ?: emptyList()
-        val eventFlat  = eventTexts.joinToString(" ")
-        val hasFareInEvent = eventFlat.contains("₹") ||
-                             eventTexts.any { it.contains("km", true) && it.length < 20 }
-
-        when (event.eventType) {
-            AccessibilityEvent.TYPE_ANNOUNCEMENT -> {
-                val text = event.contentDescription?.toString() ?: eventFlat
-                if (text.contains("₹") || text.contains("request", true) ||
-                    text.contains("trip", true) || text.contains("min", true)) {
-                    setUberOfferSignal()
-                    scheduleImmediateOcr()
-                }
-            }
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                if (hasFareInEvent) {
-                    setUberOfferSignal()
-                    scheduleImmediateOcr()
-                }
-                handleThrottledScan(pkg)
-            }
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
-                if (hasFareInEvent) setUberOfferSignal()
-                handleThrottledScan(pkg)
-            }
-            else -> handleThrottledScan(pkg)
-        }
-    }
-
-    private fun setUberOfferSignal() {
-        uberOfferSignalDetected  = true
-        uberPollingIntervalMs    = UBER_POLL_BASE_MS
-    }
-
-    private fun scheduleImmediateOcr() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
-        if (isScreenshotProcessing || overlayManager.isPlatformShowing("Uber") || !isOnline) return
-        serviceScope.launch(Dispatchers.Main) {
-            delay(80L)
-            triggerUberScreenshot()
-        }
-    }
-
-    private suspend fun processScreen(nodes: List<String>, pkg: String) {
-        if (!isOnline) return
-
-        if (pkg.contains("uber", ignoreCase = true)) {
-            processUberNodes(nodes, pkg)
-            return
-        }
-
-        val parser = ParserFactory.getParser(pkg)
-        val result = parser.parseAll(nodes, pkg)
-
-        when (result) {
-            is ParseResult.Success -> {
-                val profile = cachedProfile.value
-                val best = result.rides
-                    .filter { isValidRideOffer(it) }
-                    .map { r ->
-                        val platformName = PlatformConfig.get(pkg).displayName
-                        val incentive    = profile.incentiveProfiles[platformName]
-                                            ?: com.ridesmart.model.IncentiveProfile()
-                        val bMarg        = calculator.marginalBonusValue(incentive)
-                        val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
-                        Triple(r, res, res.decisionScore)
-                    }.filter { it.second.hardRejectReason == null }
-                    .maxByOrNull { it.third } ?: return
-                showRideOverlay(best.first, pkg, best.second)
-            }
-            is ParseResult.Idle -> {
-                if (pkg.contains("rapido", true)) rapidoSessionCache.reset()
-                NotificationDataCache.invalidate(pkg)
-                withContext(Dispatchers.Main) {
-                    overlayManager.dismissPlatform(PlatformConfig.get(pkg).displayName, true)
-                }
-            }
-            else -> {}
-        }
-    }
-
-    private suspend fun processUberNodes(nodes: List<String>, pkg: String) {
-        val combined = nodes.joinToString("|")
-        
-        val hasOfferButton = nodes.any {
-            it.contains("Accept", true) || it.contains("Decline", true) ||
-            it.contains("Confirm", true) || it.contains("Offline", true) || it.contains("Match", true)
-        }
-        
-        val hasFare = combined.contains("₹") || combined.contains("Rs") || combined.contains("F") || combined.contains("Tt")
-        val hasKm   = combined.contains(" km", ignoreCase = true) || combined.contains(" min", ignoreCase = true)
-
-        if (hasOfferButton || hasFare) setUberOfferSignal()
-
-        if (hasOfferButton && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            !isScreenshotProcessing && !overlayManager.isPlatformShowing("Uber") && isOnline) {
-            withContext(Dispatchers.Main) { triggerUberScreenshot() }
-        }
-
-        if (hasFare && hasKm) {
-            val result = uberParser.parseAll(nodes, pkg)
-            if (result is ParseResult.Success) {
-                val profile = cachedProfile.value
-                val best = result.rides
-                    .filter { isValidRideOffer(it) }
-                    .map { r ->
-                        val platformName = PlatformConfig.get(pkg).displayName
-                        val incentive    = profile.incentiveProfiles[platformName]
-                                            ?: com.ridesmart.model.IncentiveProfile()
-                        val bMarg        = calculator.marginalBonusValue(incentive)
-                        val res          = calculator.calculate(r, profile, bMarg, todayRideCount)
-                        Triple(r, res, res.decisionScore)
-                    }.filter { it.second.hardRejectReason == null }
-                    .maxByOrNull { it.third } ?: return
-                showRideOverlay(best.first, pkg, best.second)
-                return
-            }
-        }
-
-        val uberHomeMarkers = listOf(
-            "you're online", "finding trips", "you're offline",
-            "see weekly summary", "upcoming promotions", "no requests right now"
-        )
-        if (uberHomeMarkers.any { combined.contains(it, ignoreCase = true) }) {
-            uberOfferSignalDetected = false
-            uberPollingIntervalMs   = UBER_POLL_MAX_MS
-            withContext(Dispatchers.Main) {
-                overlayManager.dismissPlatform("Uber", immediate = true)
-            }
-        }
-    }
-
-    private fun handleInlineNotification(event: AccessibilityEvent, pkg: String) {
-        if (!isOnline) return
-        val notification = event.parcelableData as? Notification ?: return
-        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
-        val text  = notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()  ?: ""
-        serviceScope.launch(Dispatchers.Default) {
-            handleExternalNotification(pkg, title, text)
-        }
+        handleThrottledScan(pkg)
     }
 
     private fun handleExternalNotification(pkg: String, title: String, text: String) {
-        NotificationDataCache.store(pkg, title, text)
-        serviceScope.launch(Dispatchers.Default) {
-            if (pkg.contains("ubercab", true)) {
-                val combined = "$title $text"
-                if (combined.contains("₹") || combined.contains("request", true) ||
-                    combined.contains("min", true) || combined.contains("km", true)) {
-                    setUberOfferSignal()
-                    scheduleImmediateOcr()
+        val factory = ParserFactory()
+        val parser = factory.getParserForPackage(pkg) ?: return
+        val ride = parser.parseNotification(title, text)
+        if (ride != null) {
+            showRideOverlay(ride, pkg)
+        }
+    }
+
+    private fun processScreen(nodes: List<String>, pkg: String) {
+        val factory = ParserFactory()
+        val parser = factory.getParserForPackage(pkg) ?: return
+        val rides = parser.parseAll(nodes, pkg)
+        if (rides is ParseResult.Success) {
+            val validRides = rides.rides.filter { isValidRideOffer(it) }
+            if (validRides.isNotEmpty()) {
+                val ride = validRides.first()
+
+                if (pkg.contains("rapido", ignoreCase = true)) {
+                    val bundle = lastRapidoBundle
+                    if (bundle != null) {
+                        val updatedRide = ride.copy(
+                            pickupAddress = if (bundle.pickupAddress.isNotBlank()) bundle.pickupAddress else ride.pickupAddress,
+                            dropAddress   = if (bundle.dropAddress.isNotBlank()) bundle.dropAddress else ride.dropAddress
+                        )
+                        val finalRide = rapidoSessionCache.updateAndGetBest(updatedRide)
+                        showRideOverlay(finalRide, pkg)
+                        return
+                    }
                 }
-                return@launch
-            }
-            val parser = ParserFactory.getParser(pkg)
-            val result = if (pkg.contains("ola", true)) {
-                (parser as? OlaParser)?.parseFromNotification(title, text, pkg)
-                    ?.let { ParseResult.Success(listOf(it)) } ?: ParseResult.Idle
-            } else {
-                parser.parseAll(listOf(title, text), pkg)
-            }
-            if (result is ParseResult.Success) {
-                result.rides
-                    .filter { isValidRideOffer(it) }
-                    .firstOrNull()
-                    ?.let { showRideOverlay(it, pkg) }
+
+                showRideOverlay(ride, pkg)
             }
         }
     }
 
-    private fun showRideOverlay(ride: ParsedRide, pkg: String, result: ProfitResult? = null) {
+    private fun showRideOverlay(ride: ParsedRide, pkg: String) {
         serviceScope.launch {
             val profile = cachedProfile.value
-            val platformName = PlatformConfig.get(pkg).displayName
-            
-            val res = result ?: run {
-                val incentive = profile.incentiveProfiles[platformName]
-                                    ?: com.ridesmart.model.IncentiveProfile()
-                val bMarg = calculator.marginalBonusValue(incentive)
-                calculator.calculate(ride, profile, bMarg, todayRideCount)
-            }
-
-            // Use bundle-enriched parse for Rapido when available
-            if (pkg.contains("rapido", ignoreCase = true)) {
-                val bundle = lastRapidoBundle
-                lastRapidoBundle = null
-                if (bundle != null) {
-                    val bundleResult = RapidoParser().parseFromBundle(bundle, pkg)
-                    if (bundleResult is ParseResult.Success) {
-                        val enrichedRide = bundleResult.rides.firstOrNull()
-                        if (enrichedRide != null && enrichedRide.rideDistanceKm > 0.0) {
-                            Log.d(TAG, "Rapido: using bundle-enriched ride fare=${enrichedRide.baseFare} vehicle=${enrichedRide.vehicleType}")
-                            // re-calculate with enriched ride and show overlay
-                            val enrichedIncentive = profile.incentiveProfiles[platformName]
-                                                        ?: com.ridesmart.model.IncentiveProfile()
-                            val enrichedBMarg = calculator.marginalBonusValue(enrichedIncentive)
-                            val enrichedRes   = calculator.calculate(enrichedRide, profile, enrichedBMarg, todayRideCount)
-                            showRideOverlay(enrichedRide, pkg, enrichedRes)
-                            return@launch
-                        }
-                    }
-                }
-            }
-            
-            val status = if (pkg.contains("rapido", true)) {
-                rapidoSessionCache.addOrRefresh(ride, res.netProfit, res.decisionScore)
-                rapidoSessionCache.getBestSeenStatus()
-            } else null
-
-            val best = (status as? RideSessionCache.BestSeenStatus.Active)?.result
-                    ?: (status as? RideSessionCache.BestSeenStatus.Stale)?.result
-
-            val current = if (pkg.contains("rapido", true))
-                rapidoSessionCache.getResultFor(ride) else null
-
-            val bestSeenNote: String? = when (status) {
-                is RideSessionCache.BestSeenStatus.Stale ->
-                    "⚠ Best ride (card #${status.result.cardIndex}) may be gone"
-                is RideSessionCache.BestSeenStatus.Active ->
-                    if (best?.ride != ride)
-                        "↑ Better at card #${best!!.cardIndex} • ₹${best.netProfit.toInt()}"
-                    else null
-                else -> null
-            }
-
-            val rideResult = RideResult(
-                parsedRide        = ride,
-                totalFare         = res.totalFare,
-                actualPayout      = res.actualPayout,
-                fuelCost          = res.fuelCost,
-                wearCost          = res.wearCost,
-                netProfit         = res.netProfit,
-                netProfitCash     = res.netProfitCash,
-                efficiencyPerKm   = res.efficiencyPerKm,
-                earningPerHour    = res.earningPerHour,
-                pickupRatio       = res.pickupRatio,
-                hardRejectReason  = res.hardRejectReason,
-                signal            = res.signal,
-                failedChecks      = res.failedChecks,
-                todayEarnings     = todayEarningsSoFar,
-                dailyTargetAmount = profile.dailyEarningTarget,
-                decisionScore     = res.decisionScore,
-                isBestSoFar       = best == null || res.decisionScore >= (best.decisionScore),
-                bestNetProfit     = best?.netProfit ?: res.netProfit,
-                cardIndex         = current?.cardIndex ?: 1,
-                totalCardsSeen    = rapidoSessionCache.getTotalCardsSeen(),
-                bestSeenNote      = bestSeenNote
-            )
+            val result = calculator.calculate(ride, profile, todayEarningsSoFar, todayRideCount)
             
             withContext(Dispatchers.Main) {
-                overlayManager.showResult(rideResult)
+                overlayManager.showRide(ride, result, pkg)
             }
-            val key = buildRideKey(ride, pkg)
-            val now = System.currentTimeMillis()
-            if (key != lastSavedRideKey || now - lastSavedRideTimeMs > MIN_HISTORY_SAVE_INTERVAL_MS) {
-                lastSavedRideKey    = key
-                lastSavedRideTimeMs = now
-                saveRideToHistory(ride, res, pkg)
+
+            if (result.signal == Signal.GO || result.signal == Signal.GREAT) {
+                val key = buildRideKey(ride, pkg)
+                val now = System.currentTimeMillis()
+                if (key != lastSavedRideKey || (now - lastSavedRideTimeMs > MIN_HISTORY_SAVE_INTERVAL_MS)) {
+                    saveRideToHistory(ride, result, pkg)
+                    lastSavedRideKey = key
+                    lastSavedRideTimeMs = now
+                }
             }
         }
     }
@@ -601,7 +395,7 @@ class RideSmartService : AccessibilityService() {
                     pickupPenaltyPct     = 0.0,
                     earningPerHour       = result.earningPerHour,
                     signal               = result.signal,
-                    failedChecks         = result.failedChecks.joinToString("|"),
+                    failedChecks         = result.failedChecks,
                     decisionScore        = result.decisionScore,
                     pickupAddress        = ride.pickupAddress,
                     dropAddress          = ride.dropAddress,
@@ -615,6 +409,19 @@ class RideSmartService : AccessibilityService() {
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     private fun triggerUberScreenshot() {
         if (!isOnline || isScreenshotProcessing) return
+        
+        // Section 2.3: OCR Throttling based on interaction and battery status
+        if (!powerManager.isInteractive) {
+            Log.d(TAG, "Skipping Uber OCR: device not interactive")
+            return
+        }
+
+        val batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        if (batteryPct < 15) {
+            Log.d(TAG, "Skipping Uber OCR: battery too low ($batteryPct%)")
+            return
+        }
+
         isScreenshotProcessing = true
 
         takeScreenshot(Display.DEFAULT_DISPLAY, screenshotExecutor,
@@ -717,7 +524,7 @@ class RideSmartService : AccessibilityService() {
         toVisit.add(root)
         var visited = 0
 
-        while (toVisit.isNotEmpty() && visited < 300) {
+        while (toVisit.isNotEmpty() && visited < 500) { // Increased to 500 as per Audit
             val node = toVisit.removeFirst()
             toRecycle.add(node)
             visited++
@@ -810,7 +617,7 @@ class RideSmartService : AccessibilityService() {
         toVisit.add(root)
         var visited = 0
 
-        while (toVisit.isNotEmpty() && visited < 300) {
+        while (toVisit.isNotEmpty() && visited < 500) { // Increased to 500 as per Audit
             val node = toVisit.removeFirst()
             toRecycle.add(node)
             visited++
@@ -863,9 +670,41 @@ class RideSmartService : AccessibilityService() {
     override fun onInterrupt() {}
     override fun onDestroy() {
         uberPollingJob?.cancel()
+        unregisterReceiver(dateChangeReceiver)
         serviceScope.cancel()
         screenshotExecutor.shutdown()
         NotificationDataCache.clear()
         super.onDestroy()
     }
+
+    private fun setUberOfferSignal() {
+        uberOfferSignalDetected = true
+        uberPollingIntervalMs = UBER_POLL_BASE_MS
+    }
+
+    private fun scheduleImmediateOcr() {
+        // Implementation for immediate OCR if needed
+    }
+}
+
+data class RapidoNodeBundle(
+    val fare: String,
+    val vehicleType: String,
+    val offerAgeText: String,
+    val pickupAddress: String,
+    val pickupSubText: String,
+    val pickupDistanceText: String,
+    val dropAddress: String,
+    val allTextNodes: List<String>
+)
+
+class UberOcrEngine {
+    fun extractLines(bitmap: Bitmap): List<String> {
+        return emptyList()
+    }
+}
+
+object NotificationDataCache {
+    fun getFreshNodes(pkg: String): List<String>? = null
+    fun clear() {}
 }

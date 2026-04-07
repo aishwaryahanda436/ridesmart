@@ -56,12 +56,19 @@ class ProfitCalculator {
 
         // STEP 4: COSTS on TOTAL distance (pickup + ride)
         val totalDistanceKm = ride.pickupDistanceKm + ride.rideDistanceKm
-        val effectiveMileage = if (
-            ride.vehicleType != VehicleType.UNKNOWN &&
-            ride.vehicleType != VehicleType.BIKE &&
-            ride.vehicleType != VehicleType.BIKE_BOOST &&
-            profile.mileageKmPerLitre == RiderProfile.DEFAULT_MILEAGE
-        ) ride.vehicleType.defaultMileageKmPerLitre else profile.mileageKmPerLitre
+        
+        // FIXED Bug 1.3: Only use default if profile is NOT configured
+        val effectiveMileage = if (!profile.isConfigured) {
+             if (ride.vehicleType != VehicleType.UNKNOWN && 
+                 ride.vehicleType != VehicleType.BIKE && 
+                 ride.vehicleType != VehicleType.BIKE_BOOST) {
+                 ride.vehicleType.defaultMileageKmPerLitre
+             } else {
+                 profile.mileageKmPerLitre
+             }
+        } else {
+            profile.mileageKmPerLitre
+        }
 
         // FIX Bug 6: Guard against zero/low mileage
         val fuelUnitsUsed = if (effectiveMileage > 0.5) totalDistanceKm / effectiveMileage else 0.0
@@ -102,13 +109,11 @@ class ProfitCalculator {
             ride.pickupDistanceKm / totalDistanceKm
         else 0.0
 
-        // STEP 9: SIGNAL — FIXED Bug 2: scale min profit with distance
+        // STEP 9: SIGNAL — FIXED Bug 2 & 2C: scale min profit with distance, respect user threshold for short rides
         val distanceBasedMin = profile.minAcceptablePerKm * ride.rideDistanceKm
         val effectiveMinProfit = if (ride.rideDistanceKm < 3.0) {
-            // Short ride: efficiency matters more than absolute profit floor.
-            // Use distance-based minimum only, ignore hard floor to avoid 
-            // rejecting high-efficiency short hops.
-            distanceBasedMin.coerceAtLeast(5.0) // never reject if profit > ₹5
+            // Short ride: respect user setting, small floor
+            profile.minAcceptableNetProfit.coerceAtLeast(3.0)
         } else {
             maxOf(profile.minAcceptableNetProfit, distanceBasedMin)
         }

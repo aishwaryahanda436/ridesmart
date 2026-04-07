@@ -35,82 +35,65 @@ fun ProfileSetupScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var mileage      by remember(savedProfile) { mutableStateOf(savedProfile.mileageKmPerLitre.toString()) }
-    var fuelPrice    by remember(savedProfile) { mutableStateOf(savedProfile.fuelPricePerLitre.toString()) }
-    var cngPrice     by remember(savedProfile) { mutableStateOf(savedProfile.cngPricePerKg.toString()) }
-    var maintenance  by remember(savedProfile) { mutableStateOf(savedProfile.maintenancePerKm.toString()) }
-    var depreciation by remember(savedProfile) { mutableStateOf(savedProfile.depreciationPerKm.toString()) }
-    var minProfit    by remember(savedProfile) { mutableStateOf(savedProfile.minAcceptableNetProfit.toString()) }
-    var minPerKm     by remember(savedProfile) { mutableStateOf(savedProfile.minAcceptablePerKm.toString()) }
-    var targetPerHr  by remember(savedProfile) { mutableStateOf(savedProfile.targetEarningPerHour.toString()) }
-    var commission   by remember(savedProfile) { mutableStateOf(savedProfile.platformCommissionPercent.toString()) }
-    var dailyTarget by remember(savedProfile) {
-        mutableStateOf(
-            if (savedProfile.dailyEarningTarget > 0.0)
-                savedProfile.dailyEarningTarget.toLong().toString()
-            else ""
-        )
-    }
+    // Bug 1C Fix: Use one-time initialization instead of remember(savedProfile)
+    var mileage      by remember { mutableStateOf("") }
+    var fuelPrice    by remember { mutableStateOf("") }
+    var cngPrice     by remember { mutableStateOf("") }
+    var maintenance  by remember { mutableStateOf("") }
+    var depreciation by remember { mutableStateOf("") }
+    var minProfit    by remember { mutableStateOf("") }
+    var minPerKm     by remember { mutableStateOf("") }
+    var targetPerHr  by remember { mutableStateOf("") }
+    var commission   by remember { mutableStateOf("") }
+    var dailyTarget  by remember { mutableStateOf("") }
+    var useCustomComm by remember { mutableStateOf(false) }
 
     val platforms = listOf("Rapido", "Uber", "Ola", "Shadowfax")
 
-    // Platform plan state — one mutable state per platform
-    val planTypes = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                savedProfile.platformPlans[name]?.planType ?: PlanType.COMMISSION
-            )
-        }
-    }
-    val commissions = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.platformPlans[name]?.commissionPercent ?: 0.0).toString()
-            )
-        }
-    }
-    val passAmounts = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.platformPlans[name]?.passAmount ?: 0.0).toString()
-            )
-        }
-    }
-    val passDays = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.platformPlans[name]?.passDurationDays ?: 1).toString()
-            )
-        }
-    }
+    // Platform plan state
+    val planTypes = remember { platforms.associateWith { mutableStateOf(PlanType.COMMISSION) } }
+    val commissions = remember { platforms.associateWith { mutableStateOf("0") } }
+    val passAmounts = remember { platforms.associateWith { mutableStateOf("0") } }
+    val passDays = remember { platforms.associateWith { mutableStateOf("1") } }
 
-    // Incentive state — one mutable state per platform
-    val incEnabled = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                savedProfile.incentiveProfiles[name]?.enabled ?: false
-            )
-        }
-    }
-    val incTargets = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.incentiveProfiles[name]?.targetRides ?: 0).toString()
-            )
-        }
-    }
-    val incRewards = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.incentiveProfiles[name]?.rewardAmount ?: 0.0).toString()
-            )
-        }
-    }
-    val incCompleted = remember(savedProfile) {
-        platforms.associateWith { name ->
-            mutableStateOf(
-                (savedProfile.incentiveProfiles[name]?.completedToday ?: 0).toString()
-            )
+    // Incentive state
+    val incEnabled = remember { platforms.associateWith { mutableStateOf(false) } }
+    val incTargets = remember { platforms.associateWith { mutableStateOf("0") } }
+    val incRewards = remember { platforms.associateWith { mutableStateOf("0") } }
+    val incCompleted = remember { platforms.associateWith { mutableStateOf("0") } }
+
+    val isInitialized = remember { mutableStateOf(false) }
+    LaunchedEffect(savedProfile) {
+        if (!isInitialized.value && savedProfile.isConfigured) {
+            mileage = savedProfile.mileageKmPerLitre.toString()
+            fuelPrice = savedProfile.fuelPricePerLitre.toString()
+            cngPrice = savedProfile.cngPricePerKg.toString()
+            maintenance = savedProfile.maintenancePerKm.toString()
+            depreciation = savedProfile.depreciationPerKm.toString()
+            minProfit = savedProfile.minAcceptableNetProfit.toString()
+            minPerKm = savedProfile.minAcceptablePerKm.toString()
+            targetPerHr = savedProfile.targetEarningPerHour.toString()
+            commission = savedProfile.platformCommissionPercent.toString()
+            useCustomComm = savedProfile.useCustomCommission
+            dailyTarget = if (savedProfile.dailyEarningTarget > 0.0) savedProfile.dailyEarningTarget.toLong().toString() else ""
+
+            platforms.forEach { name ->
+                val plan = savedProfile.platformPlans[name]
+                if (plan != null) {
+                    planTypes[name]?.value = plan.planType
+                    commissions[name]?.value = plan.commissionPercent.toString()
+                    passAmounts[name]?.value = plan.passAmount.toString()
+                    passDays[name]?.value = plan.passDurationDays.toString()
+                }
+                val inc = savedProfile.incentiveProfiles[name]
+                if (inc != null) {
+                    incEnabled[name]?.value = inc.enabled
+                    incTargets[name]?.value = inc.targetRides.toString()
+                    incRewards[name]?.value = inc.rewardAmount.toString()
+                    incCompleted[name]?.value = inc.completedToday.toString()
+                }
+            }
+            isInitialized.value = true
         }
     }
 
@@ -159,26 +142,41 @@ fun ProfileSetupScreen(
             Spacer(Modifier.height(24.dp))
 
             ProfileGroupCard(title = stringResource(R.string.group_vehicle_fuel), icon = "🏍️", bgColor = cardBg) {
-                InputField(stringResource(R.string.label_mileage), mileage, { mileage = it }, "5 - 100")
-                InputField(stringResource(R.string.label_petrol), fuelPrice, { fuelPrice = it }, "80 - 150")
-                InputField(stringResource(R.string.label_cng), cngPrice, { cngPrice = it }, "70 - 110")
+                InputField(stringResource(R.string.label_mileage), mileage, { mileage = it }, "25 - 80")
+                InputField(stringResource(R.string.label_petrol), fuelPrice, { fuelPrice = it }, "90 - 115")
+                InputField(stringResource(R.string.label_cng), cngPrice, { cngPrice = it }, "70 - 95")
             }
 
             ProfileGroupCard(title = stringResource(R.string.group_running_costs), icon = "🛠️", bgColor = cardBg) {
-                InputField(stringResource(R.string.label_maintenance), maintenance, { maintenance = it }, "0.1 - 5.0")
-                InputField(stringResource(R.string.label_depreciation), depreciation, { depreciation = it }, "0.1 - 5.0")
+                InputField(stringResource(R.string.label_maintenance), maintenance, { maintenance = it }, "0.0 - 3.0")
+                InputField(stringResource(R.string.label_depreciation), depreciation, { depreciation = it }, "0.0 - 3.0")
             }
 
             ProfileGroupCard(title = stringResource(R.string.group_earning_goals), icon = "💰", bgColor = cardBg) {
                 InputField(stringResource(R.string.label_min_profit), minProfit, { minProfit = it }, "0 - 500")
                 InputField(stringResource(R.string.label_min_per_km), minPerKm, { minPerKm = it }, "2.0 - 20.0")
-                InputField(stringResource(R.string.label_target_per_hour), targetPerHr, { targetPerHr = it }, "50 - 1000")
+                InputField(stringResource(R.string.label_target_per_hour), targetPerHr, { targetPerHr = it }, "0 - 500")
                 InputField(
                     label         = "Daily target (₹)",
                     value         = dailyTarget,
                     onValueChange = { dailyTarget = it },
                     hint          = "e.g. 1200   (0 or blank to hide)"
                 )
+            }
+
+            // Bug 3B: Global Commission Toggle & Input
+            ProfileGroupCard(title = "GLOBAL OVERRIDE", icon = "🌍", bgColor = cardBg) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Use Custom Commission", color = Color.White, fontSize = 14.sp)
+                    Switch(checked = useCustomComm, onCheckedChange = { useCustomComm = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = green))
+                }
+                if (useCustomComm) {
+                    InputField("Global Commission %", commission, { commission = it }, "0 - 50")
+                }
             }
 
             // ── PER-PLATFORM PLANS ──
@@ -223,7 +221,28 @@ fun ProfileSetupScreen(
 
             Button(
                 onClick = {
-                    viewModel.validateAndSave(
+                    // Bug 5B Fix: Cap completedToday
+                    val finalPlans = platforms.associateWith { name ->
+                        PlatformPlan(
+                            planType = planTypes[name]!!.value,
+                            commissionPercent = commissions[name]!!.value.toDoubleOrNull() ?: 0.0,
+                            passAmount = passAmounts[name]!!.value.toDoubleOrNull() ?: 0.0,
+                            passDurationDays = passDays[name]!!.value.toIntOrNull() ?: 1
+                        )
+                    }
+                    val finalIncentives = platforms.associateWith { name ->
+                        val target = incTargets[name]!!.value.toIntOrNull() ?: 0
+                        val completed = (incCompleted[name]!!.value.toIntOrNull() ?: 0).coerceIn(0, if (target > 0) target else Int.MAX_VALUE)
+                        IncentiveProfile(
+                            enabled = incEnabled[name]!!.value,
+                            targetRides = target,
+                            rewardAmount = incRewards[name]!!.value.toDoubleOrNull() ?: 0.0,
+                            completedToday = completed
+                        )
+                    }
+
+                    // Bug 1B Fix: Use atomic validateAndSaveAll
+                    viewModel.validateAndSaveAll(
                         mileage = mileage,
                         fuel = fuelPrice,
                         cng = cngPrice,
@@ -232,33 +251,14 @@ fun ProfileSetupScreen(
                         minProfit = minProfit,
                         minKm = minPerKm,
                         hour = targetPerHr,
-                        comm = commission,
+                        comm = if (useCustomComm) commission else "0",
                         dailyTarget = dailyTarget,
+                        plans = finalPlans,
+                        incentives = finalIncentives,
                         onSuccess = {
-                            // Build and save per-platform plans
-                            val newPlans = platforms.associateWith { name ->
-                                val planType = planTypes[name]!!.value
-                                PlatformPlan(
-                                    planType          = planType,
-                                    commissionPercent = commissions[name]!!.value.toDoubleOrNull() ?: 0.0,
-                                    passAmount        = passAmounts[name]!!.value.toDoubleOrNull() ?: 0.0,
-                                    passDurationDays  = passDays[name]!!.value.toIntOrNull() ?: 1
-                                )
-                            }
-                            val newIncentives = platforms.associateWith { name ->
-                                IncentiveProfile(
-                                    enabled        = incEnabled[name]!!.value,
-                                    targetRides    = incTargets[name]!!.value.toIntOrNull() ?: 0,
-                                    rewardAmount   = incRewards[name]!!.value.toDoubleOrNull() ?: 0.0,
-                                    completedToday = incCompleted[name]!!.value.toIntOrNull() ?: 0
-                                )
-                            }
-                            viewModel.savePlatformPlans(newPlans, newIncentives)
-
                             scope.launch {
                                 snackbarHostState.showSnackbar(settingsSavedMsg)
-                                delay(500)
-                                onSaved()
+                                onSaved() // Atomic save complete, no race condition
                             }
                         }
                     )

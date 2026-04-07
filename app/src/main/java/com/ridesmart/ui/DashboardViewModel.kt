@@ -7,6 +7,7 @@ import com.ridesmart.data.DailyPlatformRow
 import com.ridesmart.data.RideHistoryRepository
 import com.ridesmart.data.ProfileRepository
 import com.ridesmart.model.IncentiveProfile
+import com.ridesmart.model.PlatformConfig
 import com.ridesmart.model.PlatformPlan
 import com.ridesmart.model.PlanType
 import com.ridesmart.model.RiderProfile
@@ -92,8 +93,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             } else 0.0
 
             // Pass cost: one-time deduction for the platform's pass
+            // FIXED Bug 4A: Fallback to PlatformConfig if no per-platform plan is configured
             val passCost = if (plan.planType == PlanType.PASS && plan.passAmount > 0.0) {
                 plan.passAmount / plan.passDurationDays.coerceAtLeast(1).toDouble()
+            } else if (plan.planType == PlanType.COMMISSION && plan.commissionPercent == 0.0) {
+                 // Try fallback to PlatformConfig
+                 val config = PlatformConfig.ALL.find { it.displayName == row.platform }
+                 config?.subscriptionDailyCost ?: 0.0
             } else 0.0
 
             // Incentive: add only when target is met
@@ -137,15 +143,15 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val totalSettled = totalOperatingProfit - totalPassCost + totalIncentive
 
         return SettledDaySummary(
-            totalRides          = totalRides,
-            grossEarnings       = totalGross,
-            totalRideCost       = totalRideCost,
-            totalCommission     = totalCommission,
-            totalPassCost       = totalPassCost,
-            totalIncentive      = totalIncentive,
-            totalOperatingProfit= totalOperatingProfit,
-            totalSettledProfit  = totalSettled,
-            platforms           = platformDetails
+            totalRides           = totalRides,
+            grossEarnings        = totalGross,
+            totalRideCost        = totalRideCost,
+            totalCommission      = totalCommission,
+            totalPassCost        = totalPassCost,
+            totalIncentive       = totalIncentive,
+            totalOperatingProfit = totalOperatingProfit,
+            totalSettledProfit   = totalSettled,
+            platforms            = platformDetails
         )
     }
 

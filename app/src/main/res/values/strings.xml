@@ -54,14 +54,14 @@
     <string name="label_commission">Commission (%)</string>
 
     <!-- Validation Errors -->
-    <string name="error_mileage">Mileage must be between 5 and 100 km/L</string>
-    <string name="error_fuel_price">Petrol price seems unrealistic (80-150)</string>
-    <string name="error_cng_price">CNG price seems unrealistic (50-120)</string>
-    <string name="error_maintenance">Maintenance cost should be 0-10 ₹/km</string>
-    <string name="error_depreciation">Depreciation should be 0-10 ₹/km</string>
+    <string name="error_mileage">Mileage must be between 25 and 80 km/L</string>
+    <string name="error_fuel_price">Petrol price seems unrealistic (90-115)</string>
+    <string name="error_cng_price">CNG price seems unrealistic (70-95)</string>
+    <string name="error_maintenance">Maintenance cost should be 0.0-3.0 ₹/km</string>
+    <string name="error_depreciation">Depreciation should be 0.0-3.0 ₹/km</string>
     <string name="error_min_profit">Min profit per ride: 0-1000</string>
     <string name="error_min_km">Min ₹/km goal: 0-50</string>
-    <string name="error_target_hour">Target ₹/hour goal: 0-2000</string>
+    <string name="error_target_hour">Target ₹/hour goal: 0-500</string>
     <string name="error_commission">Commission should be 0-50%</string>
 
     <!-- History Screen -->

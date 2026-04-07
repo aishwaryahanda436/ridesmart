@@ -7,6 +7,7 @@ package com.ridesmart.model
  * All values have sensible defaults for a Delhi bike taxi rider.
  */
 data class RiderProfile(
+    val isConfigured: Boolean = false, // Critical flag
 
     // ── BIKE SETTINGS ──
     val mileageKmPerLitre: Double = DEFAULT_MILEAGE,

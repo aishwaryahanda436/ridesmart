@@ -25,7 +25,9 @@ android {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
 
-        buildConfigField("String", "SUPABASE_KEY", "\"REPLACE_WITH_YOUR_SUPABASE_KEY\"") // Do not commit real secret
+        // Bug 7A Fix: Expecting these from local.properties if possible, or using defaults for now
+        buildConfigField("String", "SUPABASE_URL", "\"https://iwlzgybvcwizawnqwntx.supabase.co\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"REPLACE_WITH_YOUR_SUPABASE_KEY\"")
     }
 
     buildTypes {

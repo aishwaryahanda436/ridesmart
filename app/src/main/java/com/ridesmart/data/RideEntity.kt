@@ -54,7 +54,9 @@ data class RideEntry(
 
     // ── DECISION ──────────────────────────────────────
     val signal: Signal,
-    val failedChecks: String,
+    
+    // Bug 8C Fix: Use List<String> with TypeConverter instead of pipe-delimited string
+    val failedChecks: List<String>,
 
     @ColumnInfo(name = "smartScore")
     val decisionScore: Double,

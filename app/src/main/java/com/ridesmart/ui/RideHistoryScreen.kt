@@ -387,9 +387,9 @@ fun RideRow(entry: RideEntry) {
                         MiniStat(stringResource(R.string.label_score), "₹${"%.1f".format(entry.decisionScore)}")
                     }
 
-                    if (entry.failedChecks.isNotBlank()) {
+                    if (entry.failedChecks.isNotEmpty()) {
                         Spacer(Modifier.height(12.dp))
-                        entry.failedChecks.split("|").forEach { check ->
+                        entry.failedChecks.forEach { check ->
                             if (check.isNotBlank()) {
                                 Text(
                                     "⚠️ $check",

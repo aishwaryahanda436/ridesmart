@@ -18,8 +18,8 @@ class RideSmartApp : Application() {
         super.onCreate()
 
         supabase = createSupabaseClient(
-            supabaseUrl = "https://iwlzgybvcwizawnqwntx.supabase.co",
-            supabaseKey = BuildConfig.SUPABASE_KEY // Use BuildConfig for secret
+            supabaseUrl = BuildConfig.SUPABASE_URL,
+            supabaseKey = BuildConfig.SUPABASE_KEY
         ) {
             install(Auth)
             install(Postgrest)
