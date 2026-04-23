@@ -125,45 +125,37 @@ class ProfitCalculatorTest {
     }
 
     @Test
-    fun `pickup penalty curve is smooth with no cliff effects`() {
+    fun `increasing pickup distance decreases efficiency and profitability`() {
         val profile = RiderProfile()
         val calculator = ProfitCalculator()
 
         fun makeRide(pickupKm: Double) = ParsedRide(
-            baseFare          = 60.0,
-            tipAmount         = 0.0,
-            premiumAmount     = 0.0,
-            pickupDistanceKm  = pickupKm,
-            rideDistanceKm    = 5.0,
+            baseFare             = 60.0,
+            tipAmount            = 0.0,
+            premiumAmount        = 0.0,
+            pickupDistanceKm     = pickupKm,
+            rideDistanceKm       = 5.0,
             estimatedDurationMin = 20,
-            vehicleType       = VehicleType.BIKE,
-            packageName       = "com.rapido.rider"
+            vehicleType          = VehicleType.BIKE,
+            packageName          = "com.rapido.rider"
         )
 
-        val r04 = calculator.calculate(makeRide(0.4), profile)
         val r05 = calculator.calculate(makeRide(0.5), profile)
-        val r09 = calculator.calculate(makeRide(0.9), profile)
         val r10 = calculator.calculate(makeRide(1.0), profile)
         val r15 = calculator.calculate(makeRide(1.5), profile)
         val r25 = calculator.calculate(makeRide(2.5), profile)
 
-        // Free zone: 0.4km and 0.5km should have identical penalty
-        assertEquals(0.0, r04.penaltyPct, 0.001)
-        assertEquals(0.0, r05.penaltyPct, 0.001)
+        // efficiencyPerKm should decrease as pickup increases (more unpaid km = higher cost ratio)
+        assertTrue("0.5km pickup should give higher efficiency than 1.0km", r05.efficiencyPerKm > r10.efficiencyPerKm)
+        assertTrue("1.0km pickup should give higher efficiency than 1.5km", r10.efficiencyPerKm > r15.efficiencyPerKm)
+        assertTrue("1.5km pickup should give higher efficiency than 2.5km", r15.efficiencyPerKm > r25.efficiencyPerKm)
 
-        // 0.9km should be very close to 0.5km — no cliff
-        assertTrue("0.9km penalty should be under 5%", r09.penaltyPct < 5.0)
+        // netProfit should also decrease as more total distance is covered
+        assertTrue("Shorter pickup should yield more net profit", r05.netProfit > r15.netProfit)
+        assertTrue("1.0km pickup more profitable than 2.5km pickup", r10.netProfit > r25.netProfit)
 
-        // Curve is strictly increasing after free zone
-        assertTrue(r09.penaltyPct < r10.penaltyPct)
-        assertTrue(r10.penaltyPct < r15.penaltyPct)
-        assertTrue(r15.penaltyPct < r25.penaltyPct)
-
-        // 2.5km should hit the 80% cap
-        assertEquals(80.0, r25.penaltyPct, 0.1)
-
-        // adjustedEarningPerKm should decrease as pickup increases
-        assertTrue(r05.adjustedEarningPerKm > r10.adjustedEarningPerKm)
-        assertTrue(r10.adjustedEarningPerKm > r15.adjustedEarningPerKm)
+        // pickupRatio should increase as pickup distance grows
+        assertTrue("pickupRatio grows with pickup distance", r05.pickupRatio < r10.pickupRatio)
+        assertTrue("pickupRatio grows with pickup distance", r10.pickupRatio < r15.pickupRatio)
     }
 }
